@@ -1,10 +1,10 @@
 PRAGMA foreign_keys = ON;
 PRAGMA encoding = 'UTF-8';
---E:\Program Data\Аналитприбор\elchese\elchese.sqlite
---C:\Users\fpawel\AppData\Roaming\Аналитприбор\elchese\elchese.sqlite
+--E:\Program Data\Аналитприбор\elco\elco.sqlite
+--C:\Users\fpawel\AppData\Roaming\Аналитприбор\elco\elco.sqlite
 
 CREATE TABLE IF NOT EXISTS gas (
-  gas_name TEXT PRIMARY KEY,
+  gas_name TEXT PRIMARY KEY NOT NULL,
   code     INTEGER UNIQUE NOT NULL
 );
 
@@ -14,8 +14,8 @@ CREATE TABLE IF NOT EXISTS units (
 );
 
 CREATE TABLE IF NOT EXISTS product_type (
-  product_type_name   TEXT PRIMARY KEY,
-  display_name        TEXT,
+  product_type_name   TEXT PRIMARY KEY NOT NULL,
+  display_name        TEXT ,
   gas_name            TEXT    NOT NULL,
   units_name          TEXT    NOT NULL,
   scale               REAL    NOT NULL,
@@ -41,7 +41,7 @@ CREATE TABLE IF NOT EXISTS product_type (
 );
 
 CREATE TABLE IF NOT EXISTS party (
-  party_id          INTEGER PRIMARY KEY,
+  party_id          INTEGER PRIMARY KEY NOT NULL,
   old_party_id      TEXT,
   created_at        TIMESTAMP NOT NULL DEFAULT current_timestamp,
   product_type_name TEXT      NOT NULL DEFAULT '035',
@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS party (
 );
 
 CREATE TABLE IF NOT EXISTS product (
-  product_id        INTEGER PRIMARY KEY,
+  product_id        INTEGER PRIMARY KEY NOT NULL,
   party_id          INTEGER NOT NULL,
   serial            INTEGER,
   place             INTEGER NOT NULL CHECK (place >= 0),
