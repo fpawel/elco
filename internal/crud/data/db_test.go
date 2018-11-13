@@ -1,4 +1,4 @@
-package db
+package data
 
 import (
 	"database/sql"
@@ -16,7 +16,7 @@ func TestDB(t *testing.T) {
 	// Get *sql.DB as usual. Sqlite3 example:
 	conn, err := sql.Open("sqlite3", app.DataFileName())
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 
 	// Use new *log.Logger for logging.
@@ -25,20 +25,21 @@ func TestDB(t *testing.T) {
 	// Create *reform.DB instance with simple logger.
 	// Any Printf-like function (fmt.Printf, log.Printf, testing.T.Logf, etc) can be used with NewPrintfLogger.
 	// Change dialect for other databases.
-	db := reform.NewDB(conn, sqlite3.Dialect, reform.NewPrintfLogger(logger.Printf))
+	rLogger := reform.NewPrintfLogger(logger.Printf)
+	rLogger.LogTypes = false
+	db := reform.NewDB(conn, sqlite3.Dialect, rLogger)
 
 	var lastParty LastParty
 	if err := db.SelectOneTo(&lastParty, ""); err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 	fmt.Println(lastParty)
 
 	products, err := db.SelectAllFrom(ProductInfoTable, "WHERE party_id = ? ORDER BY place", 4)
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 	for _, p := range products {
 		fmt.Println(p)
 	}
-
 }

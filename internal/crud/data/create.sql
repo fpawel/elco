@@ -121,19 +121,22 @@ CREATE TRIGGER IF NOT EXISTS trigger_party_updated_at
     UPDATE party SET updated_at = (datetime('now')) WHERE party_id = old.party_id;
   END;
 
-
-CREATE VIEW IF NOT EXISTS party_info AS
-SELECT *,
-       cast(strftime('%Y', created_at) AS INTEGER) AS year,
-       cast(strftime('%m', created_at) AS INTEGER) AS month,
-       cast(strftime('%d', created_at) AS INTEGER) AS day
-FROM party;
-
 CREATE VIEW IF NOT EXISTS last_party AS
 SELECT *
 FROM party
 ORDER BY created_at DESC
 LIMIT 1;
+
+
+CREATE VIEW IF NOT EXISTS party_info AS
+
+SELECT *,
+       cast(strftime('%Y', created_at) AS INTEGER) AS year,
+       cast(strftime('%m', created_at) AS INTEGER) AS month,
+       cast(strftime('%d', created_at) AS INTEGER) AS day,
+       party_id IN (SELECT party_id FROM last_party) AS last
+FROM party;
+
 
 
 CREATE VIEW IF NOT EXISTS product_info AS

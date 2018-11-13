@@ -1,4 +1,4 @@
-package db
+package data
 
 import (
 	"time"
@@ -21,4 +21,5 @@ type PartyInfo struct {
 	Year            int64     `reform:"year"`
 	Month           int64     `reform:"month"`
 	Day             int64     `reform:"day"`
+	Last            bool      `reform:"last"`
 }

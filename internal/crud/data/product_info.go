@@ -1,4 +1,4 @@
-package db
+package data
 
 //go:generate reform
 
