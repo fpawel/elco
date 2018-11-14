@@ -41,11 +41,11 @@ WHERE year = ? AND month = ?;`,
 	return
 }
 
-func (x PartiesCatalogue) Parties(year, month, day int) (parties []data.Party) {
+func (x PartiesCatalogue) Parties(year, month, day int) (parties []data.PartyInfo) {
 	x.mu.Lock()
 	defer x.mu.Unlock()
 
-	rows, err := x.dbr.SelectRows(data.ProductInfoTable,
+	rows, err := x.dbr.SelectRows(data.PartyInfoTable,
 		"WHERE year = ? AND month = ? AND day = ?",
 		year, month, day)
 	if err != nil {
@@ -67,32 +67,13 @@ func (x PartiesCatalogue) Parties(year, month, day int) (parties []data.Party) {
 	}
 	return
 }
-func (x PartiesCatalogue) Party(partyID int64) (party data.PartyInfo, products []data.ProductInfo) {
+func (x PartiesCatalogue) Party(partyID int64) (data.PartyInfo, []data.ProductInfo) {
 	x.mu.Lock()
 	defer x.mu.Unlock()
+	var party data.PartyInfo
 	if err := x.dbr.FindOneTo(&party, "party_id", partyID); err != nil {
 		panic(err)
 	}
+	return party, data.GetProductsByPartyID(x.dbr, partyID)
 
-	rows, err := x.dbr.SelectRows(data.ProductInfoTable, "WHERE party_id = ? ORDER BY place",
-		partyID)
-	if err != nil {
-		panic(err)
-	}
-	defer func() {
-		_ = rows.Close()
-	}()
-
-	for {
-		var product data.ProductInfo
-		if err = x.dbr.NextRow(&product, rows); err != nil {
-			break
-		}
-		products = append(products, product)
-	}
-	if err != reform.ErrNoRows {
-		panic(err)
-	}
-
-	return
 }

@@ -27,7 +27,7 @@ func (v *productInfoTableType) Name() string {
 
 // Columns returns a new slice of column names for that view or table in SQL database.
 func (v *productInfoTableType) Columns() []string {
-	return []string{"product_id", "party_id", "serial", "place", "product_type_name", "note", "i_f_minus20", "i_f_plus20", "i_f_plus50", "i_s_minus20", "i_s_plus20", "i_s_plus50", "i13", "i24", "i35", "i26", "i17", "not_measured", "production", "old_product_id", "self_product_type_name", "gas_name", "units_name", "scale", "noble_metal_content", "lifetime_months", "lc64", "points_method", "firmware", "concentration1", "concentration3", "k_sens20", "k_sens50", "d_fon20", "d_fon50", "d_not_measured", "ok_fon20", "ok_d_fon20", "ok_k_sens20", "ok_d_fon50", "ok_k_sens50", "ok_d_not_measured", "not_ok"}
+	return []string{"product_id", "party_id", "serial", "place", "product_type_name", "note", "i_f_minus20", "i_f_plus20", "i_f_plus50", "i_s_minus20", "i_s_plus20", "i_s_plus50", "i13", "i24", "i35", "i26", "i17", "not_measured", "production", "old_product_id", "self_product_type_name", "gas_name", "units_name", "scale", "noble_metal_content", "lifetime_months", "lc64", "points_method", "firmware", "concentration1", "concentration3", "k_sens20", "k_sens50", "d_fon20", "d_fon50", "d_not_measured", "ok_fon20", "ok_d_fon20", "ok_k_sens20", "ok_d_fon50", "ok_k_sens50", "ok_d_not_measured", "not_ok", "has_firmware"}
 }
 
 // NewStruct makes a new struct for that view or table.
@@ -47,13 +47,13 @@ func (v *productInfoTableType) PKColumnIndex() uint {
 
 // ProductInfoTable represents product_info view or table in SQL database.
 var ProductInfoTable = &productInfoTableType{
-	s: parse.StructInfo{Type: "ProductInfo", SQLSchema: "", SQLName: "product_info", Fields: []parse.FieldInfo{{Name: "ProductID", Type: "int64", Column: "product_id"}, {Name: "PartyID", Type: "int64", Column: "party_id"}, {Name: "Serial", Type: "*int64", Column: "serial"}, {Name: "Place", Type: "int64", Column: "place"}, {Name: "ProductTypeName", Type: "*string", Column: "product_type_name"}, {Name: "Note", Type: "*string", Column: "note"}, {Name: "IFMinus20", Type: "*float64", Column: "i_f_minus20"}, {Name: "IFPlus20", Type: "*float64", Column: "i_f_plus20"}, {Name: "IFPlus50", Type: "*float64", Column: "i_f_plus50"}, {Name: "ISMinus20", Type: "*float64", Column: "i_s_minus20"}, {Name: "ISPlus20", Type: "*float64", Column: "i_s_plus20"}, {Name: "ISPlus50", Type: "*float64", Column: "i_s_plus50"}, {Name: "I13", Type: "*float64", Column: "i13"}, {Name: "I24", Type: "*float64", Column: "i24"}, {Name: "I35", Type: "*float64", Column: "i35"}, {Name: "I26", Type: "*float64", Column: "i26"}, {Name: "I17", Type: "*float64", Column: "i17"}, {Name: "NotMeasured", Type: "*float64", Column: "not_measured"}, {Name: "Production", Type: "bool", Column: "production"}, {Name: "OldProductID", Type: "*string", Column: "old_product_id"}, {Name: "SelfProductTypeName", Type: "*string", Column: "self_product_type_name"}, {Name: "GasName", Type: "*string", Column: "gas_name"}, {Name: "UnitsName", Type: "*string", Column: "units_name"}, {Name: "Scale", Type: "float64", Column: "scale"}, {Name: "NobleMetalContent", Type: "float64", Column: "noble_metal_content"}, {Name: "LifetimeMonths", Type: "int64", Column: "lifetime_months"}, {Name: "Lc64", Type: "bool", Column: "lc64"}, {Name: "PointsMethod", Type: "int64", Column: "points_method"}, {Name: "Firmware", Type: "[]uint8", Column: "firmware"}, {Name: "Concentration1", Type: "float64", Column: "concentration1"}, {Name: "Concentration3", Type: "float64", Column: "concentration3"}, {Name: "KSens20", Type: "*float64", Column: "k_sens20"}, {Name: "KSens50", Type: "*float64", Column: "k_sens50"}, {Name: "DFon20", Type: "*float64", Column: "d_fon20"}, {Name: "DFon50", Type: "*float64", Column: "d_fon50"}, {Name: "DNotMeasured", Type: "*float64", Column: "d_not_measured"}, {Name: "OKFon20", Type: "*bool", Column: "ok_fon20"}, {Name: "OKDFon20", Type: "*bool", Column: "ok_d_fon20"}, {Name: "OKKSens20", Type: "*bool", Column: "ok_k_sens20"}, {Name: "OKDFon50", Type: "*bool", Column: "ok_d_fon50"}, {Name: "OKKSens50", Type: "*bool", Column: "ok_k_sens50"}, {Name: "OKDNotMeasured", Type: "*bool", Column: "ok_d_not_measured"}, {Name: "NotOk", Type: "*bool", Column: "not_ok"}}, PKFieldIndex: 0},
+	s: parse.StructInfo{Type: "ProductInfo", SQLSchema: "", SQLName: "product_info", Fields: []parse.FieldInfo{{Name: "ProductID", Type: "int64", Column: "product_id"}, {Name: "PartyID", Type: "int64", Column: "party_id"}, {Name: "Serial", Type: "*int64", Column: "serial"}, {Name: "Place", Type: "int", Column: "place"}, {Name: "ProductTypeName", Type: "*string", Column: "product_type_name"}, {Name: "Note", Type: "*string", Column: "note"}, {Name: "IFMinus20", Type: "*float64", Column: "i_f_minus20"}, {Name: "IFPlus20", Type: "*float64", Column: "i_f_plus20"}, {Name: "IFPlus50", Type: "*float64", Column: "i_f_plus50"}, {Name: "ISMinus20", Type: "*float64", Column: "i_s_minus20"}, {Name: "ISPlus20", Type: "*float64", Column: "i_s_plus20"}, {Name: "ISPlus50", Type: "*float64", Column: "i_s_plus50"}, {Name: "I13", Type: "*float64", Column: "i13"}, {Name: "I24", Type: "*float64", Column: "i24"}, {Name: "I35", Type: "*float64", Column: "i35"}, {Name: "I26", Type: "*float64", Column: "i26"}, {Name: "I17", Type: "*float64", Column: "i17"}, {Name: "NotMeasured", Type: "*float64", Column: "not_measured"}, {Name: "Production", Type: "bool", Column: "production"}, {Name: "OldProductID", Type: "*string", Column: "old_product_id"}, {Name: "SelfProductTypeName", Type: "*string", Column: "self_product_type_name"}, {Name: "GasName", Type: "*string", Column: "gas_name"}, {Name: "UnitsName", Type: "*string", Column: "units_name"}, {Name: "Scale", Type: "float64", Column: "scale"}, {Name: "NobleMetalContent", Type: "float64", Column: "noble_metal_content"}, {Name: "LifetimeMonths", Type: "int64", Column: "lifetime_months"}, {Name: "Lc64", Type: "bool", Column: "lc64"}, {Name: "PointsMethod", Type: "int64", Column: "points_method"}, {Name: "Firmware", Type: "[]uint8", Column: "firmware"}, {Name: "Concentration1", Type: "float64", Column: "concentration1"}, {Name: "Concentration3", Type: "float64", Column: "concentration3"}, {Name: "KSens20", Type: "*float64", Column: "k_sens20"}, {Name: "KSens50", Type: "*float64", Column: "k_sens50"}, {Name: "DFon20", Type: "*float64", Column: "d_fon20"}, {Name: "DFon50", Type: "*float64", Column: "d_fon50"}, {Name: "DNotMeasured", Type: "*float64", Column: "d_not_measured"}, {Name: "OKFon20", Type: "*bool", Column: "ok_fon20"}, {Name: "OKDFon20", Type: "*bool", Column: "ok_d_fon20"}, {Name: "OKKSens20", Type: "*bool", Column: "ok_k_sens20"}, {Name: "OKDFon50", Type: "*bool", Column: "ok_d_fon50"}, {Name: "OKKSens50", Type: "*bool", Column: "ok_k_sens50"}, {Name: "OKDNotMeasured", Type: "*bool", Column: "ok_d_not_measured"}, {Name: "NotOk", Type: "*bool", Column: "not_ok"}, {Name: "HasFirmware", Type: "bool", Column: "has_firmware"}}, PKFieldIndex: 0},
 	z: new(ProductInfo).Values(),
 }
 
 // String returns a string representation of this struct or record.
 func (s ProductInfo) String() string {
-	res := make([]string, 43)
+	res := make([]string, 44)
 	res[0] = "ProductID: " + reform.Inspect(s.ProductID, true)
 	res[1] = "PartyID: " + reform.Inspect(s.PartyID, true)
 	res[2] = "Serial: " + reform.Inspect(s.Serial, true)
@@ -97,6 +97,7 @@ func (s ProductInfo) String() string {
 	res[40] = "OKKSens50: " + reform.Inspect(s.OKKSens50, true)
 	res[41] = "OKDNotMeasured: " + reform.Inspect(s.OKDNotMeasured, true)
 	res[42] = "NotOk: " + reform.Inspect(s.NotOk, true)
+	res[43] = "HasFirmware: " + reform.Inspect(s.HasFirmware, true)
 	return strings.Join(res, ", ")
 }
 
@@ -147,6 +148,7 @@ func (s *ProductInfo) Values() []interface{} {
 		s.OKKSens50,
 		s.OKDNotMeasured,
 		s.NotOk,
+		s.HasFirmware,
 	}
 }
 
@@ -197,6 +199,7 @@ func (s *ProductInfo) Pointers() []interface{} {
 		&s.OKKSens50,
 		&s.OKDNotMeasured,
 		&s.NotOk,
+		&s.HasFirmware,
 	}
 }
 

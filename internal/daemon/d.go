@@ -28,9 +28,11 @@ const (
 )
 
 func New() *D {
-	return &D{
+	x := &D{
 		c: crud.NewContext(nil),
 	}
+	x.registerRPCServices()
+	return x
 }
 
 func (x *D) Run(closeOnDisconnect bool) {
@@ -91,6 +93,7 @@ func (x *D) serveRPC(ln net.Listener, ctx context.Context, closeOnDisconnectPeer
 func (x *D) registerRPCServices() {
 	for _, svcObj := range []interface{}{
 		svc.NewPartiesCatalogue(x.c.PartiesCatalogue()),
+		svc.NewLastParty(x.c.LastParty()),
 	} {
 		if err := rpc.Register(svcObj); err != nil {
 			panic(err)

@@ -3,7 +3,6 @@ package svc
 import (
 	"github.com/fpawel/elco/internal/crud"
 	"github.com/fpawel/elco/internal/crud/data"
-	"time"
 )
 
 type PartiesCatalogue struct {
@@ -34,13 +33,7 @@ func (x *PartiesCatalogue) Parties(r struct{ Year, Month, Day int }, parties *[]
 	return nil
 }
 
-func (x *PartiesCatalogue) Party(partyID [1]int64, r *struct {
-	Party    data.PartyInfo
-	Products []data.ProductInfo
-	Time     [6]int
-}) error {
+func (x *PartiesCatalogue) Party(partyID [1]int64, r *Party) error {
 	r.Party, r.Products = x.c.Party(partyID[0])
-	t := r.Party.CreatedAt.Add(time.Hour * 3)
-	r.Time[0] = t.Year()
 	return nil
 }

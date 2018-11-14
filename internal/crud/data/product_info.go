@@ -8,7 +8,7 @@ type ProductInfo struct {
 	ProductID           int64    `reform:"product_id,pk"`
 	PartyID             int64    `reform:"party_id"`
 	Serial              *int64   `reform:"serial"`
-	Place               int64    `reform:"place"`
+	Place               int      `reform:"place"`
 	ProductTypeName     *string  `reform:"product_type_name"`
 	Note                *string  `reform:"note"`
 	IFMinus20           *float64 `reform:"i_f_minus20"`
@@ -48,4 +48,5 @@ type ProductInfo struct {
 	OKKSens50           *bool    `reform:"ok_k_sens50"`
 	OKDNotMeasured      *bool    `reform:"ok_d_not_measured"`
 	NotOk               *bool    `reform:"not_ok"`
+	HasFirmware         bool     `reform:"has_firmware"`
 }

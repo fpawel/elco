@@ -27,7 +27,7 @@ func (v *partyInfoTableType) Name() string {
 
 // Columns returns a new slice of column names for that view or table in SQL database.
 func (v *partyInfoTableType) Columns() []string {
-	return []string{"party_id", "old_party_id", "created_at", "updated_at", "product_type_name", "concentration1", "concentration2", "concentration3", "note", "year", "month", "day", "last"}
+	return []string{"party_id", "old_party_id", "created_at", "updated_at", "product_type_name", "concentration1", "concentration2", "concentration3", "note", "year", "month", "day", "hour", "minute", "second", "last"}
 }
 
 // NewStruct makes a new struct for that view or table.
@@ -47,13 +47,13 @@ func (v *partyInfoTableType) PKColumnIndex() uint {
 
 // PartyInfoTable represents party_info view or table in SQL database.
 var PartyInfoTable = &partyInfoTableType{
-	s: parse.StructInfo{Type: "PartyInfo", SQLSchema: "", SQLName: "party_info", Fields: []parse.FieldInfo{{Name: "PartyID", Type: "int64", Column: "party_id"}, {Name: "OldPartyID", Type: "*string", Column: "old_party_id"}, {Name: "CreatedAt", Type: "time.Time", Column: "created_at"}, {Name: "UpdatedAt", Type: "time.Time", Column: "updated_at"}, {Name: "ProductTypeName", Type: "string", Column: "product_type_name"}, {Name: "Concentration1", Type: "float64", Column: "concentration1"}, {Name: "Concentration2", Type: "float64", Column: "concentration2"}, {Name: "Concentration3", Type: "float64", Column: "concentration3"}, {Name: "Note", Type: "*string", Column: "note"}, {Name: "Year", Type: "int64", Column: "year"}, {Name: "Month", Type: "int64", Column: "month"}, {Name: "Day", Type: "int64", Column: "day"}, {Name: "Last", Type: "bool", Column: "last"}}, PKFieldIndex: 0},
+	s: parse.StructInfo{Type: "PartyInfo", SQLSchema: "", SQLName: "party_info", Fields: []parse.FieldInfo{{Name: "PartyID", Type: "int64", Column: "party_id"}, {Name: "OldPartyID", Type: "*string", Column: "old_party_id"}, {Name: "CreatedAt", Type: "time.Time", Column: "created_at"}, {Name: "UpdatedAt", Type: "time.Time", Column: "updated_at"}, {Name: "ProductTypeName", Type: "string", Column: "product_type_name"}, {Name: "Concentration1", Type: "float64", Column: "concentration1"}, {Name: "Concentration2", Type: "float64", Column: "concentration2"}, {Name: "Concentration3", Type: "float64", Column: "concentration3"}, {Name: "Note", Type: "*string", Column: "note"}, {Name: "Year", Type: "int", Column: "year"}, {Name: "Month", Type: "int", Column: "month"}, {Name: "Day", Type: "int", Column: "day"}, {Name: "Hour", Type: "int", Column: "hour"}, {Name: "Minute", Type: "int", Column: "minute"}, {Name: "Second", Type: "int", Column: "second"}, {Name: "Last", Type: "bool", Column: "last"}}, PKFieldIndex: 0},
 	z: new(PartyInfo).Values(),
 }
 
 // String returns a string representation of this struct or record.
 func (s PartyInfo) String() string {
-	res := make([]string, 13)
+	res := make([]string, 16)
 	res[0] = "PartyID: " + reform.Inspect(s.PartyID, true)
 	res[1] = "OldPartyID: " + reform.Inspect(s.OldPartyID, true)
 	res[2] = "CreatedAt: " + reform.Inspect(s.CreatedAt, true)
@@ -66,7 +66,10 @@ func (s PartyInfo) String() string {
 	res[9] = "Year: " + reform.Inspect(s.Year, true)
 	res[10] = "Month: " + reform.Inspect(s.Month, true)
 	res[11] = "Day: " + reform.Inspect(s.Day, true)
-	res[12] = "Last: " + reform.Inspect(s.Last, true)
+	res[12] = "Hour: " + reform.Inspect(s.Hour, true)
+	res[13] = "Minute: " + reform.Inspect(s.Minute, true)
+	res[14] = "Second: " + reform.Inspect(s.Second, true)
+	res[15] = "Last: " + reform.Inspect(s.Last, true)
 	return strings.Join(res, ", ")
 }
 
@@ -86,6 +89,9 @@ func (s *PartyInfo) Values() []interface{} {
 		s.Year,
 		s.Month,
 		s.Day,
+		s.Hour,
+		s.Minute,
+		s.Second,
 		s.Last,
 	}
 }
@@ -106,6 +112,9 @@ func (s *PartyInfo) Pointers() []interface{} {
 		&s.Year,
 		&s.Month,
 		&s.Day,
+		&s.Hour,
+		&s.Minute,
+		&s.Second,
 		&s.Last,
 	}
 }

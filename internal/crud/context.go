@@ -34,3 +34,11 @@ func (x *Context) PartiesCatalogue() PartiesCatalogue {
 		mu:   &x.mu,
 	}
 }
+
+func (x *Context) LastParty() LastParty {
+	return LastParty{
+		dbr:  x.dbr,
+		conn: x.conn,
+		mu:   &x.mu,
+	}
+}

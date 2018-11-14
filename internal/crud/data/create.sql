@@ -129,11 +129,13 @@ LIMIT 1;
 
 
 CREATE VIEW IF NOT EXISTS party_info AS
-
 SELECT *,
-       cast(strftime('%Y', created_at) AS INTEGER) AS year,
-       cast(strftime('%m', created_at) AS INTEGER) AS month,
-       cast(strftime('%d', created_at) AS INTEGER) AS day,
+       cast(strftime('%Y', DATETIME(created_at, '+3 hours')) AS INTEGER) AS year,
+       cast(strftime('%m', DATETIME(created_at, '+3 hours')) AS INTEGER) AS month,
+       cast(strftime('%d', DATETIME(created_at, '+3 hours')) AS INTEGER) AS day,
+       cast(strftime('%H', DATETIME(created_at, '+3 hours')) AS INTEGER) AS hour,
+       cast(strftime('%M', DATETIME(created_at, '+3 hours')) AS INTEGER) AS minute,
+       cast(strftime('%S', DATETIME(created_at, '+3 hours')) AS INTEGER) AS second,
        party_id IN (SELECT party_id FROM last_party) AS last
 FROM party;
 
@@ -219,7 +221,8 @@ CREATE VIEW IF NOT EXISTS product_info AS
            ok_d_not_measured,
 
            production,
-           not_ok
+           not_ok,
+           (firmware NOT NULL AND LENGTH(firmware) > 0) as has_firmware
 
     FROM q1
            INNER JOIN product_type ON product_type.product_type_name = q1.product_type_name

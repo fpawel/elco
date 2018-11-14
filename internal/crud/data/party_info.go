@@ -1,8 +1,6 @@
 package data
 
-import (
-	"time"
-)
+import "time"
 
 //go:generate reform
 
@@ -18,8 +16,12 @@ type PartyInfo struct {
 	Concentration2  float64   `reform:"concentration2"`
 	Concentration3  float64   `reform:"concentration3"`
 	Note            *string   `reform:"note"`
-	Year            int64     `reform:"year"`
-	Month           int64     `reform:"month"`
-	Day             int64     `reform:"day"`
-	Last            bool      `reform:"last"`
+
+	Year   int  `reform:"year"`
+	Month  int  `reform:"month"`
+	Day    int  `reform:"day"`
+	Hour   int  `reform:"hour"`
+	Minute int  `reform:"minute"`
+	Second int  `reform:"second"`
+	Last   bool `reform:"last"`
 }
