@@ -176,8 +176,8 @@ CREATE VIEW IF NOT EXISTS product_info AS
            place,
            serial,
            product.old_product_id,
-           q1.product_type_name,
-           product.product_type_name      AS self_product_type_name,
+           q1.product_type_name AS applied_product_type_name ,
+           product.product_type_name      AS product_type_name,
            product.note,
            gas_name,
            units_name,
@@ -205,7 +205,6 @@ CREATE VIEW IF NOT EXISTS product_info AS
            round(i35, 3)                  AS i35,
            round(i26, 3)                  AS i26,
            round(i17, 3)                  AS i17,
-           firmware,
 
            k_sens20,
            k_sens50,
