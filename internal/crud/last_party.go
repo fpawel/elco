@@ -13,7 +13,7 @@ type LastParty struct {
 	dbr  *reform.DB
 }
 
-func (x LastParty) Party() (data.Party, []data.ProductInfo) {
+func (x LastParty) Party() (data.PartyInfo, []data.ProductInfo) {
 	x.mu.Lock()
 	defer x.mu.Unlock()
 	return x.party()
@@ -53,8 +53,8 @@ func (x LastParty) ToggleProductProductionAtPlace(place int) error {
 	return x.dbr.Save(&p)
 }
 
-func (x LastParty) party() (data.Party, []data.ProductInfo) {
-	var party data.Party
+func (x LastParty) party() (data.PartyInfo, []data.ProductInfo) {
+	var party data.PartyInfo
 	if err := x.dbr.SelectOneTo(&party, `ORDER BY created_at DESC LIMIT 1;`); err != nil {
 		panic(err)
 	}

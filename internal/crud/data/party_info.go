@@ -7,11 +7,10 @@ import (
 
 //go:generate reform
 
-// Party represents a row in party table.
-//reform:party
-type Party struct {
+// PartyInfo represents a row in party_info table.
+//reform:party_info
+type PartyInfo struct {
 	PartyID         int64          `reform:"party_id,pk"`
-	OldPartyID      sql.NullString `reform:"old_party_id"`
 	CreatedAt       time.Time      `reform:"created_at"`
 	UpdatedAt       time.Time      `reform:"updated_at"`
 	ProductTypeName string         `reform:"product_type_name"`
@@ -19,4 +18,5 @@ type Party struct {
 	Concentration2  float64        `reform:"concentration2"`
 	Concentration3  float64        `reform:"concentration3"`
 	Note            sql.NullString `reform:"note"`
+	Last            bool           `reform:"last"`
 }

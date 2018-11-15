@@ -133,9 +133,6 @@ SELECT *,
        cast(strftime('%Y', DATETIME(created_at, '+3 hours')) AS INTEGER) AS year,
        cast(strftime('%m', DATETIME(created_at, '+3 hours')) AS INTEGER) AS month,
        cast(strftime('%d', DATETIME(created_at, '+3 hours')) AS INTEGER) AS day,
-       cast(strftime('%H', DATETIME(created_at, '+3 hours')) AS INTEGER) AS hour,
-       cast(strftime('%M', DATETIME(created_at, '+3 hours')) AS INTEGER) AS minute,
-       cast(strftime('%S', DATETIME(created_at, '+3 hours')) AS INTEGER) AS second,
        party_id IN (SELECT party_id FROM last_party) AS last
 FROM party;
 

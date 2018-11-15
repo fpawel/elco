@@ -41,11 +41,11 @@ WHERE year = ? AND month = ?;`,
 	return
 }
 
-func (x PartiesCatalogue) Parties(year, month, day int) (parties []data.Party) {
+func (x PartiesCatalogue) Parties(year, month, day int) (parties []data.PartyInfo) {
 	x.mu.Lock()
 	defer x.mu.Unlock()
 
-	rows, err := x.dbr.SelectRows(data.PartyTable,
+	rows, err := x.dbr.SelectRows(data.PartyInfoTable,
 		"WHERE year = ? AND month = ? AND day = ?",
 		year, month, day)
 	if err != nil {
@@ -56,7 +56,7 @@ func (x PartiesCatalogue) Parties(year, month, day int) (parties []data.Party) {
 	}()
 
 	for {
-		var party data.Party
+		var party data.PartyInfo
 		if err = x.dbr.NextRow(&party, rows); err != nil {
 			break
 		}
@@ -67,13 +67,14 @@ func (x PartiesCatalogue) Parties(year, month, day int) (parties []data.Party) {
 	}
 	return
 }
-func (x PartiesCatalogue) Party(partyID int64) (data.Party, []data.ProductInfo) {
+
+func (x PartiesCatalogue) Party(partyID int64) (party data.PartyInfo, products []data.ProductInfo) {
 	x.mu.Lock()
 	defer x.mu.Unlock()
-	var party data.Party
 	if err := x.dbr.FindOneTo(&party, "party_id", partyID); err != nil {
 		panic(err)
 	}
-	return party, data.GetProductsByPartyID(x.dbr, partyID)
+	products = data.GetProductsByPartyID(x.dbr, partyID)
+	return
 
 }

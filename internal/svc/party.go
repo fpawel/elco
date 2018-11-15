@@ -1,8 +1,10 @@
 package svc
 
-import "github.com/fpawel/elco/internal/crud/data"
+import (
+	"github.com/fpawel/elco/internal/crud/data"
+)
 
 type Party struct {
-	data.Party
+	data.PartyInfo
 	Products []data.ProductInfo
 }

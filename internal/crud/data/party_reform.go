@@ -47,7 +47,7 @@ func (v *partyTableType) PKColumnIndex() uint {
 
 // PartyTable represents party view or table in SQL database.
 var PartyTable = &partyTableType{
-	s: parse.StructInfo{Type: "Party", SQLSchema: "", SQLName: "party", Fields: []parse.FieldInfo{{Name: "PartyID", Type: "int64", Column: "party_id"}, {Name: "OldPartyID", Type: "*string", Column: "old_party_id"}, {Name: "CreatedAt", Type: "time.Time", Column: "created_at"}, {Name: "UpdatedAt", Type: "time.Time", Column: "updated_at"}, {Name: "ProductTypeName", Type: "string", Column: "product_type_name"}, {Name: "Concentration1", Type: "float64", Column: "concentration1"}, {Name: "Concentration2", Type: "float64", Column: "concentration2"}, {Name: "Concentration3", Type: "float64", Column: "concentration3"}, {Name: "Note", Type: "*string", Column: "note"}}, PKFieldIndex: 0},
+	s: parse.StructInfo{Type: "Party", SQLSchema: "", SQLName: "party", Fields: []parse.FieldInfo{{Name: "PartyID", Type: "int64", Column: "party_id"}, {Name: "OldPartyID", Type: "sql.NullString", Column: "old_party_id"}, {Name: "CreatedAt", Type: "time.Time", Column: "created_at"}, {Name: "UpdatedAt", Type: "time.Time", Column: "updated_at"}, {Name: "ProductTypeName", Type: "string", Column: "product_type_name"}, {Name: "Concentration1", Type: "float64", Column: "concentration1"}, {Name: "Concentration2", Type: "float64", Column: "concentration2"}, {Name: "Concentration3", Type: "float64", Column: "concentration3"}, {Name: "Note", Type: "sql.NullString", Column: "note"}}, PKFieldIndex: 0},
 	z: new(Party).Values(),
 }
 

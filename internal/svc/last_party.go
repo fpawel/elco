@@ -14,7 +14,7 @@ func NewLastParty(c crud.LastParty) *LastParty {
 }
 
 func (x *LastParty) Party(_ struct{}, r *Party) error {
-	r.Party, r.Products = x.c.Party()
+	r.PartyInfo, r.Products = x.c.Party()
 	return nil
 }
 
