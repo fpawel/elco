@@ -4,6 +4,7 @@ import (
 	"github.com/fpawel/elco/internal/crud/data"
 	"github.com/jmoiron/sqlx"
 	"gopkg.in/reform.v1"
+	"reflect"
 	"sync"
 )
 
@@ -31,26 +32,44 @@ func (x LastParty) SetProductSerialAtPlace(place, serial int) (int64, error) {
 	x.mu.Lock()
 	defer x.mu.Unlock()
 	party, _ := x.party()
-	p := data.Product{PartyID: party.PartyID, Place: place}
-	if err := x.dbr.SelectOneTo(&p, "WHERE party_id = ? AND place = ?", party.PartyID, place); err != reform.ErrNoRows {
+	var p data.Product
+	if err := x.dbr.SelectOneTo(&p, "WHERE party_id = ? AND place = ?", party.PartyID, place); err != nil && err != reform.ErrNoRows {
 		return 0, err
 	}
+	p.PartyID = party.PartyID
+	p.Place = place
+	p.Serial.Int64 = int64(serial)
+	p.Serial.Valid = true
+
 	if err := x.dbr.Save(&p); err != nil {
 		return 0, err
 	}
 	return p.ProductID, nil
 }
 
-func (x LastParty) ToggleProductProductionAtPlace(place int) error {
+func (x LastParty) ToggleProductProductionAtPlace(place int) (int64, error) {
 	x.mu.Lock()
 	defer x.mu.Unlock()
 	party, _ := x.party()
 	p := data.Product{PartyID: party.PartyID, Place: place}
-	if err := x.dbr.SelectOneTo(&p, "WHERE party_id = ? AND place = ?", party.PartyID, place); err != reform.ErrNoRows {
-		return err
+	empty1 := p
+
+	if err := x.dbr.SelectOneTo(&p, "WHERE party_id = ? AND place = ?", party.PartyID, place); err != nil && err != reform.ErrNoRows {
+		return 0, err
 	}
+	empty1.ProductID = p.ProductID
+	empty2 := empty1
+	empty2.Firmware = []byte{}
+
 	p.Production = !p.Production
-	return x.dbr.Save(&p)
+	if reflect.DeepEqual(p, empty1) || reflect.DeepEqual(p, empty2) {
+		return 0, x.dbr.Delete(&p)
+	}
+
+	if err := x.dbr.Save(&p); err != nil {
+		return 0, err
+	}
+	return p.ProductID, nil
 }
 
 func (x LastParty) party() (data.PartyInfo, []data.ProductInfo) {

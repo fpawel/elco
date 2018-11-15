@@ -33,10 +33,7 @@ func (x PartiesCatalogue) Days(year, month int) (days []int) {
 	x.mu.Lock()
 	defer x.mu.Unlock()
 	dbutils.MustSelect(x.conn, &days,
-		`
-SELECT DISTINCT day 
-FROM bucket_time 
-WHERE year = ? AND month = ?;`,
+		`SELECT DISTINCT day FROM party_info WHERE year = ? AND month = ?;`,
 		year, month)
 	return
 }

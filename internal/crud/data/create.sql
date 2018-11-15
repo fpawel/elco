@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS product
 (
   product_id        INTEGER PRIMARY KEY NOT NULL,
   party_id          INTEGER             NOT NULL,
-  serial            INTEGER,
+  serial            INTEGER  CHECK ( serial ISNULL OR serial > 0 ),
   place             INTEGER             NOT NULL CHECK (place >= 0),
   product_type_name TEXT,
   note              TEXT,

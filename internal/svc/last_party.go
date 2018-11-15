@@ -28,6 +28,7 @@ func (x LastParty) ProductAtPlace(place [1]int, r *data.ProductInfo) (err error)
 	return
 }
 
-func (x LastParty) ToggleProductProductionAtPlace(place [1]int, _ *struct{}) error {
-	return x.c.ToggleProductProductionAtPlace(place[0])
+func (x LastParty) ToggleProductProductionAtPlace(place [1]int, r *int64) (err error) {
+	*r, err = x.c.ToggleProductProductionAtPlace(place[0])
+	return
 }
