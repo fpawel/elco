@@ -2,6 +2,7 @@ package crud
 
 import (
 	"github.com/fpawel/elco/internal/app"
+	"github.com/fpawel/elco/internal/crud/data"
 	"github.com/fpawel/goutils/dbutils"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
@@ -10,35 +11,35 @@ import (
 	"sync"
 )
 
-type Context struct {
-	mu   sync.Mutex
-	conn *sqlx.DB
-	dbr  *reform.DB
+type DBContext struct {
+	dbContext
 }
 
-func NewContext(logger reform.Logger) *Context {
-	conn := dbutils.MustOpen(app.DataFileName(), "sqlite3")
-	return &Context{
-		conn: conn,
-		dbr:  reform.NewDB(conn.DB, sqlite3.Dialect, logger),
-	}
-}
-func (x *Context) Close() error {
-	return x.conn.Close()
+type dbContext struct {
+	mu  *sync.Mutex
+	dbx *sqlx.DB
+	dbr *reform.DB
 }
 
-func (x *Context) PartiesCatalogue() PartiesCatalogue {
-	return PartiesCatalogue{
-		dbr:  x.dbr,
-		conn: x.conn,
-		mu:   &x.mu,
+func NewDBContext(logger reform.Logger) *DBContext {
+	dbx := dbutils.MustOpen(app.DataFileName(), "sqlite3")
+	data.DeleteEmptyRecords(dbx)
+	return &DBContext{
+		dbContext{
+			dbx: dbx,
+			dbr: reform.NewDB(dbx.DB, sqlite3.Dialect, logger),
+			mu:  new(sync.Mutex),
+		},
 	}
 }
+func (x *DBContext) Close() error {
+	return x.dbx.Close()
+}
 
-func (x *Context) LastParty() LastParty {
-	return LastParty{
-		dbr:  x.dbr,
-		conn: x.conn,
-		mu:   &x.mu,
-	}
+func (x *DBContext) PartiesCatalogue() PartiesCatalogue {
+	return PartiesCatalogue{dbContext: x.dbContext}
+}
+
+func (x *DBContext) LastParty() LastParty {
+	return LastParty{dbContext: x.dbContext}
 }

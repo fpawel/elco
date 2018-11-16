@@ -3,37 +3,33 @@ package crud
 import (
 	"github.com/fpawel/elco/internal/crud/data"
 	"github.com/fpawel/goutils/dbutils"
-	"github.com/jmoiron/sqlx"
 	"gopkg.in/reform.v1"
-	"sync"
 )
 
 type PartiesCatalogue struct {
-	mu   *sync.Mutex
-	conn *sqlx.DB
-	dbr  *reform.DB
+	dbContext
 }
 
 func (x PartiesCatalogue) Years() (years []int) {
 	x.mu.Lock()
 	defer x.mu.Unlock()
-	dbutils.MustSelect(x.conn, &years, `SELECT DISTINCT year FROM party_info;`)
+	dbutils.MustSelect(x.dbx, &years, `SELECT DISTINCT year FROM party_info ORDER BY year ASC;`)
 	return
 }
 
 func (x PartiesCatalogue) Months(y int) (months []int) {
 	x.mu.Lock()
 	defer x.mu.Unlock()
-	dbutils.MustSelect(x.conn, &months,
-		`SELECT DISTINCT month FROM party_info WHERE year = ?;`, y)
+	dbutils.MustSelect(x.dbx, &months,
+		`SELECT DISTINCT month FROM party_info WHERE year = ? ORDER BY month ASC;`, y)
 	return
 }
 
 func (x PartiesCatalogue) Days(year, month int) (days []int) {
 	x.mu.Lock()
 	defer x.mu.Unlock()
-	dbutils.MustSelect(x.conn, &days,
-		`SELECT DISTINCT day FROM party_info WHERE year = ? AND month = ?;`,
+	dbutils.MustSelect(x.dbx, &days,
+		`SELECT DISTINCT day FROM party_info WHERE year = ? AND month = ? ORDER BY day ASC;`,
 		year, month)
 	return
 }

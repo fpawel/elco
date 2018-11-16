@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS product
 (
   product_id        INTEGER PRIMARY KEY NOT NULL,
   party_id          INTEGER             NOT NULL,
-  serial            INTEGER  CHECK ( serial ISNULL OR serial > 0 ),
+  serial            INTEGER CHECK ( serial ISNULL OR serial > 0 ),
   place             INTEGER             NOT NULL CHECK (place >= 0),
   product_type_name TEXT,
   note              TEXT,
@@ -133,7 +133,7 @@ SELECT *,
        cast(strftime('%Y', DATETIME(created_at, '+3 hours')) AS INTEGER) AS year,
        cast(strftime('%m', DATETIME(created_at, '+3 hours')) AS INTEGER) AS month,
        cast(strftime('%d', DATETIME(created_at, '+3 hours')) AS INTEGER) AS day,
-       party_id IN (SELECT party_id FROM last_party) AS last
+       party_id IN (SELECT party_id FROM last_party)                     AS last
 FROM party;
 
 
@@ -173,8 +173,8 @@ CREATE VIEW IF NOT EXISTS product_info AS
            place,
            serial,
            product.old_product_id,
-           q1.product_type_name AS applied_product_type_name ,
-           product.product_type_name      AS product_type_name,
+           q1.product_type_name                         AS applied_product_type_name,
+           product.product_type_name                    AS product_type_name,
            product.note,
            gas_name,
            units_name,
@@ -184,24 +184,24 @@ CREATE VIEW IF NOT EXISTS product_info AS
            lc64,
            points_method,
 
-           round(i_f_minus20, 3)          AS i_f_minus20,
-           round(q1.i_f_plus20, 3)        AS i_f_plus20,
-           round(i_f_plus50, 3)           AS i_f_plus50,
-           round(i_s_minus20, 3)          AS i_s_minus20,
-           round(i_s_plus20, 3)           AS i_s_plus20,
-           round(i_s_plus50, 3)           AS i_s_plus50,
+           round(i_f_minus20, 3)                        AS i_f_minus20,
+           round(q1.i_f_plus20, 3)                      AS i_f_plus20,
+           round(i_f_plus50, 3)                         AS i_f_plus50,
+           round(i_s_minus20, 3)                        AS i_s_minus20,
+           round(i_s_plus20, 3)                         AS i_s_plus20,
+           round(i_s_plus50, 3)                         AS i_s_plus50,
 
            party.concentration1,
            party.concentration3,
-           round(product.not_measured, 3) AS not_measured,
+           round(product.not_measured, 3)               AS not_measured,
 
 
-           round(product.i13, 3)          AS i13,
+           round(product.i13, 3)                        AS i13,
 
-           round(i24, 3)                  AS i24,
-           round(i35, 3)                  AS i35,
-           round(i26, 3)                  AS i26,
-           round(i17, 3)                  AS i17,
+           round(i24, 3)                                AS i24,
+           round(i35, 3)                                AS i35,
+           round(i26, 3)                                AS i26,
+           round(i17, 3)                                AS i17,
 
            k_sens20,
            k_sens50,

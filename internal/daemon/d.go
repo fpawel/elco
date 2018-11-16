@@ -18,7 +18,7 @@ import (
 )
 
 type D struct {
-	c *crud.Context
+	c *crud.DBContext
 	w *copydata.NotifyWindow
 }
 
@@ -29,7 +29,7 @@ const (
 
 func New() *D {
 	x := &D{
-		c: crud.NewContext(nil),
+		c: crud.NewDBContext(nil),
 	}
 	x.registerRPCServices()
 	return x

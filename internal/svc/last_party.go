@@ -32,3 +32,16 @@ func (x LastParty) ToggleProductProductionAtPlace(place [1]int, r *int64) (err e
 	*r, err = x.c.ToggleProductProductionAtPlace(place[0])
 	return
 }
+
+func (x LastParty) SetProductNoteAtPlace(p struct {
+	Place int
+	Note  string
+}, r *int64) (err error) {
+	*r, err = x.c.SetProductNoteAtPlace(p.Place, p.Note)
+	return
+}
+
+func (x LastParty) DeleteProductAtPlace(place [1]int, _ *struct{}) (err error) {
+	err = x.c.DeleteProductAtPlace(place[0])
+	return
+}
