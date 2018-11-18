@@ -62,6 +62,16 @@ func (x LastParty) SetProductNoteAtPlace(place int, note string) (int64, error) 
 	})
 }
 
+func (x LastParty) SetProductTypeAtPlace(place int, productType string) (int64, error) {
+	x.mu.Lock()
+	defer x.mu.Unlock()
+	return x.updateProductAtPlace(place, func(p *data.Product) error {
+		p.ProductTypeName.String = strings.TrimSpace(productType)
+		p.ProductTypeName.Valid = len(p.ProductTypeName.String) > 0
+		return nil
+	})
+}
+
 func (x LastParty) ToggleProductProductionAtPlace(place int) (int64, error) {
 	x.mu.Lock()
 	defer x.mu.Unlock()

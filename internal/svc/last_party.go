@@ -41,6 +41,14 @@ func (x LastParty) SetProductNoteAtPlace(p struct {
 	return
 }
 
+func (x LastParty) SetProductTypeAtPlace(p struct {
+	Place       int
+	ProductType string
+}, r *int64) (err error) {
+	*r, err = x.c.SetProductTypeAtPlace(p.Place, p.ProductType)
+	return
+}
+
 func (x LastParty) DeleteProductAtPlace(place [1]int, _ *struct{}) (err error) {
 	err = x.c.DeleteProductAtPlace(place[0])
 	return

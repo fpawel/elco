@@ -21,10 +21,10 @@ type dbContext struct {
 	dbr *reform.DB
 }
 
-func NewDBContext(logger reform.Logger) *DBContext {
+func NewDBContext(logger reform.Logger) DBContext {
 	dbx := dbutils.MustOpen(app.DataFileName(), "sqlite3")
 	data.DeleteEmptyRecords(dbx)
-	return &DBContext{
+	return DBContext{
 		dbContext{
 			dbx: dbx,
 			dbr: reform.NewDB(dbx.DB, sqlite3.Dialect, logger),
@@ -32,14 +32,18 @@ func NewDBContext(logger reform.Logger) *DBContext {
 		},
 	}
 }
-func (x *DBContext) Close() error {
+func (x DBContext) Close() error {
 	return x.dbx.Close()
 }
 
-func (x *DBContext) PartiesCatalogue() PartiesCatalogue {
+func (x DBContext) PartiesCatalogue() PartiesCatalogue {
 	return PartiesCatalogue{dbContext: x.dbContext}
 }
 
-func (x *DBContext) LastParty() LastParty {
+func (x DBContext) LastParty() LastParty {
 	return LastParty{dbContext: x.dbContext}
+}
+
+func (x DBContext) ProductTypes() ProductTypes {
+	return ProductTypes{dbContext: x.dbContext}
 }

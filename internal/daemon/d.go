@@ -18,7 +18,7 @@ import (
 )
 
 type D struct {
-	c *crud.DBContext
+	c crud.DBContext
 	w *copydata.NotifyWindow
 }
 
@@ -94,6 +94,7 @@ func (x *D) registerRPCServices() {
 	for _, svcObj := range []interface{}{
 		svc.NewPartiesCatalogue(x.c.PartiesCatalogue()),
 		svc.NewLastParty(x.c.LastParty()),
+		svc.NewProductTypes(x.c.ProductTypes()),
 	} {
 		if err := rpc.Register(svcObj); err != nil {
 			panic(err)
