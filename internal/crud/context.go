@@ -2,7 +2,7 @@ package crud
 
 import (
 	"github.com/fpawel/elco/internal/app"
-	"github.com/fpawel/elco/internal/crud/data"
+	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/goutils/dbutils"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"

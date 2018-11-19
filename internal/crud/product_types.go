@@ -1,7 +1,7 @@
 package crud
 
 import (
-	"github.com/fpawel/elco/internal/crud/data"
+	"github.com/fpawel/elco/internal/data"
 	"gopkg.in/reform.v1"
 )
 

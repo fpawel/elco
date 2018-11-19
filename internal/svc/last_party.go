@@ -2,7 +2,7 @@ package svc
 
 import (
 	"github.com/fpawel/elco/internal/crud"
-	"github.com/fpawel/elco/internal/crud/data"
+	"github.com/fpawel/elco/internal/data"
 )
 
 type LastParty struct {
