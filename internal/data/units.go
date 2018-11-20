@@ -6,5 +6,5 @@ package data
 //reform:units
 type Units struct {
 	UnitsName string `reform:"units_name,pk"`
-	Code      int64  `reform:"code"`
+	Code      byte   `reform:"code"`
 }

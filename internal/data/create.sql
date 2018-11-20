@@ -136,96 +136,65 @@ SELECT *,
        party_id IN (SELECT party_id FROM last_party)                     AS last
 FROM party;
 
+CREATE VIEW IF NOT EXISTS product_info_1 AS
+SELECT product_id,
+       product.party_id,
+       serial,
+       place,
+       production,
+       (CASE (product.product_type_name ISNULL)
+          WHEN 1 THEN party.product_type_name
+          WHEN 0
+            THEN product.product_type_name END)                                AS applied_product_type_name,
+       product.product_type_name                                               AS product_type_name,
+       product.note                                                            AS note,
+       round(i_f_minus20, 3)                                                   AS i_f_minus20,
+       round(i_f_plus20, 3)                                                    AS i_f_plus20,
+       round(i_f_plus50, 3)                                                    AS i_f_plus50,
+       round(i_s_minus20, 3)                                                   AS i_s_minus20,
+       round(i_s_plus20, 3)                                                    AS i_s_plus20,
+       round(i_s_plus50, 3)                                                    AS i_s_plus50,
+       round(i13, 3)                                                           AS i13,
+       round(i24, 3)                                                           AS i24,
+       round(i35, 3)                                                           AS i35,
+       round(i26, 3)                                                           AS i26,
+       round(i17, 3)                                                           AS i17,
+       round(not_measured, 3)                                                  AS not_measured,
+       round(100 * (i_s_plus50 - i_f_plus50) / (i_s_plus20 - i_f_plus20), 3)   AS k_sens50,
+       round((i_s_plus20 - i_f_plus20) / (concentration3 - concentration1), 3) AS k_sens20,
+       round(i13 - i_f_plus20, 3)                                              AS d_fon20,
+       round(i_f_plus50 - i_f_plus20, 3)                                       AS d_fon50,
+       round(not_measured - i_f_plus20, 3)                                     AS d_not_measured,
+       (firmware NOT NULL AND LENGTH(firmware) > 0)                            AS has_firmware
+FROM product
+       INNER JOIN party ON party.party_id = product.party_id;
 
+CREATE VIEW IF NOT EXISTS product_info_2 AS
+SELECT q.*,
+       abs(d_not_measured) < max_d_not_measured            AS ok_d_not_measured,
+       abs(d_fon50) < max_d_temp                           AS ok_d_fon50,
+       abs(d_fon20) < max_d_fon                            AS ok_d_fon20,
+       k_sens20 < max_k_sens20 AND k_sens20 > min_k_sens20 AS ok_k_sens20,
+       k_sens50 < max_k_sens50 AND k_sens50 > min_k_sens50 AS ok_k_sens50,
+       i_f_plus20 < max_fon                                AS ok_fon20,
+       gas.code                                            AS gas_code,
+       units.code                                          AS units_code,
+       scale,
+       noble_metal_content,
+       lifetime_months,
+       lc64,
+       points_method
+
+FROM product_info_1 q
+       INNER JOIN product_type ON product_type.product_type_name = q.applied_product_type_name
+       INNER JOIN gas ON product_type.gas_name = gas.gas_name
+       INNER JOIN units ON product_type.units_name = units.units_name;
 
 CREATE VIEW IF NOT EXISTS product_info AS
-  WITH q1 AS (SELECT product_id,
-                     i_f_plus20,
-                     (CASE (product.product_type_name ISNULL)
-                        WHEN 1 THEN party.product_type_name
-                        WHEN 0 THEN product.product_type_name END)                           AS product_type_name,
-                     round(100 * (i_s_plus50 - i_f_plus50) / (i_s_plus20 - i_f_plus20), 3)   AS k_sens50,
-                     round((i_s_plus20 - i_f_plus20) / (concentration3 - concentration1), 3) AS k_sens20,
-                     round(i13 - i_f_plus20, 3)                                              AS d_fon20,
-                     round(i_f_plus50 - i_f_plus20, 3)                                       AS d_fon50,
-                     round(not_measured - i_f_plus20, 3)                                     AS d_not_measured
-              FROM product
-                     INNER JOIN party ON party.party_id = product.party_id
-
-    ), q2 AS (
-    SELECT q1.product_id,
-           abs(d_not_measured) < max_d_not_measured            AS ok_d_not_measured,
-           abs(d_fon50) < max_d_temp                           AS ok_d_fon50,
-           abs(d_fon20) < max_d_fon                            AS ok_d_fon20,
-           k_sens20 < max_k_sens20 AND k_sens20 > min_k_sens20 AS ok_k_sens20,
-           k_sens50 < max_k_sens50 AND k_sens50 > min_k_sens50 AS ok_k_sens50,
-           i_f_plus20 < max_fon                                AS ok_fon20
-    FROM q1
-           INNER JOIN product_type ON product_type.product_type_name = q1.product_type_name
-    ), q3 AS (
-    SELECT product_id,
-           NOT (ok_d_not_measured AND ok_d_fon50 AND ok_d_fon20 AND ok_k_sens20 AND ok_k_sens50 AND
-                ok_fon20) AS not_ok
-    FROM q2
-    )
-    SELECT q1.product_id,
-           product.party_id,
-           place,
-           serial,
-           product.old_product_id,
-           q1.product_type_name                         AS applied_product_type_name,
-           product.product_type_name                    AS product_type_name,
-           product.note,
-           gas_name,
-           units_name,
-           scale,
-           noble_metal_content,
-           lifetime_months,
-           lc64,
-           points_method,
-
-           round(i_f_minus20, 3)                        AS i_f_minus20,
-           round(q1.i_f_plus20, 3)                      AS i_f_plus20,
-           round(i_f_plus50, 3)                         AS i_f_plus50,
-           round(i_s_minus20, 3)                        AS i_s_minus20,
-           round(i_s_plus20, 3)                         AS i_s_plus20,
-           round(i_s_plus50, 3)                         AS i_s_plus50,
-
-           party.concentration1,
-           party.concentration3,
-           round(product.not_measured, 3)               AS not_measured,
-
-
-           round(product.i13, 3)                        AS i13,
-
-           round(i24, 3)                                AS i24,
-           round(i35, 3)                                AS i35,
-           round(i26, 3)                                AS i26,
-           round(i17, 3)                                AS i17,
-
-           k_sens20,
-           k_sens50,
-           d_fon50,
-           d_fon20,
-           d_not_measured,
-
-           ok_fon20,
-           ok_d_fon20,
-           ok_k_sens20,
-           ok_d_fon50,
-           ok_k_sens50,
-           ok_d_not_measured,
-
-           production,
-           not_ok,
-           (firmware NOT NULL AND LENGTH(firmware) > 0) as has_firmware
-
-    FROM q1
-           INNER JOIN product_type ON product_type.product_type_name = q1.product_type_name
-           INNER JOIN q2 ON q2.product_id = q1.product_id
-           INNER JOIN q3 ON q3.product_id = q1.product_id
-           INNER JOIN product ON product.product_id = q1.product_id
-           INNER JOIN party ON party.party_id = product.party_id;
+SELECT *,
+       NOT (ok_d_not_measured AND ok_d_fon50 AND ok_d_fon20 AND ok_k_sens20 AND ok_k_sens50 AND
+            ok_fon20) AS not_ok
+FROM product_info_2 q;
 
 
 INSERT

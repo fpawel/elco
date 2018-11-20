@@ -3,6 +3,8 @@ package firmware
 import (
 	"database/sql"
 	"github.com/fpawel/elco/internal/data"
+	"github.com/hashicorp/go-multierror"
+	"github.com/pkg/errors"
 	"math"
 	"sort"
 )
@@ -18,99 +20,127 @@ const (
 	CalcMethod3 = 3
 )
 
-func MainTemperatures() []float64 {
-	return []float64{-40, -20, 0, 20, 30, 40, 45, 50}
+func srcFon2(p data.ProductInfo) (y M, err error) {
+	if !p.IFPlus20.Valid {
+		err = multierror.Append(err, errors.New("нет значения фонового тока при +20\""))
+	}
+	if !p.IFPlus50.Valid {
+		err = multierror.Append(err, errors.New("нет значения фонового тока при +50\""))
+	}
+
+	if err == nil {
+		y = M{}
+		y[20] = p.IFPlus20.Float64
+		y[50] = p.IFPlus50.Float64
+		y[40] = (y[50]-y[20])*0.5 + y[20]
+		y[-40] = 0
+		y[-20] = y[20] * 0.2
+		y[0] = y[20] * 0.5
+		y[30] = (y[40]-y[20])*0.5 + y[20]
+		y[45] = (y[50]-y[40])*0.5 + y[40]
+	}
+	return
 }
 
-func calcFonCurr3(y M) {
-	if _, ok := y[20]; !ok {
-		return
+func srcFon3(p data.ProductInfo) (y M, err error) {
+	if !p.IFMinus20.Valid {
+		err = multierror.Append(err, errors.New("нет значения фонового тока при -20\""))
 	}
-	if _, ok := y[50]; !ok {
-		return
+	if !p.IFPlus20.Valid {
+		err = multierror.Append(err, errors.New("нет значения фонового тока при +20\""))
 	}
-	if _, ok := y[-20]; !ok {
-		return
+	if !p.IFPlus50.Valid {
+		err = multierror.Append(err, errors.New("нет значения фонового тока при +50\""))
 	}
-	y[40] = (y[50]-y[20])*0.5 + y[20]
-	y[-40] = y[-20] - 0.5*(y[20]-y[-20])
-	y[0] = y[20] - 0.5*(y[20]-y[-20])
-	y[30] = (y[40]-y[20])*0.5 + y[20]
-	y[45] = (y[50]-y[40])*0.5 + y[40]
-
+	if err == nil {
+		y = M{}
+		y[-20] = p.IFMinus20.Float64
+		y[20] = p.IFPlus20.Float64
+		y[50] = p.IFPlus50.Float64
+		y[40] = (y[50]-y[20])*0.5 + y[20]
+		y[-40] = y[-20] - 0.5*(y[20]-y[-20])
+		y[0] = y[20] - 0.5*(y[20]-y[-20])
+		y[30] = (y[40]-y[20])*0.5 + y[20]
+		y[45] = (y[50]-y[40])*0.5 + y[40]
+	}
+	return
 }
 
-func calcFonCurr2(y M) {
-	if _, ok := y[20]; !ok {
-		return
+func srcSens2(p data.ProductInfo) (y M, err error) {
+
+	if !p.ISPlus20.Valid {
+		err = multierror.Append(err, errors.New("нет значения тока чувствительности при +20\""))
 	}
-	if _, ok := y[50]; !ok {
-		return
+	if !p.ISPlus50.Valid {
+		err = multierror.Append(err, errors.New("нет значения тока чувствительности при +50\""))
 	}
 
-	y[40] = (y[50]-y[20])*0.5 + y[20]
-	y[-40] = 0
-	y[-20] = y[20] * 0.2
-	y[0] = y[20] * 0.5
-	y[30] = (y[40]-y[20])*0.5 + y[20]
-	y[45] = (y[50]-y[40])*0.5 + y[40]
+	if err == nil {
+		y = M{}
+		y[20] = p.ISPlus20.Float64
+		y[50] = p.ISPlus50.Float64
+		y[40] = (y[50]-y[20])*0.5 + y[20]
+		y[-40] = 30
+		y[-20] = 58
+		y[0] = 82
+		y[30] = (y[40]-y[20])*0.5 + y[20]
+		y[45] = (y[50]-y[40])*0.5 + y[40]
+	}
+	return
 }
 
-func calcSens2(y M) {
-	if _, ok := y[20]; !ok {
-		return
+func srcSens3(p data.ProductInfo) (y M, err error) {
+	if !p.ISMinus20.Valid {
+		err = multierror.Append(err, errors.New("нет значения тока чувствительности при -20\""))
 	}
-	if _, ok := y[50]; !ok {
-		return
+	if !p.ISPlus20.Valid {
+		err = multierror.Append(err, errors.New("нет значения тока чувствительности при +20\""))
 	}
-	y[40] = (y[50]-y[20])*0.5 + y[20]
-	y[-40] = 30
-	y[-20] = 58
-	y[0] = 82
-	y[30] = (y[40]-y[20])*0.5 + y[20]
-	y[45] = (y[50]-y[40])*0.5 + y[40]
+	if !p.ISPlus50.Valid {
+		err = multierror.Append(err, errors.New("нет значения тока чувствительности при +50\""))
+	}
+
+	if err == nil {
+		y = M{}
+		y[-20] = p.ISMinus20.Float64
+		y[20] = p.ISPlus20.Float64
+		y[50] = p.ISPlus50.Float64
+
+		if y[-20] > 0 && y[-20] < 0.45*y[20] {
+			err = multierror.Append(err, errors.Errorf(
+				"ток чувствительности: I(-20)=%v, I(+20)=%v, I(-20)>0, I(-20)<0.45*I(+20)",
+				y[-20], y[20]))
+		} else {
+			y[0] = (y[20]-y[-20])*0.5 + y[-20]
+			y[40] = y[50] - y[20]*0.5 + y[20]
+			y[45] = y[50] - y[40]*0.5 + y[40]
+			y[30] = y[40] - y[20]*0.5 + y[20]
+			y[-40] = 2*y[-20] - y[0]
+			if y[-20] > 0 {
+				y[-40] += 1.2 * (45 - y[-20]) / (0.43429 * math.Log(y[-20]))
+			}
+		}
+	}
+	return
 }
 
-func calcSens3(y M) M {
-	if _, ok := y[20]; !ok {
-		return nil
-	}
-	if _, ok := y[50]; !ok {
-		return nil
-	}
-	if _, ok := y[-20]; !ok {
-		return nil
-	}
-	y[0] = (y[20]-y[-20])*0.5 + y[-20]
-	y[40] = y[50] - y[20]*0.5 + y[20]
-	y[45] = y[50] - y[40]*0.5 + y[40]
-	y[30] = y[40] - y[20]*0.5 + y[20]
-	y[-40] = 2*y[-20] - y[0]
-	if y[-20] > 0 {
-		y[-40] += 1.2 * (45 - y[-20]) / (0.43429 * math.Log(y[-20]))
-	} else if y[-20] < 0.45*y[20] {
-		return nil
-	}
-	return y
-}
-
-func calcFonCurr(m CalcMethod, xy M) {
+func srcSens(p data.ProductInfo, m CalcMethod) (M, error) {
 	switch m {
 	case CalcMethod2:
-		calcFonCurr2(xy)
+		return srcSens2(p)
 	case CalcMethod3:
-		calcFonCurr3(xy)
+		return srcSens3(p)
 	default:
 		panic(m)
 	}
 }
 
-func calcSens(m CalcMethod, xy M) {
+func srcFon(p data.ProductInfo, m CalcMethod) (M, error) {
 	switch m {
 	case CalcMethod2:
-		calcSens2(xy)
+		return srcFon2(p)
 	case CalcMethod3:
-		calcSens3(xy)
+		return srcFon3(p)
 	default:
 		panic(m)
 	}
