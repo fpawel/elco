@@ -139,6 +139,7 @@ FROM party;
 CREATE VIEW IF NOT EXISTS product_info_1 AS
 SELECT product_id,
        product.party_id,
+       created_at,
        serial,
        place,
        production,
@@ -160,7 +161,10 @@ SELECT product_id,
        round(i26, 3)                                                           AS i26,
        round(i17, 3)                                                           AS i17,
        round(not_measured, 3)                                                  AS not_measured,
+
        round(100 * (i_s_plus50 - i_f_plus50) / (i_s_plus20 - i_f_plus20), 3)   AS k_sens50,
+       round(100 * (i_s_minus20 - i_f_minus20) / (i_s_plus20 - i_f_plus20), 3)   AS k_sens_minus20,
+
        round((i_s_plus20 - i_f_plus20) / (concentration3 - concentration1), 3) AS k_sens20,
        round(i13 - i_f_plus20, 3)                                              AS d_fon20,
        round(i_f_plus50 - i_f_plus20, 3)                                       AS d_fon50,
@@ -179,12 +183,13 @@ SELECT q.*,
        i_f_plus20 < max_fon                                AS ok_fon20,
        gas.code                                            AS gas_code,
        units.code                                          AS units_code,
+       gas.gas_name,
+       units.units_name,
        scale,
        noble_metal_content,
        lifetime_months,
        lc64,
        points_method
-
 FROM product_info_1 q
        INNER JOIN product_type ON product_type.product_type_name = q.applied_product_type_name
        INNER JOIN gas ON product_type.gas_name = gas.gas_name

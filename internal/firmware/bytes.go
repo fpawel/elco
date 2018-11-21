@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/goutils"
-	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 	"math"
 	"time"
@@ -18,66 +17,79 @@ type CodeStr struct {
 	Str  string
 }
 
-func (x Bytes) Put(p data.ProductInfo1) (err error) {
-
-	// дата создания
+func (x Bytes) PutProduct(p data.ProductInfo) error {
+	if !p.Serial.Valid {
+		return errors.New("не задан серийный номер")
+	}
+	if !p.KSens20.Valid {
+		return errors.New("нет значения к-та чувствительности")
+	}
+	goutils.PutBCD6(x[0x0701:], float64(p.Serial.Int64))
 	x[0x070F] = byte(p.CreatedAt.Year() - 2000)
 	x[0x070E] = byte(p.CreatedAt.Month())
 	x[0x070D] = byte(p.CreatedAt.Day())
 	x[0x0710] = byte(p.CreatedAt.Hour())
 	x[0x0711] = byte(p.CreatedAt.Minute())
 	x[0x0712] = byte(p.CreatedAt.Second())
+	x[0x0600] = p.GasCode
+	x[0x060A] = p.UnitsCode
+	goutils.PutBCD6(x[0x0602:], 0)
+	goutils.PutBCD6(x[0x0606:], p.Scale)
+	x.putProductTypeName(p.AppliedProductTypeName)
+	binary.LittleEndian.PutUint64(x[0x0720:], math.Float64bits(p.KSens20.Float64))
+	if err := x.putProductFonPoints(p); err != nil {
+		return err
+	}
+	if err := x.putProductSensPoints(p); err != nil {
+		return err
+	}
+	return nil
+}
 
-	// серийный номер
-	if p.Serial.Valid {
-		goutils.PutBCD6(x[0x0701:], float64(p.Serial.Int64))
-	} else {
-		err = multierror.Append(err, errors.New("не задан серийный номер"))
+// putProductTypeName - исполнение
+func (x Bytes) putProductTypeName(productTypeName string) {
+	const n = 50
+	b := []byte(productTypeName)
+	if len(b) > n {
+		b = b[:n]
 	}
-	// коэффициент чувствительность
-	if p.KSens20.Valid {
-		binary.LittleEndian.PutUint64(x[0x0720:], math.Float64bits(p.KSens20.Float64))
-	} else {
-		err = multierror.Append(err, errors.New("нет значения Кч"))
+	for i := copy(x[0x060B:], b); i < n; i++ {
+		x[i] = 0xFF
 	}
-	x[0x0600] = p.GasCode                // газ
-	x[0x060A] = p.UnitsCode              // единицы измерения
-	goutils.PutBCD6(x[0x0602:], 0)       // начало шкалы
-	goutils.PutBCD6(x[0x0606:], p.Scale) // конец шкалы
-	{                                    // исполнение
-		const n = 50
-		b := []byte(p.ProductTypeName)
-		if len(b) > n {
-			b = b[:n]
-		}
-		for i := copy(x[0x060B:], b); i < n; i++ {
-			x[i] = 0xFF
-		}
-	}
+}
 
-	// фоновые токи
+// putFonPoints - записать в буфер точки фоновых токов
+func (x Bytes) putProductFonPoints(p data.ProductInfo) error {
+	xy, err := srcFon(p)
+	if err != nil {
+		return err
+	}
+	at := newApproxTbl(xy)
 	t := float64(-124)
 	for i := 0x00F8; i >= 0; i -= 2 {
-		binary.LittleEndian.PutUint16(x[i:], uint16(t))
-
-		xs = append(xs, t)
-		a := binary.LittleEndian.Uint16(x[i:])
-		b := int16(a)
-		y := float64(b)
-		ys = append(ys, y)
+		y := math.Round(at.F(t))
+		n := uint16(y)
+		binary.LittleEndian.PutUint16(x[i:], n)
 		t++
 	}
-	t = 0
+	return nil
+}
+
+// putSensPoints - записать в буфер точки коэфф. чувствительности
+func (x Bytes) putProductSensPoints(p data.ProductInfo) error {
+	xy, err := srcSens(p)
+	if err != nil {
+		return err
+	}
+	at := newApproxTbl(xy)
+	t := float64(0)
 	for i := 0x0100; i <= 0x01F8; i += 2 {
-		xs = append(xs, t)
-		a := binary.LittleEndian.Uint16(x[i:])
-		b := int16(a)
-		y := float64(b)
-		ys = append(ys, y)
+		y := math.Round(at.F(t))
+		n := uint16(y)
+		binary.LittleEndian.PutUint16(x[i:], n)
 		t++
 	}
-
-	return
+	return nil
 }
 
 func (x Bytes) Date() time.Time {
@@ -136,12 +148,12 @@ func (x Bytes) String() string {
 	return fmt.Sprintf("№%v %s %.3f", serial, string(bs), x.Sensitivity())
 }
 
-func (x Bytes) CurrFonPoints() (xs, ys []float64) {
-	if len(x) < 0x01F8+1 {
-		return
-	}
-	var t float64 = -124
+func (x Bytes) FonPoints() (xs, ys []float64) {
+	t := float64(-124)
 	for i := 0x00F8; i >= 0; i -= 2 {
+		if x[i] == 0xFF && x[i+1] == 0xFF {
+			continue
+		}
 		xs = append(xs, t)
 		a := binary.LittleEndian.Uint16(x[i:])
 		b := int16(a)
@@ -151,6 +163,9 @@ func (x Bytes) CurrFonPoints() (xs, ys []float64) {
 	}
 	t = 0
 	for i := 0x0100; i <= 0x01F8; i += 2 {
+		if x[i] == 0xFF && x[i+1] == 0xFF {
+			continue
+		}
 		xs = append(xs, t)
 		a := binary.LittleEndian.Uint16(x[i:])
 		b := int16(a)
@@ -161,14 +176,12 @@ func (x Bytes) CurrFonPoints() (xs, ys []float64) {
 	return
 }
 
-func (x Bytes) CurrSensPoints() (xs, ys []float64) {
-
-	if len(x) < 0x05F8+1 {
-		return
-	}
-
-	var t float64 = -124
+func (x Bytes) SensPoints() (xs, ys []float64) {
+	t := float64(-124)
 	for i := 0x04F8; i >= 0x0400; i -= 2 {
+		if x[i] == 0xFF && x[i+1] == 0xFF {
+			continue
+		}
 		xs = append(xs, t)
 		a := binary.LittleEndian.Uint16(x[i:])
 		b := int16(a)
@@ -178,6 +191,9 @@ func (x Bytes) CurrSensPoints() (xs, ys []float64) {
 	}
 	t = 0
 	for i := 0x0500; i <= 0x05F8; i += 2 {
+		if x[i] == 0xFF && x[i+1] == 0xFF {
+			continue
+		}
 		xs = append(xs, t)
 		a := binary.LittleEndian.Uint16(x[i:])
 		b := int16(a)
