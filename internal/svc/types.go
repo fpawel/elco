@@ -1,8 +1,6 @@
 package svc
 
-import (
-	"github.com/fpawel/elco/internal/data"
-)
+import "github.com/fpawel/elco/internal/data"
 
 type Party struct {
 	data.PartyInfo
