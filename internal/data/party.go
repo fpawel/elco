@@ -19,4 +19,6 @@ type Party struct {
 	Concentration2  float64        `reform:"concentration2"`
 	Concentration3  float64        `reform:"concentration3"`
 	Note            sql.NullString `reform:"note"`
+	Products        []ProductInfo
+	Last            bool
 }

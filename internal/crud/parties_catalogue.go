@@ -34,7 +34,7 @@ func (x PartiesCatalogue) Days(year, month int) (days []int) {
 	return
 }
 
-func (x PartiesCatalogue) Parties(year, month, day int) (parties []data.PartyInfo) {
+func (x PartiesCatalogue) Parties(year, month, day int) (parties []data.Party) {
 	x.mu.Lock()
 	defer x.mu.Unlock()
 
@@ -49,11 +49,20 @@ func (x PartiesCatalogue) Parties(year, month, day int) (parties []data.PartyInf
 	}()
 
 	for {
-		var party data.PartyInfo
-		if err = x.dbr.NextRow(&party, rows); err != nil {
+		var p data.PartyInfo
+		if err = x.dbr.NextRow(&p, rows); err != nil {
 			break
 		}
-		parties = append(parties, party)
+		parties = append(parties, data.Party{
+			PartyID:         p.PartyID,
+			CreatedAt:       p.CreatedAt,
+			UpdatedAt:       p.UpdatedAt,
+			ProductTypeName: p.ProductTypeName,
+			Concentration1:  p.Concentration1,
+			Concentration2:  p.Concentration2,
+			Concentration3:  p.Concentration3,
+			Last:            p.Last,
+		})
 	}
 	if err != reform.ErrNoRows {
 		panic(err)
@@ -61,13 +70,13 @@ func (x PartiesCatalogue) Parties(year, month, day int) (parties []data.PartyInf
 	return
 }
 
-func (x PartiesCatalogue) Party(partyID int64) (party data.PartyInfo, products []data.ProductInfo) {
+func (x PartiesCatalogue) Party(partyID int64) (party data.Party) {
 	x.mu.Lock()
 	defer x.mu.Unlock()
 	if err := x.dbr.FindOneTo(&party, "party_id", partyID); err != nil {
 		panic(err)
 	}
-	products = data.GetProductsByPartyID(x.dbr, partyID)
+	party.Products = data.GetProductsByPartyID(x.dbr, partyID)
 	return
 
 }

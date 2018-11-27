@@ -13,8 +13,8 @@ func NewLastParty(c crud.LastParty) *LastParty {
 	return &LastParty{c}
 }
 
-func (x *LastParty) Party(_ struct{}, r *Party) error {
-	r.PartyInfo, r.Products = x.c.Party()
+func (x *LastParty) Party(_ struct{}, r *data.Party) error {
+	*r = x.c.Party()
 	return nil
 }
 

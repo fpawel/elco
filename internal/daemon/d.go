@@ -23,8 +23,8 @@ type D struct {
 }
 
 const (
-	pipeName              = `\\.\pipe\elco`
-	serverWindowClassName = "ElcoServerWindow"
+	PipeName = `\\.\pipe\elco`
+	//serverWindowClassName = "ElcoServerWindow"
 )
 
 func New() *D {
@@ -103,7 +103,7 @@ func (x *D) registerRPCServices() {
 }
 
 func mustPipeListener() net.Listener {
-	ln, err := winio.ListenPipe(pipeName, nil)
+	ln, err := winio.ListenPipe(PipeName, nil)
 	if err != nil {
 		panic(err)
 	}

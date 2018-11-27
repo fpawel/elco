@@ -11,7 +11,7 @@ type LastParty struct {
 	dbContext
 }
 
-func (x LastParty) Party() (data.PartyInfo, []data.ProductInfo) {
+func (x LastParty) Party() data.Party {
 	x.mu.Lock()
 	defer x.mu.Unlock()
 	return x.party()
@@ -20,7 +20,7 @@ func (x LastParty) Party() (data.PartyInfo, []data.ProductInfo) {
 func (x LastParty) ProductAtPlace(place int) (product data.ProductInfo, err error) {
 	x.mu.Lock()
 	defer x.mu.Unlock()
-	party, _ := x.party()
+	party := x.party()
 	err = x.dbr.SelectOneTo(&product, "WHERE party_id = ? AND place = ?", party.PartyID, place)
 	return
 }
@@ -89,12 +89,13 @@ func (x LastParty) DeleteProductAtPlace(place int) (err error) {
 	return
 }
 
-func (x LastParty) party() (data.PartyInfo, []data.ProductInfo) {
-	var party data.PartyInfo
+func (x LastParty) party() data.Party {
+	var party data.Party
 	if err := x.dbr.SelectOneTo(&party, `ORDER BY created_at DESC LIMIT 1;`); err != nil {
 		panic(err)
 	}
-	return party, data.GetProductsByPartyID(x.dbr, party.PartyID)
+	party.Products = data.GetProductsByPartyID(x.dbr, party.PartyID)
+	return party
 }
 
 func (x LastParty) partyID() (lastPartyID int64) {

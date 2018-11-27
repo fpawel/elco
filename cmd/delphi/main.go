@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/fpawel/elco/internal/daemon"
 	"github.com/fpawel/elco/internal/delphi"
 	"github.com/fpawel/elco/internal/svc"
 	"github.com/fpawel/goutils/winapp"
@@ -20,29 +21,25 @@ func main() {
 		"ProductInfo": "Product",
 	}
 
-	dir := filepath.Join(os.Getenv("DELPHI_PATH"),
+	dir := filepath.Join(os.Getenv("DELPHIPATH"),
 		"src", "github.com", "fpawel", "elcoui", "api")
 	winapp.MustDir(dir)
 
-	srvFn := filepath.Join(dir, "services.pas")
-	srvFile, err := os.Open(srvFn)
-	if os.IsNotExist(err) {
-		srvFile, err = os.Create(srvFn)
-	}
+	srvFile, err := os.Create(filepath.Join(dir, "services.pas"))
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer srvFile.Close()
+	defer func() {
+		_ = srvFile.Close()
+	}()
 
-	tpsFn := filepath.Join(dir, "server_data_types.pas")
-	tpsFile, err := os.Open(tpsFn)
-	if os.IsNotExist(err) {
-		tpsFile, err = os.Create(tpsFn)
-	}
+	fn := filepath.Join(dir, "server_data_types.pas")
+	tpsFile, err := os.Create(fn)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer tpsFile.Close()
-
-	delphi.ServicesUnit(types, m, srvFile, tpsFile)
+	defer func() {
+		_ = tpsFile.Close()
+	}()
+	delphi.ServicesUnit(daemon.PipeName, types, m, srvFile, tpsFile)
 }

@@ -99,8 +99,5 @@ func (x dataField) declType() string {
 	if x.isArray {
 		return fmt.Sprintf("TArray<%s>", x.typeName)
 	}
-	if x.isClass {
-		return fmt.Sprintf("T%s", x.typeName)
-	}
 	return x.typeName
 }

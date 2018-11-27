@@ -28,12 +28,12 @@ func (x *PartiesCatalogue) Days(r struct{ Year, Month int }, days *[]int) error 
 	return nil
 }
 
-func (x *PartiesCatalogue) Parties(r struct{ Year, Month, Day int }, parties *[]data.PartyInfo) error {
+func (x *PartiesCatalogue) Parties(r struct{ Year, Month, Day int }, parties *[]data.Party) error {
 	*parties = x.c.Parties(r.Year, r.Month, r.Day)
 	return nil
 }
 
-func (x *PartiesCatalogue) Party(a [1]int64, r *Party) error {
-	r.PartyInfo, r.Products = x.c.Party(a[0])
+func (x *PartiesCatalogue) Party(a [1]int64, r *data.Party) error {
+	*r = x.c.Party(a[0])
 	return nil
 }

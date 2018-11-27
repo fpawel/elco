@@ -27,9 +27,9 @@ begin
 end;{% endfunc %}
 
 {% func implClass(t typeInfo) %} 
-//
-//{%s t.name %}
-//
+
+{ {%s t.name %} }
+
 {%s implConstructor(t) %}
 {%s implDestructor(t) %}{% endfunc %}
 

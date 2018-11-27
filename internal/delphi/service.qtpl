@@ -5,31 +5,68 @@ unit {%s x.unitName %};
 
 interface
     {%s uses(x.interfaceUses) %}
-type
-    {% for _,m := range x.methods %} {%s= m.signature() %};
-    {% endfor %} 
+type 
+    {% for _, srv := range x.services %} T{%s srv.serviceName %} = class 
+    public
+        {% for _,m := range srv.methods %}{%s= m.signature("") %};
+        {% endfor %} 
+    end;{% endfor %} 
 implementation 
-    {%s uses(x.implUses) %}   
-{% for _,m := range x.methods %}{%s= m.body() %};
-{% endfor %} 
+    {%s uses(x.implUses) %}  
 
+var
+    pipe_conn: TPipe;
+
+procedure ensure_pipe_connected;
+begin
+    if Assigned(pipe_conn) then
+        exit;
+    try
+        pipe_conn := TPipe.Create({%s= x.pipeStr() %});
+    except
+        begin
+            if Assigned(pipe_conn) then
+                pipe_conn.Free;
+            raise;
+        end;
+    end;
+end;
+
+{% for _, srv := range x.services %} {% for _,m := range srv.methods %}{%s= m.body(srv.serviceName) %}
+{% endfor %}{% endfor %} 
 end.{% endfunc %}
 
-{% func (x method) body() %} 
-{%s= x.signature() %};
+{% func (x method) body(srvName string) %} 
+{%s= x.signature("T" + srvName + ".") %};
 var    
     req, resp: ISuperobject;{%if x.retArray %} i:ISuperobject;{% endif %}
 begin
-    req := {%if x.namedParams %}SO{% else %}SA{% endif %};
+    ensure_pipe_connected;
+    req := {%if x.namedParams %}SO{% else %}SA([]){% endif %};
     {% for _,p := range x.params %}{%s= x.genSetParam(p) %};
-    {% endfor %}
-    resp := Pipe_GetJsonrpcResult(pipe_conn, {%s= x.genMethod() %}, req);
-    {%if x.retArray %} for i in resp do
-    begin
-        SetLength(Result, Length(Result)+1);
-        SuperObject_Get(i, Reult[Length(Result)-1]);            
-    end;{% else %}Result := TJson.JsonToObject {%s= "<" %} {%s x.retDelphiType %} {%s= ">" %} (resp.AsJson);{% endif %}    
-end{% endfunc %}
+    {% endfor %}    
+    resp := Pipe_GetJsonrpcResult(pipe_conn, {%s= x.remoteMethod(srvName) %}, req);
+    {%if !x.procedure %}
+        {%if x.retArray %} 
+            for i in resp do
+            begin
+                SetLength(Result, Length(Result)+1);
+                {%if x.retPODType %}                    
+                    SuperObject_Get(i, Result[Length(Result)-1]);
+                {% else %} 
+                    Result[Length(Result)-1] := TJson.JsonToObject {%s= "<" %} {%s= x.retDelphiType %} {%s= ">" %} (i.AsJson);
+                {% endif %}
+            end;
+        {% else %}
+            {%if x.retPODType %}
+                SuperObject_Get(resp, Result);
+            {% else %} 
+                Result := TJson.JsonToObject {%s= "<" %} {%s= x.retDelphiType %} {%s= ">" %} (resp.AsJson);
+            {% endif %}
+        {% endif %}
+    {% endif %}
+end;
+{% endfunc %}
 
 {% func (x method) genSetParam(p param) %}{% collapsespace %}
     {%if x.namedParams %} 
@@ -39,20 +76,29 @@ end{% endfunc %}
     {% endif %}    
 {% endcollapsespace %}{% endfunc %}
 
-{% func (x method) genDeserializeJsonResult() %}{% collapsespace %}
-    Result := TJson.JsonToObject {%s= "<" %} {%s x.retDelphiType %} {%s= ">" %} (resp.AsJson);
-{% endcollapsespace %}{% endfunc %}
 
-
-
-{% func (x method) signature() %}{% collapsespace %}
+{% func (x method) signature(headPart string) %}{% collapsespace %}
+    class 
     {%if x.procedure %}
         procedure	
     {% else %}
 		function 
-	{% endif %}
-	{%s x.serviceName %}_{%s x.methodName %}(pipe_conn:TPipe; {%s= x.signatureParams() %} )
-    {%if !x.procedure %}
-        :  {%s= x.retDelphiType %}
+	{% endif %} 
+    {%s headPart %}{%s x.methodName %}
+    (
+    {%if len(x.params) > 0 %}
+        {% for i, p := range x.params %}
+            {%s p.name %} : {%s p.typeName %}
+            {%if i < len(x.params) - 1 %} ; {% endif %} 
+        {% endfor %}
+	{% endif %}  
+    )
+    {%if !x.procedure %}        
+        :  
+        {%if x.retArray %} 
+            {%s= "TArray<" %} {%s= x.retDelphiType %} {%s= ">" %}
+        {% else %}  
+            {%s= x.retDelphiType %}
+        {% endif %}  
     {% endif %}
 {% endcollapsespace %}{% endfunc %}
