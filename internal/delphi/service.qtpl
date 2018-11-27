@@ -1,0 +1,58 @@
+{% package delphi %}
+
+{% func (x *ServicesSrc) Unit() %} 
+unit {%s x.unitName %};
+
+interface
+    {%s uses(x.interfaceUses) %}
+type
+    {% for _,m := range x.methods %} {%s= m.signature() %};
+    {% endfor %} 
+implementation 
+    {%s uses(x.implUses) %}   
+{% for _,m := range x.methods %}{%s= m.body() %};
+{% endfor %} 
+
+end.{% endfunc %}
+
+{% func (x method) body() %} 
+{%s= x.signature() %};
+var    
+    req, resp: ISuperobject;{%if x.retArray %} i:ISuperobject;{% endif %}
+begin
+    req := {%if x.namedParams %}SO{% else %}SA{% endif %};
+    {% for _,p := range x.params %}{%s= x.genSetParam(p) %};
+    {% endfor %}
+    resp := Pipe_GetJsonrpcResult(pipe_conn, {%s= x.genMethod() %}, req);
+    {%if x.retArray %} for i in resp do
+    begin
+        SetLength(Result, Length(Result)+1);
+        SuperObject_Get(i, Reult[Length(Result)-1]);            
+    end;{% else %}Result := TJson.JsonToObject {%s= "<" %} {%s x.retDelphiType %} {%s= ">" %} (resp.AsJson);{% endif %}    
+end{% endfunc %}
+
+{% func (x method) genSetParam(p param) %}{% collapsespace %}
+    {%if x.namedParams %} 
+        {%s= genSetField(p.name) %}
+    {% else %}
+        req.AsArray.Add({%s p.name %})
+    {% endif %}    
+{% endcollapsespace %}{% endfunc %}
+
+{% func (x method) genDeserializeJsonResult() %}{% collapsespace %}
+    Result := TJson.JsonToObject {%s= "<" %} {%s x.retDelphiType %} {%s= ">" %} (resp.AsJson);
+{% endcollapsespace %}{% endfunc %}
+
+
+
+{% func (x method) signature() %}{% collapsespace %}
+    {%if x.procedure %}
+        procedure	
+    {% else %}
+		function 
+	{% endif %}
+	{%s x.serviceName %}_{%s x.methodName %}(pipe_conn:TPipe; {%s= x.signatureParams() %} )
+    {%if !x.procedure %}
+        :  {%s= x.retDelphiType %}
+    {% endif %}
+{% endcollapsespace %}{% endfunc %}

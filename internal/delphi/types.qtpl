@@ -1,0 +1,49 @@
+{% package delphi %}
+
+
+{% func declInterfaceClass(t typeInfo) %} 
+    {%s t.name %} = class 
+    public 
+        {% for _,f := range t.fields %}F{%s f.name %} : {%s= f.declType() %};
+        {% endfor %}{% if t.hasClassField()%} 
+        constructor Create;
+        destructor Destroy;{% endif %}
+    end;
+{% endfunc %}
+
+{% func implConstructor(t typeInfo) %} 
+constructor {%s t.name %}.Create;
+begin
+    {% for _,f := range t.fields %}{% if f.isClass %}F{%s f.name %} := {%s f.typeName %}.Create;
+    {% endif %}{% endfor %}
+end;{% endfunc %}
+
+{% func implDestructor(t typeInfo) %} 
+destructor {%s t.name %}.Destroy;
+begin
+    {% for _,f := range t.fields %}{% if f.isClass %}if Assigned(F{%s f.name %}) then 
+        F{%s f.name %}.Free;
+    {% endif %}{% endfor %}
+end;{% endfunc %}
+
+{% func implClass(t typeInfo) %} 
+//
+//{%s t.name %}
+//
+{%s implConstructor(t) %}
+{%s implDestructor(t) %}{% endfunc %}
+
+{% func (x *TypesSrc) Unit() %} 
+unit {%s x.unitName %};
+
+interface
+    {%s uses(x.interfaceUses) %}
+type
+    {% for _,t := range x.types %}{%s= declInterfaceClass(t)  %}{% endfor %} 
+implementation 
+    {%s uses(x.implUses) %}   
+{% for _,t := range x.types %} {% if t.hasClassField()%}{%s implClass(t) %}
+{% endif %}{% endfor %}
+
+end.{% endfunc %}
+

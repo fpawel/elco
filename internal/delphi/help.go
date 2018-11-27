@@ -1,52 +1,66 @@
 package delphi
 
 import (
+	"fmt"
 	"github.com/pkg/errors"
 	r "reflect"
+	"strings"
 	"time"
 )
 
 type typesNames = map[string]string
 
-func delphiTypeName(m typesNames, structField r.StructField) (dataField, error) {
+func uses(s []string) string {
+	if len(s) == 0 {
+		return ""
+	}
+	return "uses " + strings.Join(s, ", ") + ";"
+}
+
+func newField(fieldName string, fieldType r.Type, m typesNames) (dataField, error) {
 	f := dataField{
-		name: structField.Name,
+		name: fieldName,
 	}
 
-	kind := structField.Type.Kind()
-
-	if podName := delphiPlainOldTypeName(structField); podName != "" {
+	if podName := delphiPlainOldTypeName(fieldType); podName != "" {
 		f.typeName = podName
 		return f, nil
 	}
 
-	switch kind {
+	switch fieldType.Kind() {
 
 	case r.Slice, r.Array:
 		f.isArray = true
-		f.typeName = structField.Type.Elem().Name()
-		if structField.Type.Elem().Kind() == r.Struct {
-			f.typeName = delphiClassName(m, structField.Type.Elem())
+		f.typeName = fieldType.Elem().Name()
+		if fieldType.Elem().Kind() == r.Struct {
+			f.typeName = structNameToDelphiClassName(m, fieldType.Elem())
 		}
 	case r.Struct:
 		f.isClass = true
-		f.typeName = delphiClassName(m, structField.Type)
+		f.typeName = structNameToDelphiClassName(m, fieldType)
 
 	default:
-		return f, errors.Errorf("type not supported: %q, dataField %q", structField.Type.Name(), structField.Name)
+		return f, errors.Errorf("type not supported: %q, dataField %q", fieldType.Name(), fieldName)
 	}
 
 	return f, nil
 }
 
-func delphiPlainOldTypeName(structField r.StructField) string {
-	kind := structField.Type.Kind()
+func delphiTypeName(m typesNames, t r.Type) string {
+	s := delphiPlainOldTypeName(t)
+	if len(s) > 0 {
+		return s
+	}
+	return structNameToDelphiClassName(m, t)
+}
 
-	if structField.Type == r.TypeOf((*time.Time)(nil)).Elem() {
+func delphiPlainOldTypeName(t r.Type) string {
+
+	if t == r.TypeOf((*time.Time)(nil)).Elem() {
 		return "TDateTime"
 	}
 
-	switch kind {
+	switch t.Kind() {
 
 	case r.Float32:
 		return "Single"
@@ -92,10 +106,10 @@ func delphiPlainOldTypeName(structField r.StructField) string {
 	}
 }
 
-func delphiClassName(m typesNames, t r.Type) string {
+func structNameToDelphiClassName(m typesNames, t r.Type) string {
 	typeName := t.Name()
 	if typeName == "" {
-		return "T" + m[t.String()]
+		panic(fmt.Sprintf("rmpty type name %+v", t))
 	}
 	if typeAlias, hasTypeAlias := m[typeName]; hasTypeAlias {
 		return "T" + typeAlias

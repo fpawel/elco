@@ -1,1 +1,1 @@
-go test -run TestRenderServices
+go test -run TestServices

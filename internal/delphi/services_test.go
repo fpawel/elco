@@ -7,13 +7,13 @@ import (
 	"testing"
 )
 
-func TestRenderServices(t *testing.T) {
+func TestServices(t *testing.T) {
 	types := []r.Type{
 		r.TypeOf((*svc.PartiesCatalogue)(nil)),
 		r.TypeOf((*svc.LastParty)(nil)),
 		r.TypeOf((*svc.ProductTypes)(nil)),
 	}
-	RenderServices(types, map[string]string{
+	ServicesUnit(types, map[string]string{
 		"ProductInfo": "Product",
 	}, os.Stdout)
 }
