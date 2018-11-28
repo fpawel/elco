@@ -47,3 +47,28 @@ func (x DBContext) LastParty() LastParty {
 func (x DBContext) ProductTypes() ProductTypes {
 	return ProductTypes{dbContext: x.dbContext}
 }
+
+func (x DBContext) ProductFirmware() ProductFirmware {
+	return ProductFirmware{dbContext: x.dbContext}
+}
+
+func (x dbContext) ListProductTypesNames() (names []string) {
+	x.mu.Lock()
+	defer x.mu.Unlock()
+	for _, p := range data.ListProductTypes(x.dbr) {
+		names = append(names, p.ProductTypeName)
+	}
+	return
+}
+
+func (x dbContext) ListGases() []data.Gas {
+	x.mu.Lock()
+	defer x.mu.Unlock()
+	return data.ListGases(x.dbr)
+}
+
+func (x dbContext) ListUnits() []data.Units {
+	x.mu.Lock()
+	defer x.mu.Unlock()
+	return data.ListUnits(x.dbr)
+}

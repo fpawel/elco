@@ -57,3 +57,70 @@ func GetProductsByPartyID(db *reform.DB, partyID int64) (products []ProductInfo)
 	}
 	return
 }
+
+func ListProductTypes(db *reform.DB) (prodTypes []ProductType) {
+
+	rows, err := db.SelectRows(ProductTypeTable, "")
+	if err != nil {
+		panic(err)
+	}
+	defer func() {
+		_ = rows.Close()
+	}()
+
+	for {
+		var pt ProductType
+		if err = db.NextRow(&pt, rows); err != nil {
+			break
+		}
+		prodTypes = append(prodTypes, pt)
+	}
+	if err != reform.ErrNoRows {
+		panic(err)
+	}
+	return
+}
+
+func ListUnits(db *reform.DB) (units []Units) {
+	rows, err := db.SelectRows(UnitsTable, "")
+	if err != nil {
+		panic(err)
+	}
+	defer func() {
+		_ = rows.Close()
+	}()
+
+	for {
+		var unit Units
+		if err = db.NextRow(&unit, rows); err != nil {
+			break
+		}
+		units = append(units, unit)
+	}
+	if err != reform.ErrNoRows {
+		panic(err)
+	}
+	return
+}
+
+func ListGases(db *reform.DB) (gases []Gas) {
+	rows, err := db.SelectRows(GasTable, "")
+	if err != nil {
+		panic(err)
+	}
+	defer func() {
+		_ = rows.Close()
+	}()
+
+	for {
+		var gas Gas
+		if err = db.NextRow(&gas, rows); err != nil {
+			break
+		}
+		gases = append(gases, gas)
+	}
+	if err != reform.ErrNoRows {
+		panic(err)
+	}
+	return
+}

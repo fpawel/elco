@@ -95,6 +95,7 @@ func (x *D) registerRPCServices() {
 		svc.NewPartiesCatalogue(x.c.PartiesCatalogue()),
 		svc.NewLastParty(x.c.LastParty()),
 		svc.NewProductTypes(x.c.ProductTypes()),
+		svc.NewProductFirmware(x.c.ProductFirmware()),
 	} {
 		if err := rpc.Register(svcObj); err != nil {
 			panic(err)

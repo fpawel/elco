@@ -16,6 +16,7 @@ func main() {
 		r.TypeOf((*svc.PartiesCatalogue)(nil)),
 		r.TypeOf((*svc.LastParty)(nil)),
 		r.TypeOf((*svc.ProductTypes)(nil)),
+		r.TypeOf((*svc.ProductFirmware)(nil)),
 	}
 	m := map[string]string{
 		"ProductInfo": "Product",

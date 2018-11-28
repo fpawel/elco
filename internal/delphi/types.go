@@ -43,7 +43,7 @@ func (x *TypesSrc) addType(t r.Type) {
 		return
 	}
 
-	typeName := structNameToDelphiClassName(x.typesNames, t)
+	typeName := delphiTypeName(x.typesNames, t)
 
 	for _, a := range x.types {
 		if a.name == typeName {

@@ -82,7 +82,7 @@ func (x *ServicesSrc) method(met r.Method) (m method) {
 		}
 	} else {
 		if argType.Kind() != r.Struct {
-			panic(fmt.Sprintf("%v: must be array or struct", argType.Kind()))
+			panic(fmt.Sprintf("%v: %v: must be array or struct", met, argType))
 		}
 		m.namedParams = true
 		for i := 0; i < argType.NumField(); i++ {

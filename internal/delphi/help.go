@@ -31,14 +31,10 @@ func newField(fieldName string, fieldType r.Type, m typesNames) (dataField, erro
 
 	case r.Slice, r.Array:
 		f.isArray = true
-		f.typeName = fieldType.Elem().Name()
-		if fieldType.Elem().Kind() == r.Struct {
-			f.typeName = structNameToDelphiClassName(m, fieldType.Elem())
-		}
+		f.typeName = delphiTypeName(m, fieldType.Elem())
 	case r.Struct:
 		f.isClass = true
-		f.typeName = structNameToDelphiClassName(m, fieldType)
-
+		f.typeName = delphiTypeName(m, fieldType)
 	default:
 		return f, errors.Errorf("type not supported: %q, dataField %q", fieldType.Name(), fieldName)
 	}
