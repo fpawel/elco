@@ -3,15 +3,14 @@ package firmware
 import (
 	"fmt"
 	"github.com/fpawel/elco/internal/data"
-	"github.com/pkg/errors"
 	"math"
 )
 
 type M = map[float64]float64
 
 const (
-	fon  = data.Fon
-	sens = data.Sens
+	fon = data.Fon
+	//sens = data.Sens
 )
 
 func srcFon2(p data.ProductInfo) (y M, err error) {
@@ -74,11 +73,11 @@ func srcSens2(p data.ProductInfo) (M, error) {
 func srcSens3(p data.ProductInfo) (M, error) {
 	y, err := p.KSensPercentValues(true)
 	if err == nil {
-		if y[-20] > 0 && y[-20] < 0.45*y[20] {
-			return y, errors.Errorf(
-				"ток чувствительности: I(-20)=%v, I(+20)=%v, I(-20)>0, I(-20)<0.45*I(+20)",
-				y[-20], y[20])
-		}
+		//if y[-20] > 0 && y[-20] < 0.45*y[20] {
+		//	return y, errors.Errorf(
+		//		"ток чувствительности: I(-20)=%v, I(+20)=%v, I(-20)>0, I(-20)<0.45*I(+20)",
+		//		y[-20], y[20])
+		//}
 		y[0] = (y[20]-y[-20])*0.5 + y[-20]
 		y[40] = y[50] - y[20]*0.5 + y[20]
 		y[45] = y[50] - y[40]*0.5 + y[40]

@@ -2,8 +2,10 @@ package firmware
 
 import (
 	"encoding/binary"
+	"fmt"
 	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/goutils"
+	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 	"math"
 	"time"
@@ -33,7 +35,8 @@ type FlashInfo struct {
 	Serial      float64
 	ProductType,
 	Gas,
-	Units string
+	Units,
+	Scale string
 }
 
 func FromBytes(b []byte, gases []data.Gas, units []data.Units) (*Bytes, error) {
@@ -51,23 +54,23 @@ func FromBytes(b []byte, gases []data.Gas, units []data.Units) (*Bytes, error) {
 	return x, nil
 }
 
-func FromProductInfo(p data.ProductInfo, gases []data.Gas, units []data.Units) (*Bytes, error) {
-
-	if !p.Serial.Valid {
-		return nil, errors.New("не задан серийный номер")
-	}
-	if !p.KSens20.Valid {
-		return nil, errors.New("нет значения к-та чувствительности")
-	}
-
-	x := &Bytes{
+func FromProductInfo(p data.ProductInfo, gases []data.Gas, units []data.Units) (x *Bytes, err error) {
+	x = &Bytes{
 		gases: gases,
 		units: units,
+	}
+	appendError := func(e error) {
+		err = multierror.Append(err, e)
+	}
+	if !p.Serial.Valid {
+		appendError(errors.New("не задан серийный номер"))
+	}
+	if !p.KSens20.Valid {
+		appendError(errors.New("нет значения к-та чувствительности"))
 	}
 	for i := 0; i < len(x.b); i++ {
 		x.b[i] = 0xFF
 	}
-
 	goutils.PutBCD6(x.b[0x0701:], float64(p.Serial.Int64))
 	x.b[0x070F] = byte(p.CreatedAt.Year() - 2000)
 	x.b[0x070E] = byte(p.CreatedAt.Month())
@@ -82,12 +85,12 @@ func FromProductInfo(p data.ProductInfo, gases []data.Gas, units []data.Units) (
 	x.PutProductTypeName(p.AppliedProductTypeName)
 	binary.LittleEndian.PutUint64(x.b[0x0720:], math.Float64bits(p.KSens20.Float64))
 	if err := x.PutProductFonPoints(p); err != nil {
-		return x, err
+		appendError(err)
 	}
 	if err := x.PutProductSensPoints(p); err != nil {
-		return x, err
+		appendError(err)
 	}
-	return x, nil
+	return
 }
 
 //PutProductTypeName - исполнение
@@ -152,14 +155,6 @@ func (x *Bytes) Sensitivity() float64 {
 	return math.Float64frombits(bits)
 }
 
-func (x *Bytes) Serial() float64 {
-
-	if serial, ok := goutils.ParseBCD6(x.b[0x0701:]); ok {
-		return serial
-	}
-	return math.NaN()
-}
-
 func (x *Bytes) ProductType() string {
 	const offset = 0x060B
 	n := offset
@@ -173,11 +168,12 @@ func (x *Bytes) ProductType() string {
 
 func (x *Bytes) Info() FlashInfo {
 	r := FlashInfo{
-		Serial:      x.Serial(),
+		Serial:      bcd6Float(x.b[0x0701:]),
 		Sensitivity: x.Sensitivity(),
 		Time:        x.Time(),
 		ProductType: x.ProductType(),
 		TempPoints:  x.TempPoints(),
+		Scale:       fmt.Sprintf("%v - %v", bcd6Float(x.b[0x0602:]), bcd6Float(x.b[0x0606:])),
 	}
 	for _, a := range x.units {
 		if a.Code == x.b[0x060A] {
@@ -235,4 +231,12 @@ func (x *Bytes) tempValueAtAddr(i int) (v float64) {
 		y := float64(b)
 		return y
 	}
+}
+
+func bcd6Float(b []byte) float64 {
+	v, ok := goutils.ParseBCD6(b)
+	if !ok {
+		v = math.NaN()
+	}
+	return v
 }

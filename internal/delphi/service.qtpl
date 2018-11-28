@@ -11,6 +11,7 @@ type
         {% for _,m := range srv.methods %}{%s= m.signature("") %};
         {% endfor %} 
     end;{% endfor %} 
+
 implementation 
     {%s uses(x.implUses) %}  
 
