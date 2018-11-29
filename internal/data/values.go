@@ -21,7 +21,7 @@ func (s ProductInfo) Current(c CurrScaleType, t float64) sql.NullFloat64 {
 		case 20:
 			return s.IFPlus20
 		case 50:
-			return s.IFPlus20
+			return s.IFPlus50
 		default:
 			panic("wrong temperature")
 		}
@@ -32,7 +32,7 @@ func (s ProductInfo) Current(c CurrScaleType, t float64) sql.NullFloat64 {
 		case 20:
 			return s.ISPlus20
 		case 50:
-			return s.ISPlus20
+			return s.ISPlus50
 		default:
 			panic("wrong temperature")
 		}

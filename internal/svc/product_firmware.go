@@ -13,7 +13,7 @@ func NewProductFirmware(c crud.ProductFirmware) *ProductFirmware {
 	return &ProductFirmware{c}
 }
 
-func (x *ProductFirmware) Stored(productID [1]int64, r *firmware.FlashInfo) error {
+func (x *ProductFirmware) Stored(productID [1]int64, r *firmware.ProductFirmwareInfo) error {
 	if b, err := x.c.Stored(productID[0]); err != nil {
 		return err
 	} else {
@@ -22,10 +22,7 @@ func (x *ProductFirmware) Stored(productID [1]int64, r *firmware.FlashInfo) erro
 	}
 }
 
-func (x *ProductFirmware) Calculated(productID [1]int64, r *firmware.FlashInfo) error {
-	b, err := x.c.Calculated(productID[0])
-	if b != nil {
-		*r = b.Info()
-	}
-	return err
+func (x *ProductFirmware) Calculate(productID [1]int64, r *firmware.ProductFirmwareInfo) (err error) {
+	*r, err = x.c.Calculate(productID[0])
+	return
 }

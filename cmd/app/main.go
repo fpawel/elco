@@ -3,15 +3,25 @@ package main
 import (
 	"flag"
 	"github.com/fpawel/elco/internal/daemon"
+	"github.com/fpawel/goutils/winapp"
+	"github.com/lxn/win"
 )
 
 func main() {
+
+	// Преверяем, не было ли приложение запущено ранее
+	if hWnd := findPeer(); winapp.IsWindow(hWnd) {
+		// Если было, выдвигаем окно приложения на передний план и завершаем процесс
+		win.ShowWindow(hWnd, win.SW_RESTORE)
+		win.SetForegroundWindow(hWnd)
+		return
+	}
 
 	mustRunPeer := true
 	flag.BoolVar(&mustRunPeer, "must-run-peer", true, "ensure peer application")
 	flag.Parse()
 
-	if mustRunPeer && !peerFound() {
+	if mustRunPeer && !winapp.IsWindow(findPeer()) {
 		if err := runPeer(); err != nil {
 			panic(err)
 		}

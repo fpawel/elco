@@ -12,12 +12,13 @@ type
         {% endfor %} 
     end;{% endfor %} 
 
+
 implementation 
     {%s uses(x.implUses) %}  
 
 var
     pipe_conn: TPipe;
-
+    
 procedure ensure_pipe_connected;
 begin
     if Assigned(pipe_conn) then

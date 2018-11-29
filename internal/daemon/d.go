@@ -18,18 +18,20 @@ import (
 )
 
 type D struct {
-	c crud.DBContext
-	w *copydata.NotifyWindow
+	c crud.DBContext         // база данных sqlite
+	w *copydata.NotifyWindow // окно для отправки сообщений WM_COPYDATA дельфи-приложению
 }
 
 const (
-	PipeName = `\\.\pipe\elco`
-	//serverWindowClassName = "ElcoServerWindow"
+	PipeName              = `\\.\pipe\elco`
+	ServerWindowClassName = "ElcoServerWindow"
+	PeerWindowClassName   = "TElcoMainForm"
 )
 
 func New() *D {
 	x := &D{
 		c: crud.NewDBContext(nil),
+		w: copydata.NewNotifyWindow(ServerWindowClassName, PeerWindowClassName),
 	}
 	x.registerRPCServices()
 	return x
@@ -39,21 +41,16 @@ func (x *D) Run(closeOnDisconnect bool) {
 	ctx, cancel := context.WithCancel(context.Background())
 	wg := sync.WaitGroup{}
 	wg.Add(2)
-
 	ln := mustPipeListener()
-
 	// цикл RPC сервера
 	go func() {
 		defer wg.Done()
 		defer x.w.CloseWindow()
 		x.serveRPC(ln, ctx, closeOnDisconnect)
 	}()
-
 	// цикл оконных сообщений
 	runWindowMessageLoop()
-
 	cancel()
-
 	if err := ln.Close(); err != nil {
 		fmt.Println("close pipe listener error:", err)
 	}
@@ -63,9 +60,8 @@ func (x *D) Run(closeOnDisconnect bool) {
 func (x *D) Close() (result error) {
 
 	if err := x.c.Close(); err != nil {
-		result = multierror.Append(result, errors.Wrap(err, "close DB series"))
+		result = multierror.Append(result, errors.Wrap(err, "close sqlite data base"))
 	}
-
 	return
 }
 

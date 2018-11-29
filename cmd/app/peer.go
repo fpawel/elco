@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"github.com/fpawel/elco/internal/app"
+	"github.com/fpawel/elco/internal/daemon"
 	"github.com/fpawel/goutils/winapp"
 	"github.com/hashicorp/go-multierror"
 	"github.com/lxn/win"
@@ -11,12 +12,6 @@ import (
 	"os/exec"
 	"path/filepath"
 )
-
-const peerWindowClassName = "TElcoMainForm"
-
-func peerFound() bool {
-	return winapp.IsWindow(findPeer())
-}
 
 func closeAllPeerWindows() (result error) {
 	for hWnd := findPeer(); winapp.IsWindow(hWnd); hWnd = findPeer() {
@@ -28,7 +23,7 @@ func closeAllPeerWindows() (result error) {
 }
 
 func findPeer() win.HWND {
-	return winapp.FindWindow(peerWindowClassName)
+	return winapp.FindWindow(daemon.PeerWindowClassName)
 }
 
 func runPeer() error {

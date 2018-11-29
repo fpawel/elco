@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/goutils"
-	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 	"math"
+	"strconv"
 	"time"
 )
 
@@ -22,21 +22,6 @@ type Bytes struct {
 type CodeStr struct {
 	Code byte
 	Str  string
-}
-
-type TempPoints = struct {
-	Temp, Fon, Sens [250]float64
-}
-
-type FlashInfo struct {
-	TempPoints
-	Time        time.Time
-	Sensitivity float64
-	Serial      float64
-	ProductType,
-	Gas,
-	Units,
-	Scale string
 }
 
 func FromBytes(b []byte, gases []data.Gas, units []data.Units) (*Bytes, error) {
@@ -54,24 +39,24 @@ func FromBytes(b []byte, gases []data.Gas, units []data.Units) (*Bytes, error) {
 	return x, nil
 }
 
-func FromProductInfo(p data.ProductInfo, gases []data.Gas, units []data.Units) (x *Bytes, err error) {
-	x = &Bytes{
+func FromProductInfo(p data.ProductInfo, gases []data.Gas, units []data.Units) (*Bytes, error) {
+	x := &Bytes{
 		gases: gases,
 		units: units,
 	}
-	appendError := func(e error) {
-		err = multierror.Append(err, e)
-	}
 	if !p.Serial.Valid {
-		appendError(errors.New("не задан серийный номер"))
+		return x, errors.New("не задан серийный номер")
 	}
 	if !p.KSens20.Valid {
-		appendError(errors.New("нет значения к-та чувствительности"))
+		return x, errors.New("нет значения к-та чувствительности")
 	}
 	for i := 0; i < len(x.b); i++ {
 		x.b[i] = 0xFF
 	}
 	goutils.PutBCD6(x.b[0x0701:], float64(p.Serial.Int64))
+	goutils.PutBCD6(x.b[0x0602:], 0)
+	goutils.PutBCD6(x.b[0x0606:], p.Scale)
+
 	x.b[0x070F] = byte(p.CreatedAt.Year() - 2000)
 	x.b[0x070E] = byte(p.CreatedAt.Month())
 	x.b[0x070D] = byte(p.CreatedAt.Day())
@@ -80,17 +65,15 @@ func FromProductInfo(p data.ProductInfo, gases []data.Gas, units []data.Units) (
 	x.b[0x0712] = byte(p.CreatedAt.Second())
 	x.b[0x0600] = p.GasCode
 	x.b[0x060A] = p.UnitsCode
-	goutils.PutBCD6(x.b[0x0602:], 0)
-	goutils.PutBCD6(x.b[0x0606:], p.Scale)
 	x.PutProductTypeName(p.AppliedProductTypeName)
 	binary.LittleEndian.PutUint64(x.b[0x0720:], math.Float64bits(p.KSens20.Float64))
 	if err := x.PutProductFonPoints(p); err != nil {
-		appendError(err)
+		return x, err
 	}
 	if err := x.PutProductSensPoints(p); err != nil {
-		appendError(err)
+		return x, err
 	}
-	return
+	return x, nil
 }
 
 //PutProductTypeName - исполнение
@@ -105,18 +88,31 @@ func (x *Bytes) PutProductTypeName(productTypeName string) {
 	}
 }
 
+func (x *Bytes) putTempValue(value float64, i int) {
+	y := math.Round(value)
+	n := uint16(y)
+	binary.LittleEndian.PutUint16(x.b[i:], n)
+}
+
 //PutProductFonPoints - записать в буфер точки фоновых токов
 func (x *Bytes) PutProductFonPoints(p data.ProductInfo) error {
 	xy, err := srcFon(p)
+	for k := range xy {
+		xy[k] *= 1000
+	}
+
 	if err != nil {
 		return err
 	}
 	at := newApproxTbl(xy)
 	t := float64(-124)
 	for i := 0x00F8; i >= 0; i -= 2 {
-		y := math.Round(at.F(t))
-		n := uint16(y)
-		binary.LittleEndian.PutUint16(x.b[i:], n)
+		x.putTempValue(at.F(t), i)
+		t++
+	}
+	t = 0
+	for i := 0x0100; i <= 0x01F8; i += 2 {
+		x.putTempValue(at.F(t), i)
 		t++
 	}
 	return nil
@@ -129,11 +125,14 @@ func (x *Bytes) PutProductSensPoints(p data.ProductInfo) error {
 		return err
 	}
 	at := newApproxTbl(xy)
-	t := float64(0)
-	for i := 0x0100; i <= 0x01F8; i += 2 {
-		y := math.Round(at.F(t))
-		n := uint16(y)
-		binary.LittleEndian.PutUint16(x.b[i:], n)
+	t := float64(-124)
+	for i := 0x04F8; i >= 0x0400; i -= 2 {
+		x.putTempValue(at.F(t), i)
+		t++
+	}
+	t = 0
+	for i := 0x0500; i <= 0x05F8; i += 2 {
+		x.putTempValue(at.F(t), i)
 		t++
 	}
 	return nil
@@ -150,11 +149,6 @@ func (x *Bytes) Time() time.Time {
 		int(x.b[0x0712]), 0, time.UTC)
 }
 
-func (x *Bytes) Sensitivity() float64 {
-	bits := binary.LittleEndian.Uint64(x.b[0x0720:])
-	return math.Float64frombits(bits)
-}
-
 func (x *Bytes) ProductType() string {
 	const offset = 0x060B
 	n := offset
@@ -166,14 +160,14 @@ func (x *Bytes) ProductType() string {
 	return string(x.b[offset:n])
 }
 
-func (x *Bytes) Info() FlashInfo {
-	r := FlashInfo{
-		Serial:      bcd6Float(x.b[0x0701:]),
-		Sensitivity: x.Sensitivity(),
+func (x *Bytes) Info() ProductFirmwareInfo {
+	r := ProductFirmwareInfo{
+		TempPoints:  x.TempPoints(),
 		Time:        x.Time(),
 		ProductType: x.ProductType(),
-		TempPoints:  x.TempPoints(),
-		Scale:       fmt.Sprintf("%v - %v", bcd6Float(x.b[0x0602:]), bcd6Float(x.b[0x0606:])),
+		Serial:      formatBCD(x.b[0x0701:0x0705]),
+		Scale:       formatBCD(x.b[0x0602:0x0606]) + " - " + formatBCD(x.b[0x0606:0x060A]),
+		Sensitivity: formatFloat(math.Float64frombits(binary.LittleEndian.Uint64(x.b[0x0720:]))),
 	}
 	for _, a := range x.units {
 		if a.Code == x.b[0x060A] {
@@ -190,53 +184,54 @@ func (x *Bytes) Info() FlashInfo {
 	return r
 }
 
+func formatFloat(v float64) string {
+	return strconv.FormatFloat(v, 'f', -1, 64)
+}
+
+func formatBCD(b []byte) string {
+	if v, ok := goutils.ParseBCD6(b); ok {
+		return formatFloat(v)
+	} else {
+		return fmt.Sprintf("% X", b)
+	}
+}
+
 func (x *Bytes) TempPoints() (r TempPoints) {
+
+	valAt := func(i int) float64 {
+		a := binary.LittleEndian.Uint16(x.b[i:])
+		b := int16(a)
+		y := float64(b)
+		return y
+	}
+
 	t := float64(-124)
 	n := 0
 	for i := 0x00F8; i >= 0; i -= 2 {
 		r.Temp[n] = t
-		r.Fon[n] = x.tempValueAtAddr(i)
+		r.Fon[n] = valAt(i)
 		t++
 		n++
 	}
 	t = 0
 	for i := 0x0100; i <= 0x01F8; i += 2 {
 		r.Temp[n] = t
-		r.Fon[n] = x.tempValueAtAddr(i)
+		r.Fon[n] = valAt(i)
 		t++
 		n++
 	}
 	t = -124
 	n = 0
 	for i := 0x04F8; i >= 0x0400; i -= 2 {
-		r.Sens[n] = x.tempValueAtAddr(i)
+		r.Sens[n] = valAt(i)
 		t++
 		n++
 	}
 	t = 0
 	for i := 0x0500; i <= 0x05F8; i += 2 {
-		r.Sens[n] = x.tempValueAtAddr(i)
+		r.Sens[n] = valAt(i)
 		t++
 		n++
 	}
 	return
-}
-
-func (x *Bytes) tempValueAtAddr(i int) (v float64) {
-	if x.b[i] == 0xFF && x.b[i+1] == 0xFF {
-		return math.NaN()
-	} else {
-		a := binary.LittleEndian.Uint16(x.b[i:])
-		b := int16(a)
-		y := float64(b)
-		return y
-	}
-}
-
-func bcd6Float(b []byte) float64 {
-	v, ok := goutils.ParseBCD6(b)
-	if !ok {
-		v = math.NaN()
-	}
-	return v
 }
