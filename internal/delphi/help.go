@@ -105,7 +105,7 @@ func delphiPlainOldTypeName(t r.Type) string {
 func structNameToDelphiClassName(m typesNames, t r.Type) string {
 	typeName := t.Name()
 	if typeName == "" {
-		panic(fmt.Sprintf("rmpty type name %+v", t))
+		panic(fmt.Sprintf("empty type name %+v", t))
 	}
 	if typeAlias, hasTypeAlias := m[typeName]; hasTypeAlias {
 		return "T" + typeAlias

@@ -90,7 +90,12 @@ end;
     (
     {%if len(x.params) > 0 %}
         {% for i, p := range x.params %}
-            {%s p.name %} : {%s p.typeName %}
+            {%s p.name %} : 
+                {%if p.isArray %} 
+                    TArray< {%s p.typeName %} > 
+                {% else %} 
+                    {%s p.typeName %} 
+                {% endif %}                 
             {%if i < len(x.params) - 1 %} ; {% endif %} 
         {% endfor %}
 	{% endif %}  

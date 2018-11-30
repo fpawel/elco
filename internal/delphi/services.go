@@ -32,6 +32,7 @@ type method struct {
 
 type param struct {
 	name, typeName string
+	isArray bool
 }
 
 func ServicesUnit(pipe string, types []r.Type, ta typesNames, wServices, wTypes io.Writer) {
@@ -87,14 +88,22 @@ func (x *ServicesSrc) method(met r.Method) (m method) {
 		m.namedParams = true
 		for i := 0; i < argType.NumField(); i++ {
 			f := argType.Field(i)
-			typeName := delphiPlainOldTypeName(f.Type)
-			if typeName == "" {
-				panic(fmt.Sprintf("%v: must be POD", f))
+
+			p := param{ name:     f.Name, }
+
+			switch f.Type.Kind() {
+			case r.Slice, r.Array:
+				x.dataTypes.addType(f.Type.Elem())
+				p.typeName = delphiTypeName(x.dataTypes.typesNames, f.Type.Elem())
+				p.isArray = true
+			case r.Struct:
+				x.dataTypes.addType(f.Type)
+				p.typeName = delphiTypeName(x.dataTypes.typesNames, f.Type)
+			default:
+				p.typeName = delphiPlainOldTypeName(f.Type)
 			}
-			m.params = append(m.params, param{
-				name:     f.Name,
-				typeName: delphiPlainOldTypeName(f.Type),
-			})
+
+			m.params = append(m.params, p)
 		}
 	}
 

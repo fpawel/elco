@@ -2,12 +2,10 @@ package firmware
 
 import (
 	"encoding/binary"
-	"fmt"
 	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/goutils"
 	"github.com/pkg/errors"
 	"math"
-	"strconv"
 	"time"
 )
 
@@ -165,9 +163,9 @@ func (x *Bytes) Info() ProductFirmwareInfo {
 		TempPoints:  x.TempPoints(),
 		Time:        x.Time(),
 		ProductType: x.ProductType(),
-		Serial:      formatBCD(x.b[0x0701:0x0705]),
-		Scale:       formatBCD(x.b[0x0602:0x0606]) + " - " + formatBCD(x.b[0x0606:0x060A]),
-		Sensitivity: formatFloat(math.Float64frombits(binary.LittleEndian.Uint64(x.b[0x0720:]))),
+		Serial:      formatBCD(x.b[0x0701:0x0705], -1),
+		Scale:       formatBCD(x.b[0x0602:0x0606],-1) + " - " + formatBCD(x.b[0x0606:0x060A],-1),
+		Sensitivity: formatFloat(math.Float64frombits(binary.LittleEndian.Uint64(x.b[0x0720:])), 3),
 	}
 	for _, a := range x.units {
 		if a.Code == x.b[0x060A] {
@@ -184,17 +182,7 @@ func (x *Bytes) Info() ProductFirmwareInfo {
 	return r
 }
 
-func formatFloat(v float64) string {
-	return strconv.FormatFloat(v, 'f', -1, 64)
-}
 
-func formatBCD(b []byte) string {
-	if v, ok := goutils.ParseBCD6(b); ok {
-		return formatFloat(v)
-	} else {
-		return fmt.Sprintf("% X", b)
-	}
-}
 
 func (x *Bytes) TempPoints() (r TempPoints) {
 

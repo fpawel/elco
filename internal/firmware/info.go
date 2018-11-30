@@ -1,10 +1,8 @@
 package firmware
 
 import (
-	"database/sql"
 	"fmt"
 	"github.com/fpawel/elco/internal/data"
-	"strconv"
 	"time"
 )
 
@@ -19,7 +17,7 @@ type ProductFirmwareInfo struct {
 	Scale string
 }
 
-type TempPoints = struct {
+type TempPoints struct {
 	Temp, Fon, Sens [250]float64
 }
 
@@ -31,7 +29,7 @@ func CalculateProductFirmwareInfo(p data.ProductInfo) ProductFirmwareInfo {
 		ProductType: p.AppliedProductTypeName,
 		Serial:      formatNullInt64(p.Serial),
 		Time:        p.CreatedAt,
-		Sensitivity: formatNullFloat64(p.KSens20),
+		Sensitivity: formatNullFloat64(p.KSens20,3),
 	}
 
 	if fonM, err := srcFon(p); err == nil {
@@ -39,30 +37,34 @@ func CalculateProductFirmwareInfo(p data.ProductInfo) ProductFirmwareInfo {
 			for k := range fonM {
 				fonM[k] *= 1000
 			}
-			atFon := newApproxTbl(fonM)
-			atSens := newApproxTbl(sensM)
-			i := 0
-			for t := float64(-124); t <= 125; t++ {
-				x.Temp[i] = t
-				x.Fon[i] = atFon.F(t)
-				x.Sens[i] = atSens.F(t)
-				i++
-			}
+			CalculateTempPoints(fonM, sensM)
 		}
 	}
 	return x
 }
 
-func formatNullInt64(v sql.NullInt64) string {
-	if v.Valid {
-		return strconv.FormatInt(v.Int64, 10)
-	}
-	return ""
+
+func minusOne(_ float64) float64{
+	return -1
 }
 
-func formatNullFloat64(v sql.NullFloat64) string {
-	if v.Valid {
-		return formatFloat(v.Float64)
+func CalculateTempPoints(fonM, sensM M) (r TempPoints){
+
+	fFon := minusOne
+	fSens := minusOne
+
+	if len(fonM) > 0 {
+		fFon = newApproxTbl(fonM).F
 	}
-	return ""
+	if len(sensM) > 0 {
+		fSens = newApproxTbl(sensM).F
+	}
+	i := 0
+	for t := float64(-124); t <= 125; t++ {
+		r.Temp[i] = t
+		r.Fon[i] = fFon(t)
+		r.Sens[i] = fSens(t)
+		i++
+	}
+	return
 }
