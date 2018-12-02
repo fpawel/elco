@@ -1,9 +1,13 @@
 package crud
 
 import (
+	"fmt"
 	"github.com/fpawel/elco/internal/data"
+	"github.com/fpawel/elco/internal/settings"
 	"github.com/fpawel/goutils/dbutils"
+	"github.com/pkg/errors"
 	"gopkg.in/reform.v1"
+	"strconv"
 	"strings"
 )
 
@@ -87,6 +91,74 @@ func (x LastParty) DeleteProductAtPlace(place int) (err error) {
 	partyID := x.partyID()
 	_, err = x.dbr.DeleteFrom(data.ProductTable, "WHERE party_id = ? AND place = ?", partyID, place)
 	return
+}
+
+func (x LastParty) SetConfigValue(property, value string) (err error) {
+	x.mu.Lock()
+	defer x.mu.Unlock()
+
+	party := x.party()
+
+	switch property {
+	case "ProductType":
+		party.ProductTypeName = value
+		return x.dbr.Save(&party)
+	case "Gas1":
+		party.Concentration1, err = strconv.ParseFloat(value, 64)
+		if err == nil {
+			err = x.dbr.Save(&party)
+		}
+		return
+	case "Gas2":
+		party.Concentration2, err = strconv.ParseFloat(value, 64)
+		if err == nil {
+			err = x.dbr.Save(&party)
+		}
+		return
+	case "Gas3":
+		party.Concentration3, err = strconv.ParseFloat(value, 64)
+		if err == nil {
+			err = x.dbr.Save(&party)
+		}
+		return
+	}
+	return errors.Errorf("%q: wrong party property")
+}
+
+func (x LastParty) ConfigProperties() []settings.ConfigProperty {
+	party := x.party()
+	productTypesNames := x.ListProductTypesNames()
+	return []settings.ConfigProperty{
+		{
+			Hint:         "Исполнение",
+			Name:         "ProductType",
+			DefaultValue: productTypesNames[0],
+			ValueType:    settings.VtString,
+			Value:        party.ProductTypeName,
+			List:         productTypesNames,
+		},
+		{
+			Hint:         "ПГС1",
+			Name:         "Gas1",
+			DefaultValue: "0",
+			ValueType:    settings.VtFloat,
+			Value:        fmt.Sprintf("%v", party.Concentration1),
+		},
+		{
+			Hint:         "ПГС2",
+			Name:         "Gas2",
+			DefaultValue: "100",
+			ValueType:    settings.VtFloat,
+			Value:        fmt.Sprintf("%v", party.Concentration2),
+		},
+		{
+			Hint:         "ПГС3",
+			Name:         "Gas3",
+			DefaultValue: "200",
+			ValueType:    settings.VtFloat,
+			Value:        fmt.Sprintf("%v", party.Concentration3),
+		},
+	}
 }
 
 func (x LastParty) party() data.Party {
