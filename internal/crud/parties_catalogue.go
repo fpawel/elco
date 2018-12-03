@@ -62,6 +62,7 @@ func (x PartiesCatalogue) Parties(year, month, day int) (parties []data.Party) {
 			Concentration2:  p.Concentration2,
 			Concentration3:  p.Concentration3,
 			Last:            p.Last,
+			Note:            p.Note,
 		})
 	}
 	if err != reform.ErrNoRows {

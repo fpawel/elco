@@ -121,6 +121,11 @@ func (x LastParty) SetConfigValue(property, value string) (err error) {
 			err = x.dbr.Save(&party)
 		}
 		return
+	case "Note":
+		party.Note.String = strings.TrimSpace(value)
+		party.Note.Valid = len(party.Note.String) > 0
+		err = x.dbr.Save(&party)
+		return
 	}
 	return errors.Errorf("%q: wrong party property")
 }
@@ -130,33 +135,35 @@ func (x LastParty) ConfigProperties() []settings.ConfigProperty {
 	productTypesNames := x.ListProductTypesNames()
 	return []settings.ConfigProperty{
 		{
-			Hint:         "Исполнение",
-			Name:         "ProductType",
-			DefaultValue: productTypesNames[0],
-			ValueType:    settings.VtString,
-			Value:        party.ProductTypeName,
-			List:         productTypesNames,
+			Hint:      "Исполнение",
+			Name:      "ProductType",
+			ValueType: settings.VtString,
+			Value:     party.ProductTypeName,
+			List:      productTypesNames,
 		},
 		{
-			Hint:         "ПГС1",
-			Name:         "Gas1",
-			DefaultValue: "0",
-			ValueType:    settings.VtFloat,
-			Value:        fmt.Sprintf("%v", party.Concentration1),
+			Hint:      "ПГС1",
+			Name:      "Gas1",
+			ValueType: settings.VtFloat,
+			Value:     fmt.Sprintf("%v", party.Concentration1),
 		},
 		{
-			Hint:         "ПГС2",
-			Name:         "Gas2",
-			DefaultValue: "100",
-			ValueType:    settings.VtFloat,
-			Value:        fmt.Sprintf("%v", party.Concentration2),
+			Hint:      "ПГС2",
+			Name:      "Gas2",
+			ValueType: settings.VtFloat,
+			Value:     fmt.Sprintf("%v", party.Concentration2),
 		},
 		{
-			Hint:         "ПГС3",
-			Name:         "Gas3",
-			DefaultValue: "200",
-			ValueType:    settings.VtFloat,
-			Value:        fmt.Sprintf("%v", party.Concentration3),
+			Hint:      "ПГС3",
+			Name:      "Gas3",
+			ValueType: settings.VtFloat,
+			Value:     fmt.Sprintf("%v", party.Concentration3),
+		},
+		{
+			Hint:      "Примечание",
+			Name:      "Note",
+			ValueType: settings.VtString,
+			Value:     fmt.Sprintf("%v", party.Note.String),
 		},
 	}
 }

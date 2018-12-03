@@ -4,18 +4,20 @@ import (
 	"github.com/fpawel/elco/internal/app"
 	"github.com/fpawel/goutils/serial/comport"
 	"github.com/pkg/errors"
+	"regexp"
 	"strconv"
 	"time"
 )
 
-type Config struct {
+type C struct {
 	ComportHardware,
 	ComportTemperature,
 	ComportGas comport.Config
-	DumpComport bool
+	DumpComport   bool
+	BlockSelected [12]bool
 }
 
-func (x *Config) setValue(section, property, value string) error {
+func (x *C) setValue(section, property, value string) error {
 	var pC *comport.Config
 	switch section {
 	case "ComportHardware":
@@ -62,20 +64,41 @@ func (x *Config) setValue(section, property, value string) error {
 				n, err := strconv.ParseBool(value)
 				x.DumpComport = n
 				return err
+			default:
+				if n, ok := parseBlock(property); ok {
+					var err error
+					x.BlockSelected[n], err = strconv.ParseBool(value)
+					return err
+				}
 			}
 		}
 	}
 	return errors.Errorf("%q: %q: %q: wrong section/property")
 }
 
+var reBlock = regexp.MustCompile(`Block(\d+)`)
+
+func parseBlock(s string) (int, bool) {
+	bs := reBlock.FindAllStringSubmatch(s, -1)
+	if bs != nil && len(bs[0]) == 2 {
+		if n, err := strconv.ParseInt(bs[0][1], 10, 8); err == nil && n > -1 && n < 12 {
+			return int(n), true
+		}
+	}
+	return 0, false
+}
+
 func configFileName() string {
 	return app.AppName.FileName("config.json")
 }
 
-func defaultConfig() Config {
-	return Config{
+func defaultConfig() C {
+	return C{
 		ComportHardware:    comport.DefaultConfig(),
 		ComportGas:         comport.DefaultConfig(),
 		ComportTemperature: comport.DefaultConfig(),
+		BlockSelected: [12]bool{
+			true, true, true, true, true, true, true, true,
+		},
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/Microsoft/go-winio"
+	"github.com/fpawel/elco/internal/app/config"
 	"github.com/fpawel/elco/internal/crud"
 	"github.com/fpawel/elco/internal/svc"
 	"github.com/fpawel/goutils/copydata"
@@ -18,8 +19,9 @@ import (
 )
 
 type D struct {
-	c crud.DBContext         // база данных sqlite
-	w *copydata.NotifyWindow // окно для отправки сообщений WM_COPYDATA дельфи-приложению
+	c    crud.DBContext         // база данных sqlite
+	w    *copydata.NotifyWindow // окно для отправки сообщений WM_COPYDATA дельфи-приложению
+	sets *config.Sets
 }
 
 const (
@@ -29,9 +31,17 @@ const (
 )
 
 func New() *D {
+	c := crud.NewDBContext(nil)
+	sets, err := config.OpenSets(c.LastParty())
+
+	if err != nil {
+		fmt.Println("sets:", err)
+	}
+
 	x := &D{
-		c: crud.NewDBContext(nil),
-		w: copydata.NewNotifyWindow(ServerWindowClassName, PeerWindowClassName),
+		c:    c,
+		sets: sets,
+		w:    copydata.NewNotifyWindow(ServerWindowClassName, PeerWindowClassName),
 	}
 	x.registerRPCServices()
 	return x
@@ -62,6 +72,11 @@ func (x *D) Close() (result error) {
 	if err := x.c.Close(); err != nil {
 		result = multierror.Append(result, errors.Wrap(err, "close sqlite data base"))
 	}
+
+	if err := x.sets.Save(); err != nil {
+		result = multierror.Append(result, errors.Wrap(err, "save config"))
+	}
+
 	return
 }
 
@@ -92,6 +107,7 @@ func (x *D) registerRPCServices() {
 		svc.NewLastParty(x.c.LastParty()),
 		svc.NewProductTypes(x.c.ProductTypes()),
 		svc.NewProductFirmware(x.c.ProductFirmware()),
+		svc.NewSetsSvc(x.sets),
 	} {
 		if err := rpc.Register(svcObj); err != nil {
 			panic(err)

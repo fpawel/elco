@@ -5,7 +5,6 @@ import "database/sql"
 type ConfigProperty struct {
 	Hint, Name,
 	Value,
-	DefaultValue,
 	Error string
 	Min, Max  sql.NullFloat64
 	ValueType ValueType
