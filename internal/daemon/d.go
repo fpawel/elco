@@ -8,6 +8,7 @@ import (
 	"github.com/fpawel/elco/internal/crud"
 	"github.com/fpawel/elco/internal/svc"
 	"github.com/fpawel/goutils/copydata"
+	"github.com/fpawel/goutils/serial/comport"
 	"github.com/hashicorp/go-multierror"
 	"github.com/lxn/win"
 	"github.com/pkg/errors"
@@ -22,6 +23,13 @@ type D struct {
 	c    crud.DBContext         // база данных sqlite
 	w    *copydata.NotifyWindow // окно для отправки сообщений WM_COPYDATA дельфи-приложению
 	sets *config.Sets
+
+	comports struct {
+		comport.Ports
+		sync.WaitGroup
+		context.Context
+		cancel func()
+	}
 }
 
 const (
@@ -43,6 +51,7 @@ func New() *D {
 		sets: sets,
 		w:    copydata.NewNotifyWindow(ServerWindowClassName, PeerWindowClassName),
 	}
+	x.comports.Ports = make(comport.Ports)
 	x.registerRPCServices()
 	return x
 }
@@ -60,7 +69,14 @@ func (x *D) Run(closeOnDisconnect bool) {
 	}()
 	// цикл оконных сообщений
 	runWindowMessageLoop()
+
+	if x.comports.WaitGroup != nil {
+		x.comports.cancel()
+		x.comports.WaitGroup.Wait()
+	}
+
 	cancel()
+
 	if err := ln.Close(); err != nil {
 		fmt.Println("close pipe listener error:", err)
 	}
