@@ -1,4 +1,4 @@
-package svc
+package api
 
 import (
 	"github.com/fpawel/elco/internal/crud"

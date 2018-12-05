@@ -1,8 +1,7 @@
-package delphi
+package main
 
 import (
 	"fmt"
-	"io"
 	r "reflect"
 )
 
@@ -32,11 +31,11 @@ type method struct {
 
 type param struct {
 	name, typeName string
-	isArray bool
+	isArray        bool
 }
 
-func ServicesUnit(pipe string, types []r.Type, ta typesNames, wServices, wTypes io.Writer) {
-	src := ServicesSrc{
+func NewServicesSrc(pipe string, types []r.Type, ta typesNames) *ServicesSrc {
+	src := &ServicesSrc{
 		pipe:          pipe,
 		unitName:      "services",
 		interfaceUses: []string{"server_data_types", "pipe", "superobject"},
@@ -50,9 +49,9 @@ func ServicesUnit(pipe string, types []r.Type, ta typesNames, wServices, wTypes 
 	for _, t := range types {
 		src.addService(t)
 	}
-	src.dataTypes.WriteUnit(wTypes)
-	src.WriteUnit(wServices)
+	return src
 }
+
 func (x *ServicesSrc) pipeStr() string {
 	return "'" + x.pipe + "'"
 }
@@ -89,7 +88,7 @@ func (x *ServicesSrc) method(met r.Method) (m method) {
 		for i := 0; i < argType.NumField(); i++ {
 			f := argType.Field(i)
 
-			p := param{ name:     f.Name, }
+			p := param{name: f.Name}
 
 			switch f.Type.Kind() {
 			case r.Slice, r.Array:

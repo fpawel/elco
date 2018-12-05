@@ -1,4 +1,4 @@
-{% package delphi %}
+{% package main %}
 
 {% func (x *ServicesSrc) Unit() %} 
 unit {%s x.unitName %};

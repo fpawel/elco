@@ -1,4 +1,4 @@
-package delphi
+package main
 
 import (
 	"fmt"

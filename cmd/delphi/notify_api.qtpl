@@ -1,0 +1,22 @@
+// // Code generated. DO NOT EDIT.
+{% package main %}
+
+{% func (x *NotifyServicesSrc) GoFile() %}
+package notify
+
+type msg int
+
+const (
+    msg{%s x.services[0].serviceName %} msg = iota
+    {% for _,m := range x.services[1:] %}msg{%s m.serviceName %}
+    {% endfor %}
+)
+
+{% for _,m := range x.services %}func (x Api) MessageBox(arg api.TextMessage) {
+    x.w.NotifyJson( uintptr(msgMessageBox), arg )
+}
+{% endfor %}
+
+
+
+{% endfunc %}

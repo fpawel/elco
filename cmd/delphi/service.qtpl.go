@@ -2,7 +2,7 @@
 // See https://github.com/valyala/quicktemplate for details.
 
 //line service.qtpl:1
-package delphi
+package main
 
 //line service.qtpl:3
 import (

@@ -1,4 +1,4 @@
-package delphi
+package main
 
 import (
 	"fmt"
@@ -100,6 +100,14 @@ func delphiPlainOldTypeName(t r.Type) string {
 	default:
 		return ""
 	}
+}
+
+func strEnsureFirstT(s string) string {
+	if strings.HasPrefix(s, "T") {
+		return s
+	}
+	return "T" + strings.ToUpper(s[:1]) + s[1:]
+
 }
 
 func structNameToDelphiClassName(m typesNames, t r.Type) string {

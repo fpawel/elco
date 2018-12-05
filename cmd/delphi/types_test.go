@@ -1,7 +1,7 @@
-package delphi
+package main
 
 import (
-	"github.com/fpawel/elco/internal/svc"
+	"github.com/fpawel/elco/internal/api"
 	"os"
 	r "reflect"
 	"testing"
@@ -9,7 +9,7 @@ import (
 
 func TestPascalSource(t *testing.T) {
 	x := NewTypes([]r.Type{
-		r.TypeOf((*svc.Party)(nil)).Elem(),
+		r.TypeOf((*api.Party)(nil)).Elem(),
 	}, map[string]string{
 		"ProductInfo": "Product",
 	})

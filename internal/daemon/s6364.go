@@ -19,11 +19,11 @@ func (x *D) runRead6364() {
 			x.comports.cancel()
 			x.comports.WaitGroup.Done()
 		}()
-		cfg := x.sets.Config()
-		port, err := x.comports.Open(cfg.ComportHardware, x.comports.Context)
-		if err != nil {
-
-		}
+		//cfg := x.sets.Config()
+		//port, err := x.comports.Open(cfg.ComportHardware, x.comports.Context)
+		//if err != nil {
+		//
+		//}
 	}()
 }
 

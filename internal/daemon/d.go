@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 	"github.com/Microsoft/go-winio"
+	"github.com/fpawel/elco/internal/api"
 	"github.com/fpawel/elco/internal/app/config"
 	"github.com/fpawel/elco/internal/crud"
-	"github.com/fpawel/elco/internal/svc"
 	"github.com/fpawel/goutils/copydata"
 	"github.com/fpawel/goutils/serial/comport"
 	"github.com/hashicorp/go-multierror"
@@ -70,10 +70,8 @@ func (x *D) Run(closeOnDisconnect bool) {
 	// цикл оконных сообщений
 	runWindowMessageLoop()
 
-	if x.comports.WaitGroup != nil {
-		x.comports.cancel()
-		x.comports.WaitGroup.Wait()
-	}
+	x.comports.cancel()
+	x.comports.WaitGroup.Wait()
 
 	cancel()
 
@@ -119,11 +117,11 @@ func (x *D) serveRPC(ln net.Listener, ctx context.Context, closeOnDisconnectPeer
 
 func (x *D) registerRPCServices() {
 	for _, svcObj := range []interface{}{
-		svc.NewPartiesCatalogue(x.c.PartiesCatalogue()),
-		svc.NewLastParty(x.c.LastParty()),
-		svc.NewProductTypes(x.c.ProductTypes()),
-		svc.NewProductFirmware(x.c.ProductFirmware()),
-		svc.NewSetsSvc(x.sets),
+		api.NewPartiesCatalogue(x.c.PartiesCatalogue()),
+		api.NewLastParty(x.c.LastParty()),
+		api.NewProductTypes(x.c.ProductTypes()),
+		api.NewProductFirmware(x.c.ProductFirmware()),
+		api.NewSetsSvc(x.sets),
 	} {
 		if err := rpc.Register(svcObj); err != nil {
 			panic(err)
