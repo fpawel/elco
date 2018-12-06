@@ -52,6 +52,7 @@ func New() *D {
 		w:    copydata.NewNotifyWindow(ServerWindowClassName, PeerWindowClassName),
 	}
 	x.comports.Ports = make(comport.Ports)
+	x.comports.cancel = func() {}
 	x.registerRPCServices()
 	return x
 }
@@ -122,6 +123,7 @@ func (x *D) registerRPCServices() {
 		api.NewProductTypes(x.c.ProductTypes()),
 		api.NewProductFirmware(x.c.ProductFirmware()),
 		api.NewSetsSvc(x.sets),
+		&api.RunnerSvc{Runner: x},
 	} {
 		if err := rpc.Register(svcObj); err != nil {
 			panic(err)

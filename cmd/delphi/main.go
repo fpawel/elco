@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/fpawel/elco/internal/api"
-	"github.com/fpawel/elco/internal/daemon"
+	"github.com/fpawel/elco/internal/app"
 	"github.com/fpawel/goutils/winapp"
 	"log"
 	"os"
@@ -17,6 +17,7 @@ func main() {
 		r.TypeOf((*api.ProductTypes)(nil)),
 		r.TypeOf((*api.ProductFirmware)(nil)),
 		r.TypeOf((*api.SettingsSvc)(nil)),
+		r.TypeOf((*api.RunnerSvc)(nil)),
 	}
 	m := map[string]string{
 		"ProductInfo": "Product",
@@ -34,15 +35,15 @@ func main() {
 		return file
 	}
 
-	servicesSrc := NewServicesSrc(daemon.PipeName, types, m)
+	servicesSrc := NewServicesSrc(app.PipeName, types, m)
 
 	notifySvcSrc := NewNotifyServicesSrc(servicesSrc.dataTypes, []notifyServiceType{
 		{
-			serviceName: "MessageBox",
-			paramType:   r.TypeOf((*api.TextMessage)(nil)).Elem(),
+			serviceName: "ReadCurrent",
+			paramType:   r.TypeOf((*api.ReadCurrent)(nil)).Elem(),
 		},
 		{
-			serviceName: "StatusMessage",
+			serviceName: "HardwareError",
 			paramType:   r.TypeOf((*string)(nil)).Elem(),
 		},
 	})
@@ -54,10 +55,6 @@ func main() {
 	file = openFile("server_data_types.pas")
 	servicesSrc.dataTypes.WriteUnit(file)
 	file.Close()
-
-	dir = filepath.Join(os.Getenv("GOPATH"),
-		"src", "github.com", "fpawel", "elco", "notify")
-	winapp.MustDir(dir)
 
 	file = openFile("notify_services.pas")
 	notifySvcSrc.WriteUnit(file)

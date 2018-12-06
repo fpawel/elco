@@ -41,10 +41,10 @@ func (x *C) setValue(section, property, value string) error {
 
 		case "timeout":
 			n, err := strconv.Atoi(value)
-			if err != nil {
-				return err
+			if err == nil {
+				pC.Uart.ReadTimeout = time.Millisecond * time.Duration(n)
 			}
-			pC.Uart.ReadTimeout = time.Millisecond * time.Duration(n)
+			return err
 
 		case "timeout_byte":
 			n, err := strconv.Atoi(value)

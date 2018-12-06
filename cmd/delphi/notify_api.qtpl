@@ -4,7 +4,15 @@
 {% func (x *NotifyServicesSrc) GoFile() %}
 package notify
 
+import (
+	"github.com/fpawel/goutils/copydata"
+	{% for imp := range x.goImports %}"{%s imp %}"
+    {% endfor %}
+)
+
 type msg int
+
+type W = *copydata.NotifyWindow
 
 const (
     msg{%s x.services[0].serviceName %} msg = iota
@@ -12,9 +20,12 @@ const (
     {% endfor %}
 )
 
-{% for _,m := range x.services %}func (x Api) MessageBox(arg api.TextMessage) {
-    x.w.NotifyJson( uintptr(msgMessageBox), arg )
+{% for _,m := range x.services %}func {%s m.serviceName %}(w W, arg {%s m.goType %}) {
+    w.{%s m.notifyFunc %}( uintptr(msg{%s m.serviceName %}), {%s m.instructionArg %} )
 }
+{% if m.notifyFunc == "NotifyStr" %}func {%s m.serviceName %}f(w W, format string, a ...interface{}) {
+    w.Notifyf( uintptr(msg{%s m.serviceName %}), format, a... )
+}{% endif %}
 {% endfor %}
 
 

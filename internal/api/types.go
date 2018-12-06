@@ -12,3 +12,8 @@ const (
 	Warn
 	Error
 )
+
+type ReadCurrent struct {
+	Values []float64
+	Place  int
+}

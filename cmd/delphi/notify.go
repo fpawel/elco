@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"path"
 	r "reflect"
 )
 
@@ -10,6 +11,7 @@ type NotifyServicesSrc struct {
 	interfaceUses,
 	implUses []string
 	types     map[string]string
+	goImports map[string]struct{}
 	services  []notifyService
 	dataTypes *TypesSrc
 }
@@ -24,6 +26,7 @@ type notifyService struct {
 	typeName,
 	handlerType,
 	notifyFunc,
+	goType,
 	instructionGetFromStr,
 	instructionArg string
 }
@@ -35,6 +38,7 @@ func NewNotifyServicesSrc(d *TypesSrc, services []notifyServiceType) *NotifyServ
 		implUses:      []string{"Rest.Json", "stringutils", "sysutils"},
 		dataTypes:     d,
 		types:         make(map[string]string),
+		goImports:     make(map[string]struct{}),
 	}
 	for _, s := range services {
 		x.dataTypes.addType(s.paramType)
@@ -44,8 +48,15 @@ func NewNotifyServicesSrc(d *TypesSrc, services []notifyServiceType) *NotifyServ
 			serviceName: s.serviceName,
 			typeName:    t,
 			handlerType: strEnsureFirstT(t) + "Handler",
+			goType:      s.paramType.Name(),
 		}
 		x.types[y.typeName] = y.handlerType
+
+		if len(s.paramType.PkgPath()) > 0 {
+			x.goImports[s.paramType.PkgPath()] = struct{}{}
+			y.goType = path.Base(s.paramType.PkgPath()) + "." + y.goType
+
+		}
 
 		switch s.paramType.Kind() {
 
