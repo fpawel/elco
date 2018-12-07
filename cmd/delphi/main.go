@@ -46,6 +46,18 @@ func main() {
 			serviceName: "HardwareError",
 			paramType:   r.TypeOf((*string)(nil)).Elem(),
 		},
+		{
+			serviceName: "HardwareStarted",
+			paramType:   r.TypeOf((*string)(nil)).Elem(),
+		},
+		{
+			serviceName: "HardwareStopped",
+			paramType:   r.TypeOf((*string)(nil)).Elem(),
+		},
+		{
+			serviceName: "Status",
+			paramType:   r.TypeOf((*string)(nil)).Elem(),
+		},
 	})
 
 	file := openFile("services.pas")

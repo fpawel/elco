@@ -8,7 +8,6 @@ import (
 	"github.com/fpawel/elco/internal/app/config"
 	"github.com/fpawel/elco/internal/crud"
 	"github.com/fpawel/goutils/copydata"
-	"github.com/fpawel/goutils/serial/comport"
 	"github.com/hashicorp/go-multierror"
 	"github.com/lxn/win"
 	"github.com/pkg/errors"
@@ -23,11 +22,10 @@ type D struct {
 	c    crud.DBContext         // база данных sqlite
 	w    *copydata.NotifyWindow // окно для отправки сообщений WM_COPYDATA дельфи-приложению
 	sets *config.Sets
+	ctx  context.Context
 
-	comports struct {
-		comport.Ports
+	hardware struct {
 		sync.WaitGroup
-		context.Context
 		cancel func()
 	}
 }
@@ -51,14 +49,17 @@ func New() *D {
 		sets: sets,
 		w:    copydata.NewNotifyWindow(ServerWindowClassName, PeerWindowClassName),
 	}
-	x.comports.Ports = make(comport.Ports)
-	x.comports.cancel = func() {}
+	x.hardware.cancel = func() {}
+
 	x.registerRPCServices()
 	return x
 }
 
 func (x *D) Run(closeOnDisconnect bool) {
-	ctx, cancel := context.WithCancel(context.Background())
+
+	var cancel func()
+	x.ctx, cancel = context.WithCancel(context.Background())
+
 	wg := sync.WaitGroup{}
 	wg.Add(2)
 	ln := mustPipeListener()
@@ -66,13 +67,12 @@ func (x *D) Run(closeOnDisconnect bool) {
 	go func() {
 		defer wg.Done()
 		defer x.w.CloseWindow()
-		x.serveRPC(ln, ctx, closeOnDisconnect)
+		x.serveRPC(ln, x.ctx, closeOnDisconnect)
 	}()
 	// цикл оконных сообщений
 	runWindowMessageLoop()
 
-	x.comports.cancel()
-	x.comports.WaitGroup.Wait()
+	x.hardware.cancel()
 
 	cancel()
 

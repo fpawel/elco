@@ -57,7 +57,7 @@ func (x *Sets) UserConfig() settings.ConfigSections {
 	for i := range cfg.BlockSelected {
 		workSets = append(workSets, settings.ConfigProperty{
 			Hint:      "Блок " + strconv.Itoa(i+1),
-			Name:      "Block" + strconv.Itoa(i+1),
+			Name:      "Block" + strconv.Itoa(i),
 			ValueType: settings.VtBool,
 			Value:     strconv.FormatBool(cfg.BlockSelected[i]),
 		})

@@ -9,43 +9,75 @@ import (
 	"sync"
 )
 
+func (x *D) StopHardware() {
+	x.hardware.cancel()
+	x.hardware.WaitGroup.Wait()
+	notify.HardwareStopped(x.w, "выполнение прервано пользователем")
+}
+
 func (x *D) RunReadCurrent() {
-	x.comports.cancel()
-	x.comports.WaitGroup.Wait()
-	x.comports.WaitGroup = sync.WaitGroup{}
-	x.comports.WaitGroup.Add(1)
-	x.comports.Context, x.comports.cancel = context.WithCancel(context.Background())
+
+	x.hardware.cancel()
+	x.hardware.WaitGroup.Wait()
+	x.hardware.WaitGroup = sync.WaitGroup{}
+	x.hardware.WaitGroup.Add(1)
+
+	cfg := x.sets.Config()
+
+	var ctx context.Context
+	ctx, x.hardware.cancel = context.WithCancel(x.ctx)
+	port := new(comport.Port)
+
+	if err := port.Open(cfg.ComportHardware, ctx); err != nil {
+		notify.HardwareErrorf(x.w, "%s: %v", cfg.ComportHardware.Serial.Name, err.Error())
+		return
+	}
+
+	notify.HardwareStarted(x.w, "опрос стенда")
 
 	go func() {
 
 		defer func() {
-			x.comports.cancel()
-			x.comports.WaitGroup.Done()
+			if err := port.Close(); err != nil {
+				notify.HardwareErrorf(x.w, "%s: %v", cfg.ComportHardware.Serial.Name, err.Error())
+				return
+			}
+			notify.HardwareStopped(x.w, "опрос стенда завершён")
+			x.hardware.WaitGroup.Done()
 		}()
 
-		cfg := x.sets.Config()
-		port, err := x.comports.Open(cfg.ComportHardware, x.comports.Context)
-		if err != nil {
-			notify.HardwareErrorf(x.w, "%s: %v", cfg.ComportHardware.Serial.Name, err.Error())
-			return
-		}
 		for {
-			var v api.ReadCurrent
-			for v.Place = 0; v.Place < 12; v.Place++ {
+			for place := 0; place < 12; place++ {
 				select {
-				case <-x.comports.Context.Done():
+				case <-ctx.Done():
 					return
 				default:
 					cfg := x.sets.Config()
-					if !cfg.BlockSelected[v.Place] {
+					if !cfg.BlockSelected[place] {
 						continue
 					}
-					v.Values, err = modbus.Read3BCDValues(port, modbus.Addr(v.Place+101), 0, 8)
-					if err != nil {
-						notify.HardwareErrorf(x.w, "%s: %v: %v", cfg.ComportHardware.Serial.Name, err.Error(), port.Dump())
+					notify.Statusf(x.w, "опрос: блок %d", place+1)
+					values, err := modbus.Read3BCDValues(port, modbus.Addr(place+101), 0, 8)
+					switch err {
+					case nil:
+						notify.ReadCurrent(x.w, api.ReadCurrent{
+							Place:  place,
+							Values: values,
+						})
+					case context.Canceled:
+						return
+					case context.DeadlineExceeded:
+						notify.HardwareErrorf(x.w, "%s: стенд 6364: блок %d не отвечает: %s",
+							cfg.ComportHardware.Serial.Name, place+1,
+							port.Dump())
+						return
+					default:
+						notify.HardwareErrorf(x.w, "%s: стенд 6364, блок %d: %+v: %v",
+							cfg.ComportHardware.Serial.Name, place+1, err,
+							port.Dump())
 						return
 					}
-					notify.ReadCurrent(x.w, v)
+
 				}
 			}
 		}
