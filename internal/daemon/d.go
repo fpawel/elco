@@ -38,11 +38,7 @@ const (
 
 func New() *D {
 	c := crud.NewDBContext(nil)
-	sets, err := config.OpenSets(c.LastParty())
-
-	if err != nil {
-		fmt.Println("sets:", err)
-	}
+	sets := config.OpenSets(c.LastParty())
 
 	x := &D{
 		c:    c,

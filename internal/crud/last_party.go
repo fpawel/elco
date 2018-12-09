@@ -99,24 +99,28 @@ func (x LastParty) SetConfigValue(property, value string) (err error) {
 
 	party := x.party()
 
+	parseFloat := func() (float64, error) {
+		return strconv.ParseFloat(strings.Replace(value, ",", ".", -1), 64)
+	}
+
 	switch property {
 	case "ProductType":
 		party.ProductTypeName = value
 		return x.dbr.Save(&party)
 	case "Gas1":
-		party.Concentration1, err = strconv.ParseFloat(value, 64)
+		party.Concentration1, err = parseFloat()
 		if err == nil {
 			err = x.dbr.Save(&party)
 		}
 		return
 	case "Gas2":
-		party.Concentration2, err = strconv.ParseFloat(value, 64)
+		party.Concentration2, err = parseFloat()
 		if err == nil {
 			err = x.dbr.Save(&party)
 		}
 		return
 	case "Gas3":
-		party.Concentration3, err = strconv.ParseFloat(value, 64)
+		party.Concentration3, err = parseFloat()
 		if err == nil {
 			err = x.dbr.Save(&party)
 		}
