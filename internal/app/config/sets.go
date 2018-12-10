@@ -2,10 +2,10 @@ package config
 
 import (
 	"encoding/json"
-	"github.com/fpawel/bio3/comport"
 	"github.com/fpawel/elco/internal/crud"
 	"github.com/fpawel/elco/internal/settings"
 	"github.com/fpawel/goutils/serial-comm/comm"
+	"github.com/fpawel/goutils/serial-comm/comport"
 	"io/ioutil"
 	"log"
 	"sync"
@@ -28,10 +28,10 @@ func OpenSets(party crud.LastParty) *Sets {
 	if b, err := ioutil.ReadFile(configFileName()); err == nil {
 		err = json.Unmarshal(b, &sets.c.UserConfig)
 	} else {
-		if ports := comport.AvailablePorts(); len(ports) > 0 {
-			sets.c.ComportName = ports[0]
+		log.Println("CONFIG:", err)
+		if sets.c.Comport.Measurer, err = comport.FirstAvailablePortName(); err != nil {
+			log.Println("COMPORT:", err)
 		}
-		log.Println("open config:", err)
 	}
 	return sets
 }
@@ -98,18 +98,13 @@ func (x *Sets) SetPredefined(predefined Predefined) {
 
 func PredefinedConfig() Predefined {
 	return Predefined{
-		GasSwitcher: GasSwitcher{
-			Addr: 100,
-			Comm: comm.Config{
-				ReadByteTimeoutMillis: 50,
-				ReadTimeoutMillis:     1000,
-			},
+		GasSwitcher: comm.Config{
+			ReadByteTimeoutMillis: 50,
+			ReadTimeoutMillis:     1000,
 		},
-		Measurer: Measurer{
-			Comm: comm.Config{
-				ReadByteTimeoutMillis: 50,
-				ReadTimeoutMillis:     1000,
-			},
+		Measurer: comm.Config{
+			ReadByteTimeoutMillis: 50,
+			ReadTimeoutMillis:     1000,
 		},
 	}
 }

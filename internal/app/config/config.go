@@ -1,11 +1,10 @@
 package config
 
 import (
-	"github.com/fpawel/bio3/comport"
 	"github.com/fpawel/elco/internal/app"
 	"github.com/fpawel/elco/internal/settings"
 	"github.com/fpawel/goutils/serial-comm/comm"
-	"github.com/fpawel/goutils/serial-comm/modbus"
+	"github.com/fpawel/goutils/serial-comm/comport"
 	"github.com/pkg/errors"
 )
 
@@ -15,34 +14,33 @@ type Config struct {
 }
 
 type UserConfig struct {
-	ComportName string
+	Comport struct {
+		Measurer, GasSwitcher string
+	}
 }
 
 type Predefined struct {
-	Measurer    Measurer    `toml:"measurer" comment:"измерительный блок"`
-	GasSwitcher GasSwitcher `toml:"gas_block" comment:"газовый блок"`
-}
-
-type Measurer struct {
-	Comm comm.Config `toml:"comm" comment:"транспорт"`
-}
-
-type GasSwitcher struct {
-	Comm comm.Config `toml:"comm" comment:"транспорт"`
-	Addr modbus.Addr `toml:"addr" comment:"адрес в информационной сети"`
+	Measurer    comm.Config `toml:"measurer" comment:"измерительный блок"`
+	GasSwitcher comm.Config `toml:"gas_block" comment:"газовый блок"`
 }
 
 func (x *UserConfig) Section() settings.ConfigSection {
 
 	return settings.ConfigSection{
-		Name: "Hardware",
-		Hint: "Оборудование",
+		Name: "Comport",
+		Hint: "СОМ порт",
 		Properties: []settings.ConfigProperty{
 			{
-				Hint:      "COM порт стенда",
-				Name:      "ComportName",
+				Hint:      "Блоки измерения",
+				Name:      "Measurer",
 				ValueType: settings.VtComportName,
-				Value:     x.ComportName,
+				Value:     x.Comport.Measurer,
+			},
+			{
+				Hint:      "Газовый блок",
+				Name:      "GasSwitcher",
+				ValueType: settings.VtComportName,
+				Value:     x.Comport.GasSwitcher,
 			},
 		},
 	}
@@ -51,20 +49,20 @@ func (x *UserConfig) Section() settings.ConfigSection {
 func (x *UserConfig) setValue(section, property, value string) error {
 
 	switch section {
-	case "Hardware":
+	case "Comport":
 		switch property {
-		case "ComportName":
-			ports := comport.AvailablePorts()
-			if len(ports) == 0 {
-				return errors.Errorf("%q: нет доступных СОМ портов")
+		case "Measurer":
+			if err := comport.CheckPortAvailable(value); err != nil {
+				return errors.Errorf("%q: %+v", value, err)
 			}
-			for _, s := range ports {
-				if s == value {
-					x.ComportName = value
-					return nil
-				}
+			x.Comport.Measurer = value
+			return nil
+		case "GasSwitcher":
+			if err := comport.CheckPortAvailable(value); err != nil {
+				return errors.Errorf("%q: %+v", value, err)
 			}
-			return errors.Errorf("%q : invalid COM port", value)
+			x.Comport.GasSwitcher = value
+			return nil
 
 		}
 	}

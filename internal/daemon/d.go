@@ -8,6 +8,7 @@ import (
 	"github.com/fpawel/elco/internal/app/config"
 	"github.com/fpawel/elco/internal/crud"
 	"github.com/fpawel/goutils/copydata"
+	"github.com/fpawel/goutils/serial-comm/comport"
 	"github.com/hashicorp/go-multierror"
 	"github.com/lxn/win"
 	"github.com/pkg/errors"
@@ -24,9 +25,14 @@ type D struct {
 	sets *config.Sets
 	ctx  context.Context
 
+	port struct {
+		measurer, gas *comport.Port
+	}
+
 	hardware struct {
 		sync.WaitGroup
-		cancel func()
+		Continue, cancel context.CancelFunc
+		ctx              context.Context
 	}
 }
 
@@ -39,14 +45,16 @@ const (
 func New() *D {
 	c := crud.NewDBContext(nil)
 	sets := config.OpenSets(c.LastParty())
-
 	x := &D{
 		c:    c,
 		sets: sets,
 		w:    copydata.NewNotifyWindow(ServerWindowClassName, PeerWindowClassName),
 	}
+	x.port.measurer = new(comport.Port)
+	x.port.gas = new(comport.Port)
 	x.hardware.cancel = func() {}
-
+	x.hardware.Continue = func() {}
+	x.hardware.ctx = context.Background()
 	x.registerRPCServices()
 	return x
 }
