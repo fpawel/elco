@@ -58,6 +58,10 @@ func main() {
 			serviceName: "Status",
 			paramType:   r.TypeOf((*string)(nil)).Elem(),
 		},
+		{
+			serviceName: "Warning",
+			paramType:   r.TypeOf((*string)(nil)).Elem(),
+		},
 	})
 
 	file := openFile("services.pas")

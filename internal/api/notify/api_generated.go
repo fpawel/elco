@@ -15,6 +15,7 @@ const (
 	msgHardwareStarted
 	msgHardwareStopped
 	msgStatus
+	msgWarning
 )
 
 func ReadCurrent(w W, arg api.ReadCurrent) {
@@ -44,4 +45,10 @@ func Status(w W, arg string) {
 }
 func Statusf(w W, format string, a ...interface{}) {
 	w.Notifyf(uintptr(msgStatus), format, a...)
+}
+func Warning(w W, arg string) {
+	w.NotifyStr(uintptr(msgWarning), arg)
+}
+func Warningf(w W, format string, a ...interface{}) {
+	w.Notifyf(uintptr(msgWarning), format, a...)
 }
