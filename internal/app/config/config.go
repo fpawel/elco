@@ -20,8 +20,13 @@ type UserConfig struct {
 }
 
 type Predefined struct {
+	Work        WorkConfig  `toml:"work" comment:"автоматическая настройка"`
 	Measurer    comm.Config `toml:"measurer" comment:"измерительный блок"`
 	GasSwitcher comm.Config `toml:"gas_block" comment:"газовый блок"`
+}
+
+type WorkConfig struct {
+	BlowGasMinutes int `toml:"blow_gas_minutes" comment:"длительность продувки газа в минутах"`
 }
 
 func (x *UserConfig) Section() settings.ConfigSection {

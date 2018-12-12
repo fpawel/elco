@@ -98,6 +98,9 @@ func (x *Sets) SetPredefined(predefined Predefined) {
 
 func PredefinedConfig() Predefined {
 	return Predefined{
+		Work: WorkConfig{
+			BlowGasMinutes: 5,
+		},
 		GasSwitcher: comm.Config{
 			ReadByteTimeoutMillis: 50,
 			ReadTimeoutMillis:     1000,

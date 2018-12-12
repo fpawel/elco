@@ -21,7 +21,7 @@ const (
 )
 
 {% for _,m := range x.services %}func {%s m.serviceName %}(w W, arg {%s m.goType %}) {
-    w.{%s m.notifyFunc %}( uintptr(msg{%s m.serviceName %}), {%s m.instructionArg %} )
+    w.{%s m.notifyFunc %}( uintptr(msg{%s m.serviceName %}), {%s= m.instructionArg %} )
 }
 {% if m.notifyFunc == "NotifyStr" %}func {%s m.serviceName %}f(w W, format string, a ...interface{}) {
     w.Notifyf( uintptr(msg{%s m.serviceName %}), format, a... )

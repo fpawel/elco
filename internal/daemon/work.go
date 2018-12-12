@@ -10,6 +10,7 @@ import (
 	"github.com/fpawel/goutils/serial-comm/modbus"
 	"github.com/pkg/errors"
 	"sync"
+	"time"
 )
 
 func (x *D) switchGas(n int) error {
@@ -86,8 +87,25 @@ func (x *D) readMeasure(place int) ([]float64, error) {
 	}
 }
 
+func (x *D) RunMainWork(workCheck [5]bool) {
+	x.runHardware(Work{"Настройка ЭХЯ", func() error {
+		for i, w := range x.mainWorks() {
+			if workCheck[i] {
+				if err := w.Func(); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	}})
+}
+
 func (x *D) StopHardware() {
 	x.hardware.cancel()
+}
+
+func (x *D) SkipDelay() {
+	x.hardware.skipDelay()
 }
 
 func (x *D) runHardware(work Work) {
@@ -145,11 +163,50 @@ func (x *D) RunReadCurrent(checkPlaces [12]bool) {
 	}})
 }
 
-func (x *D) mainWork(workCheck [5]bool) error {
-	for i, work := range [5]Work{
+func (x *D) blowGas(nGas int) error {
+	if err := x.switchGas(nGas); err != nil {
+		return err
+	}
+	var ctx context.Context
+	ctx, x.hardware.skipDelay = context.WithCancel(x.hardware.ctx)
+
+	timeMinutes := x.sets.Config().Work.BlowGasMinutes
+
+	t := time.After(time.Minute * time.Duration(timeMinutes))
+
+	notify.Delay(x.w, api.DelayInfo{
+		Run:         true,
+		What:        fmt.Sprintf("Продувка ПГС%d", nGas),
+		TimeSeconds: timeMinutes * 60,
+	})
+
+	defer notify.Delay(x.w, api.DelayInfo{Run: false})
+
+	for {
+		select {
+
+		case <-ctx.Done():
+			return nil
+
+		case <-t:
+			return nil
+
+		default:
+			time.Sleep(50 * time.Millisecond)
+		}
+	}
+
+}
+
+func (x *D) mainWorks() [5]Work {
+
+	return [5]Work{
 		{
 			"20\"C",
 			func() error {
+				if err := x.blowGas(1); err != nil {
+					return err
+				}
 				return nil
 			},
 		},
@@ -177,12 +234,6 @@ func (x *D) mainWork(workCheck [5]bool) error {
 				return nil
 			},
 		},
-	} {
-		if workCheck[i] {
-			if err := work.Func(); err != nil {
-				return err
-			}
-		}
 	}
 }
 

@@ -31,8 +31,10 @@ type D struct {
 
 	hardware struct {
 		sync.WaitGroup
-		Continue, cancel context.CancelFunc
-		ctx              context.Context
+		Continue,
+		cancel,
+		skipDelay context.CancelFunc
+		ctx context.Context
 	}
 }
 
@@ -54,6 +56,7 @@ func New() *D {
 	x.port.gas = new(comport.Port)
 	x.hardware.cancel = func() {}
 	x.hardware.Continue = func() {}
+	x.hardware.skipDelay = func() {}
 	x.hardware.ctx = context.Background()
 	x.registerRPCServices()
 	return x

@@ -16,6 +16,7 @@ const (
 	msgHardwareStopped
 	msgStatus
 	msgWarning
+	msgDelay
 )
 
 func ReadCurrent(w W, arg api.ReadCurrent) {
@@ -51,4 +52,7 @@ func Warning(w W, arg string) {
 }
 func Warningf(w W, format string, a ...interface{}) {
 	w.Notifyf(uintptr(msgWarning), format, a...)
+}
+func Delay(w W, arg api.DelayInfo) {
+	w.NotifyJson(uintptr(msgDelay), arg)
 }

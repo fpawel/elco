@@ -92,7 +92,7 @@ const (
 		//line notify_api.qtpl:24
 		qw422016.N().S(`), `)
 		//line notify_api.qtpl:24
-		qw422016.E().S(m.instructionArg)
+		qw422016.N().S(m.instructionArg)
 		//line notify_api.qtpl:24
 		qw422016.N().S(` )
 }

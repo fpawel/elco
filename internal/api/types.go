@@ -17,3 +17,9 @@ type ReadCurrent struct {
 	Values []float64
 	Place  int
 }
+
+type DelayInfo struct {
+	Run         bool
+	TimeSeconds int
+	What        string
+}
