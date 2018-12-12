@@ -10,8 +10,9 @@ import (
 func main() {
 
 	// Преверяем, не было ли приложение запущено ранее
-	if hWnd := findPeer(); winapp.IsWindow(hWnd) {
+	if winapp.IsWindow(winapp.FindWindow(daemon.ServerWindowClassName)) {
 		// Если было, выдвигаем окно приложения на передний план и завершаем процесс
+		hWnd := winapp.FindWindow(daemon.PeerWindowClassName)
 		win.ShowWindow(hWnd, win.SW_RESTORE)
 		win.SetForegroundWindow(hWnd)
 		return

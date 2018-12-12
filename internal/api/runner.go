@@ -1,5 +1,7 @@
 package api
 
+import "errors"
+
 type Runner interface {
 	RunReadCurrent([12]bool)
 	StopHardware()
@@ -12,13 +14,26 @@ type RunnerSvc struct {
 }
 
 func (x *RunnerSvc) RunMainWork(workCheck [5]bool, _ *struct{}) error {
-	x.Runner.RunMainWork(workCheck)
-	return nil
+
+	for _, v := range workCheck {
+		if v {
+			x.Runner.RunMainWork(workCheck)
+			return nil
+		}
+	}
+	return errors.New("необходимо отметить как минимум одину настроечную операцию")
+
 }
 
 func (x *RunnerSvc) RunReadCurrent(checkPlaces [12]bool, _ *struct{}) error {
-	x.Runner.RunReadCurrent(checkPlaces)
-	return nil
+
+	for _, v := range checkPlaces {
+		if v {
+			x.Runner.RunReadCurrent(checkPlaces)
+			return nil
+		}
+	}
+	return errors.New("необходимо отметить как минимум один блок измерительный из двенадцати")
 }
 
 func (x *RunnerSvc) StopHardware(_ struct{}, _ *struct{}) error {
