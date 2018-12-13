@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"github.com/fpawel/elco/internal/api"
 	"github.com/fpawel/elco/internal/api/notify"
+	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/goutils/serial-comm/comport"
 	"github.com/fpawel/goutils/serial-comm/modbus"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"time"
 )
 
@@ -48,6 +50,11 @@ func (x *D) doSwitchGas(n int) error {
 	_, err := x.port.gas.GetResponse(req.Bytes(), c.GasSwitcher)
 	if err == context.DeadlineExceeded {
 		err = errors.New("нет ответа от газового блока: " + x.port.gas.Dump())
+	}
+	if err == nil {
+		logrus.WithFields(logrus.Fields{
+			"code": n,
+		}).Info("gas block")
 	}
 	return err
 }
@@ -120,28 +127,91 @@ func (x *D) blowGas(nGas int) error {
 
 }
 
+func (x *D) setupTemperature(temperature data.Temperature) error {
+	notify.Warningf(x.w, `Установите в термокамере температуру %v\"C. 
+Нажмите \"Ok\" чтобы перейти к выдержке на температуре %v\"C.`, temperature, temperature)
+	return x.hardware.ctx.Err()
+}
+
+func (x *D) processTemperature(temperature data.Temperature) error {
+
+	if err := x.setupTemperature(temperature); err != nil {
+		return err
+	}
+
+	if err := x.blowGas(1); err != nil {
+		return err
+	}
+
+	if err := x.processProductsCurrents(temperature, data.Fon); err != nil {
+		return err
+	}
+
+	if err := x.blowGas(3); err != nil {
+		return err
+	}
+
+	if err := x.processProductsCurrents(temperature, data.Sens); err != nil {
+		return err
+	}
+
+	if err := x.blowGas(1); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (x *D) processProductsCurrents(temperature data.Temperature, scale data.ScaleType) error {
+	products := x.c.LastParty().ProductionProducts()
+	m := map[int]*data.Product{}
+	blocks := [12]bool{}
+	for i := range products {
+		p := &products[i]
+		blocks[p.Place/8] = true
+		m[p.Place] = p
+	}
+	for i := range blocks {
+		if blocks[i] {
+			if values, err := x.readMeasure(i); err != nil {
+				return err
+			} else {
+				for n := 0; n < 8; n++ {
+					p := m[i*8+n]
+					logrus.WithFields(logrus.Fields{
+						"scale":       scale,
+						"temperature": temperature,
+						"product_id":  p.ProductID,
+						"place":       p.Place,
+					}).Info("save product current")
+					p.SetCurrent(temperature, scale, values[n])
+					x.c.SaveProduct(p)
+				}
+			}
+		}
+	}
+	return nil
+}
+
 func (x *D) mainWorks() [5]Work {
 
 	return [5]Work{
 		{
-			"20\"C",
+			"Снятие 20\"C",
 			func() error {
-				if err := x.blowGas(1); err != nil {
-					return err
-				}
-				return nil
+				return x.processTemperature(20)
 			},
 		},
 		{
-			"-20\"C",
+			"Снятие -20\"C",
 			func() error {
-				return nil
+				return x.processTemperature(-20)
 			},
 		},
 		{
-			"+50\"C",
+			"Снятие +50\"C",
 			func() error {
-				return nil
+				return x.processTemperature(50)
 			},
 		},
 		{

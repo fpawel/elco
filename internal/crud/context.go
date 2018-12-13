@@ -72,3 +72,11 @@ func (x dbContext) ListUnits() []data.Units {
 	defer x.mu.Unlock()
 	return data.ListUnits(x.dbr)
 }
+
+func (x dbContext) SaveProduct(p *data.Product) {
+	x.mu.Lock()
+	defer x.mu.Unlock()
+	if err := x.dbr.Save(p); err != nil {
+		panic(err)
+	}
+}

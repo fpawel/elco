@@ -5,6 +5,7 @@ import (
 	"github.com/fpawel/elco/internal/daemon"
 	"github.com/fpawel/goutils/winapp"
 	"github.com/lxn/win"
+	"github.com/sirupsen/logrus"
 )
 
 func main() {
@@ -20,7 +21,17 @@ func main() {
 
 	mustRunPeer := true
 	flag.BoolVar(&mustRunPeer, "must-run-peer", true, "ensure peer application")
+
+	logLevel := uint(logrus.DebugLevel)
+	flag.UintVar(&logLevel, "log-level", uint(logrus.DebugLevel), "use log level")
+
 	flag.Parse()
+
+	// Log as JSON instead of the default ASCII formatter.
+	//logrus.SetFormatter(&logrus.JSONFormatter{})
+
+	// Only log the warning severity or above.
+	logrus.SetLevel(logrus.Level(logLevel))
 
 	if mustRunPeer && !winapp.IsWindow(findPeer()) {
 		if err := runPeer(); err != nil {

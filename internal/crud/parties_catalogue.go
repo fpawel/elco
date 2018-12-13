@@ -77,7 +77,7 @@ func (x PartiesCatalogue) Party(partyID int64) (party data.Party) {
 	if err := x.dbr.FindOneTo(&party, "party_id", partyID); err != nil {
 		panic(err)
 	}
-	party.Products = data.GetProductsByPartyID(x.dbr, partyID)
+	party.Products = data.GetProductsInfoByPartyID(x.dbr, partyID)
 	return
 
 }

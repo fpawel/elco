@@ -3,16 +3,50 @@ package data
 import (
 	"database/sql"
 	"github.com/pkg/errors"
+	"log"
 )
 
-type CurrScaleType int
+type ScaleType int
 
 const (
-	Fon CurrScaleType = iota
+	Fon ScaleType = iota
 	Sens
 )
 
-func (s ProductInfo) Current(c CurrScaleType, t float64) sql.NullFloat64 {
+type Temperature float64
+
+func (s *Product) SetCurrent(t Temperature, c ScaleType, value float64) {
+	v := sql.NullFloat64{Float64: value, Valid: true}
+	switch c {
+	case Fon:
+		switch t {
+		case -20:
+			s.IFMinus20 = v
+			return
+		case 20:
+			s.IFPlus20 = v
+			return
+		case 50:
+			s.IFPlus50 = v
+			return
+		}
+	case Sens:
+		switch t {
+		case -20:
+			s.ISMinus20 = v
+			return
+		case 20:
+			s.ISPlus20 = v
+			return
+		case 50:
+			s.ISPlus50 = v
+			return
+		}
+	}
+	log.Panicf("wrong point: %v: %v", t, c)
+}
+
+func (s ProductInfo) Current(t Temperature, c ScaleType) sql.NullFloat64 {
 	switch c {
 	case Fon:
 		switch t {
@@ -22,8 +56,6 @@ func (s ProductInfo) Current(c CurrScaleType, t float64) sql.NullFloat64 {
 			return s.IFPlus20
 		case 50:
 			return s.IFPlus50
-		default:
-			panic("wrong temperature")
 		}
 	case Sens:
 		switch t {
@@ -33,16 +65,14 @@ func (s ProductInfo) Current(c CurrScaleType, t float64) sql.NullFloat64 {
 			return s.ISPlus20
 		case 50:
 			return s.ISPlus50
-		default:
-			panic("wrong temperature")
 		}
-	default:
-		panic("wrong scale point")
 	}
+	log.Panicf("wrong point: %v: %v", t, c)
+	panic("")
 }
 
-func (s ProductInfo) CurrentValue(c CurrScaleType, t float64) (float64, error) {
-	v := s.Current(c, t)
+func (s ProductInfo) CurrentValue(t Temperature, c ScaleType) (float64, error) {
+	v := s.Current(t, c)
 	if !v.Valid {
 		str := "фонового тока"
 		if c == Sens {
@@ -54,10 +84,10 @@ func (s ProductInfo) CurrentValue(c CurrScaleType, t float64) (float64, error) {
 }
 
 func (s ProductInfo) KSensPercentValues(includeMinus20 bool) (map[float64]float64, error) {
-	if _, err := s.CurrentValue(Fon, 20); err != nil {
+	if _, err := s.CurrentValue(20, Fon); err != nil {
 		return nil, err
 	}
-	if _, err := s.CurrentValue(Sens, 20); err != nil {
+	if _, err := s.CurrentValue(20, Sens); err != nil {
 		return nil, err
 	}
 	if !s.KSens50.Valid {

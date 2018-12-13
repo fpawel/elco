@@ -1,6 +1,7 @@
 package data
 
 import (
+	"database/sql"
 	"github.com/jmoiron/sqlx"
 	"gopkg.in/reform.v1"
 )
@@ -35,7 +36,41 @@ WHERE NOT EXISTS(SELECT product_id FROM product WHERE party.party_id = product.p
 
 }
 
-func GetProductsByPartyID(db *reform.DB, partyID int64) (products []ProductInfo) {
+func GetLastPartyProductionProducts(db *reform.DB) []Product {
+	rows, err := db.SelectRows(ProductTable,
+		"WHERE party_id IN (SELECT party_id FROM last_party) AND production")
+	if err != nil {
+		panic(err)
+	}
+	defer func() { _ = rows.Close() }()
+	return fetchProductsFromRows(db, rows)
+}
+
+func GetLastPartyProducts(db *reform.DB) []Product {
+	rows, err := db.SelectRows(ProductTable,
+		"WHERE party_id IN (SELECT party_id FROM last_party)")
+	if err != nil {
+		panic(err)
+	}
+	defer func() { _ = rows.Close() }()
+	return fetchProductsFromRows(db, rows)
+}
+
+func fetchProductsFromRows(db *reform.DB, rows *sql.Rows) (products []Product) {
+	for {
+		var product Product
+		if err := db.NextRow(&product, rows); err == nil {
+			products = append(products, product)
+		} else {
+			if err == reform.ErrNoRows {
+				return products
+			}
+			panic(err)
+		}
+	}
+}
+
+func GetProductsInfoByPartyID(db *reform.DB, partyID int64) (products []ProductInfo) {
 	rows, err := db.SelectRows(ProductInfoTable, "WHERE party_id = ? ORDER BY place",
 		partyID)
 	if err != nil {

@@ -21,6 +21,12 @@ func (x LastParty) Party() data.Party {
 	return x.party()
 }
 
+func (x LastParty) ProductionProducts() []data.Product {
+	x.mu.Lock()
+	defer x.mu.Unlock()
+	return data.GetLastPartyProductionProducts(x.dbr)
+}
+
 func (x LastParty) ProductAtPlace(place int) (product data.ProductInfo, err error) {
 	x.mu.Lock()
 	defer x.mu.Unlock()
@@ -177,7 +183,7 @@ func (x LastParty) party() data.Party {
 	if err := x.dbr.SelectOneTo(&party, `ORDER BY created_at DESC LIMIT 1;`); err != nil {
 		panic(err)
 	}
-	party.Products = data.GetProductsByPartyID(x.dbr, party.PartyID)
+	party.Products = data.GetProductsInfoByPartyID(x.dbr, party.PartyID)
 	return party
 }
 

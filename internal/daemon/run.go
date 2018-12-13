@@ -11,6 +11,7 @@ func (x *D) RunMainWork(workCheck [5]bool) {
 	x.runHardware(Work{"Настройка ЭХЯ", func() error {
 		for i, w := range x.mainWorks() {
 			if workCheck[i] {
+				notify.Status(x.w, w.Name)
 				if err := w.Func(); err != nil {
 					return err
 				}

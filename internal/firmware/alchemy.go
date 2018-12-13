@@ -16,11 +16,11 @@ const (
 func srcFon2(p data.ProductInfo) (y M, err error) {
 	y = M{}
 
-	y[20], err = p.CurrentValue(fon, 20)
+	y[20], err = p.CurrentValue(20, fon)
 	if err != nil {
 		return
 	}
-	y[50], err = p.CurrentValue(fon, 50)
+	y[50], err = p.CurrentValue(50, fon)
 	if err != nil {
 		return
 	}
@@ -37,15 +37,15 @@ func srcFon2(p data.ProductInfo) (y M, err error) {
 
 func srcFon3(p data.ProductInfo) (y M, err error) {
 	y = M{}
-	y[-20], err = p.CurrentValue(fon, -20)
+	y[-20], err = p.CurrentValue(-20, fon)
 	if err != nil {
 		return
 	}
-	y[20], err = p.CurrentValue(fon, 20)
+	y[20], err = p.CurrentValue(20, fon)
 	if err != nil {
 		return
 	}
-	y[50], err = p.CurrentValue(fon, 50)
+	y[50], err = p.CurrentValue(50, fon)
 	if err != nil {
 		return
 	}
