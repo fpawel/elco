@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"github.com/fpawel/elco/internal/crud"
 	"github.com/fpawel/elco/internal/settings"
-	"github.com/fpawel/goutils/serial-comm/comm"
 	"github.com/fpawel/goutils/serial-comm/comport"
 	"io/ioutil"
 	"log"
@@ -97,17 +96,5 @@ func (x *Sets) SetPredefined(predefined Predefined) {
 }
 
 func PredefinedConfig() Predefined {
-	return Predefined{
-		Work: WorkConfig{
-			BlowGasMinutes: 5,
-		},
-		GasSwitcher: comm.Config{
-			ReadByteTimeoutMillis: 50,
-			ReadTimeoutMillis:     1000,
-		},
-		Measurer: comm.Config{
-			ReadByteTimeoutMillis: 50,
-			ReadTimeoutMillis:     1000,
-		},
-	}
+	return predefined
 }

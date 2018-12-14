@@ -26,7 +26,8 @@ type Predefined struct {
 }
 
 type WorkConfig struct {
-	BlowGasMinutes int `toml:"blow_gas_minutes" comment:"длительность продувки газа в минутах"`
+	BlowGasMinutes         int `toml:"blow_gas_minutes" comment:"длительность продувки газа, мин."`
+	HoldTemperatureMinutes int `toml:"hold_temperature_minutes" comment:"длительность выдержки термокамеры, мин."`
 }
 
 func (x *UserConfig) Section() settings.ConfigSection {
@@ -76,4 +77,19 @@ func (x *UserConfig) setValue(section, property, value string) error {
 
 func configFileName() string {
 	return app.AppName.FileName("config.json")
+}
+
+var predefined = Predefined{
+	Work: WorkConfig{
+		BlowGasMinutes:         5,
+		HoldTemperatureMinutes: 120,
+	},
+	GasSwitcher: comm.Config{
+		ReadByteTimeoutMillis: 50,
+		ReadTimeoutMillis:     1000,
+	},
+	Measurer: comm.Config{
+		ReadByteTimeoutMillis: 50,
+		ReadTimeoutMillis:     1000,
+	},
 }

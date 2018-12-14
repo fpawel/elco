@@ -96,17 +96,22 @@ func (x *D) blowGas(nGas int) error {
 	if err := x.switchGas(nGas); err != nil {
 		return err
 	}
+	timeMinutes := x.sets.Config().Work.BlowGasMinutes
+	x.delay(fmt.Sprintf("Продувка ПГС%d", nGas), time.Minute*time.Duration(timeMinutes))
+	return x.hardware.ctx.Err()
+}
+
+func (x *D) delay(what string, duration time.Duration) {
+
 	var ctx context.Context
 	ctx, x.hardware.skipDelay = context.WithCancel(x.hardware.ctx)
 
-	timeMinutes := x.sets.Config().Work.BlowGasMinutes
-
-	t := time.After(time.Minute * time.Duration(timeMinutes))
+	t := time.After(duration)
 
 	notify.Delay(x.w, api.DelayInfo{
 		Run:         true,
-		What:        fmt.Sprintf("Продувка ПГС%d", nGas),
-		TimeSeconds: timeMinutes * 60,
+		What:        what,
+		TimeSeconds: int(duration.Seconds()),
 	})
 
 	defer notify.Delay(x.w, api.DelayInfo{Run: false})
@@ -115,25 +120,26 @@ func (x *D) blowGas(nGas int) error {
 		select {
 
 		case <-ctx.Done():
-			return nil
+			return
 
 		case <-t:
-			return nil
+			return
 
 		default:
 			time.Sleep(50 * time.Millisecond)
 		}
 	}
-
 }
 
 func (x *D) setupTemperature(temperature data.Temperature) error {
-	notify.Warningf(x.w, `Установите в термокамере температуру %v\"C. 
-Нажмите \"Ok\" чтобы перейти к выдержке на температуре %v\"C.`, temperature, temperature)
+	notify.Warningf(x.w, `Установите в термокамере температуру %v⁰C. 
+Нажмите \"Ok\" чтобы перейти к выдержке на температуре %v⁰C.`, temperature, temperature)
+	duration := time.Minute * time.Duration(x.sets.Config().Work.HoldTemperatureMinutes)
+	x.delay(fmt.Sprintf("Выдержка термокамеры: %v⁰C", temperature), duration)
 	return x.hardware.ctx.Err()
 }
 
-func (x *D) processTemperature(temperature data.Temperature) error {
+func (x *D) determineTemperature(temperature data.Temperature) error {
 
 	if err := x.setupTemperature(temperature); err != nil {
 		return err
@@ -143,7 +149,7 @@ func (x *D) processTemperature(temperature data.Temperature) error {
 		return err
 	}
 
-	if err := x.processProductsCurrents(temperature, data.Fon); err != nil {
+	if err := x.determineProductsTemperatureCurrents(temperature, data.Fon); err != nil {
 		return err
 	}
 
@@ -151,7 +157,7 @@ func (x *D) processTemperature(temperature data.Temperature) error {
 		return err
 	}
 
-	if err := x.processProductsCurrents(temperature, data.Sens); err != nil {
+	if err := x.determineProductsTemperatureCurrents(temperature, data.Sens); err != nil {
 		return err
 	}
 
@@ -162,7 +168,38 @@ func (x *D) processTemperature(temperature data.Temperature) error {
 	return nil
 }
 
-func (x *D) processProductsCurrents(temperature data.Temperature, scale data.ScaleType) error {
+func (x *D) determineMainError() error {
+
+	for i, pt := range data.MainErrorPoints {
+		what := fmt.Sprintf("%d: ПГС%d: снятие основной погрешности", i+1, pt.Code())
+
+		notify.Status(x.w, what)
+
+		if err := x.blowGas(pt.Code()); err != nil {
+			return err
+		}
+		m := logrus.Fields{
+			"main_error": pt,
+		}
+		if err := x.determineProductsCurrents(m, func(p *data.Product, value float64) {
+			p.SetMainErrorCurrent(pt, value)
+		}); err != nil {
+			return errors.Wrap(err, what)
+		}
+	}
+	return nil
+}
+
+func (x *D) determineProductsTemperatureCurrents(temperature data.Temperature, scale data.ScaleType) error {
+	return x.determineProductsCurrents(logrus.Fields{
+		"scale":       scale,
+		"temperature": temperature,
+	}, func(p *data.Product, value float64) {
+		p.SetCurrent(temperature, scale, value)
+	})
+}
+
+func (x *D) determineProductsCurrents(fields logrus.Fields, f func(*data.Product, float64)) error {
 	products := x.c.LastParty().ProductionProducts()
 	m := map[int]*data.Product{}
 	blocks := [12]bool{}
@@ -173,64 +210,20 @@ func (x *D) processProductsCurrents(temperature data.Temperature, scale data.Sca
 	}
 	for i := range blocks {
 		if blocks[i] {
-			if values, err := x.readMeasure(i); err != nil {
+			values, err := x.readMeasure(i)
+			if err != nil {
 				return err
-			} else {
-				for n := 0; n < 8; n++ {
-					p := m[i*8+n]
-					logrus.WithFields(logrus.Fields{
-						"scale":       scale,
-						"temperature": temperature,
-						"product_id":  p.ProductID,
-						"place":       p.Place,
-					}).Info("save product current")
-					p.SetCurrent(temperature, scale, values[n])
-					x.c.SaveProduct(p)
-				}
+			}
+			for n := 0; n < 8; n++ {
+				p := m[i*8+n]
+				fields["product_id"] = p.ProductID
+				fields["place"] = p.Place
+				fields["value"] = values[n]
+				logrus.WithFields(fields).Info("save product current")
+				f(p, values[n])
+				x.c.SaveProduct(p)
 			}
 		}
 	}
 	return nil
 }
-
-func (x *D) mainWorks() [5]Work {
-
-	return [5]Work{
-		{
-			"Снятие 20\"C",
-			func() error {
-				return x.processTemperature(20)
-			},
-		},
-		{
-			"Снятие -20\"C",
-			func() error {
-				return x.processTemperature(-20)
-			},
-		},
-		{
-			"Снятие +50\"C",
-			func() error {
-				return x.processTemperature(50)
-			},
-		},
-		{
-			"\"Прошивка\"",
-			func() error {
-				return nil
-			},
-		},
-		{
-			"Проверка",
-			func() error {
-				return nil
-			},
-		},
-	}
-}
-
-type Work struct {
-	Name string
-	Func WorkFunc
-}
-type WorkFunc = func() error

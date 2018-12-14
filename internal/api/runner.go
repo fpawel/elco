@@ -6,22 +6,23 @@ type Runner interface {
 	RunReadCurrent([12]bool)
 	StopHardware()
 	SkipDelay()
-	RunMainWork([5]bool)
+	RunTemperature([3]bool)
+	RunMainError()
 }
 
 type RunnerSvc struct {
 	Runner Runner
 }
 
-func (x *RunnerSvc) RunMainWork(workCheck [5]bool, _ *struct{}) error {
+func (x *RunnerSvc) RunTemperature(workCheck [3]bool, _ *struct{}) error {
 
 	for _, v := range workCheck {
 		if v {
-			x.Runner.RunMainWork(workCheck)
+			x.Runner.RunTemperature(workCheck)
 			return nil
 		}
 	}
-	return errors.New("необходимо отметить как минимум одину настроечную операцию")
+	return errors.New("необходимо отметить как минимум одну теммпературу")
 
 }
 
@@ -43,5 +44,10 @@ func (x *RunnerSvc) StopHardware(_ struct{}, _ *struct{}) error {
 
 func (x *RunnerSvc) SkipDelay(_ struct{}, _ *struct{}) error {
 	x.Runner.SkipDelay()
+	return nil
+}
+
+func (x *RunnerSvc) RunMainError(_ struct{}, _ *struct{}) error {
+	x.Runner.RunMainError()
 	return nil
 }

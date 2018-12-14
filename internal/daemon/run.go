@@ -3,22 +3,29 @@ package daemon
 import (
 	"context"
 	"github.com/fpawel/elco/internal/api/notify"
+	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/goutils/intrng"
+	"github.com/sirupsen/logrus"
 	"sync"
 )
 
-func (x *D) RunMainWork(workCheck [5]bool) {
-	x.runHardware(Work{"Настройка ЭХЯ", func() error {
-		for i, w := range x.mainWorks() {
+func (x *D) RunMainError() {
+	x.runHardware("Снятие основной погрешности", x.determineMainError)
+}
+
+func (x *D) RunTemperature(workCheck [3]bool) {
+	x.runHardware("Снятие термокомпенсации", func() error {
+		for i, temperature := range []data.Temperature{20, -20, 50} {
 			if workCheck[i] {
-				notify.Status(x.w, w.Name)
-				if err := w.Func(); err != nil {
+				notify.Statusf(x.w, "%v⁰C: снятие термокомпенсации", temperature)
+				if err := x.determineTemperature(temperature); err != nil {
+					logrus.WithField("thermal_compensation_determination", temperature).Errorf("%+v", err)
 					return err
 				}
 			}
 		}
 		return nil
-	}})
+	})
 }
 
 func (x *D) StopHardware() {
@@ -27,6 +34,7 @@ func (x *D) StopHardware() {
 
 func (x *D) SkipDelay() {
 	x.hardware.skipDelay()
+	logrus.Warn("пользователь перрвал задержку")
 }
 
 func (x *D) RunReadCurrent(checkPlaces [12]bool) {
@@ -37,7 +45,7 @@ func (x *D) RunReadCurrent(checkPlaces [12]bool) {
 			xs = append(xs, i+1)
 		}
 	}
-	x.runHardware(Work{"опрос блоков измерительных: " + intrng.Format(xs), func() error {
+	x.runHardware("опрос блоков измерительных: "+intrng.Format(xs), func() error {
 		for {
 			for _, place := range places {
 				if _, err := x.readMeasure(place); err != nil {
@@ -45,10 +53,12 @@ func (x *D) RunReadCurrent(checkPlaces [12]bool) {
 				}
 			}
 		}
-	}})
+	})
 }
 
-func (x *D) runHardware(work Work) {
+type WorkFunc = func() error
+
+func (x *D) runHardware(what string, work WorkFunc) {
 	x.hardware.cancel()
 	x.hardware.WaitGroup.Wait()
 	x.hardware.WaitGroup = sync.WaitGroup{}
@@ -56,7 +66,7 @@ func (x *D) runHardware(work Work) {
 
 	cfg := x.sets.Config()
 
-	notify.HardwareStarted(x.w, work.Name)
+	notify.HardwareStarted(x.w, what)
 	x.hardware.WaitGroup.Add(1)
 
 	go func() {
@@ -64,8 +74,8 @@ func (x *D) runHardware(work Work) {
 		if err := x.port.measurer.Open(cfg.Comport.Measurer, 115200, 0, x.hardware.ctx); err != nil {
 			notify.HardwareErrorf(x.w, "%s: %v", cfg.Comport.Measurer, err)
 		} else {
-			if err := work.Func(); err != nil && x.hardware.ctx.Err() != context.Canceled {
-				notify.HardwareErrorf(x.w, "%s: %v", work.Name, err)
+			if err := work(); err != nil && x.hardware.ctx.Err() != context.Canceled {
+				notify.HardwareErrorf(x.w, "%s: %v", what, err)
 			}
 		}
 
@@ -75,11 +85,15 @@ func (x *D) runHardware(work Work) {
 			}
 		}
 		if x.port.gas.Opened() {
+			if err := x.switchGas(0); err != nil {
+				notify.HardwareErrorf(x.w, "отключение газового блока при завершении: %s: %v", x.port.gas.Config().Name, err)
+			}
+
 			if err := x.port.gas.Close(); err != nil {
 				notify.HardwareErrorf(x.w, "%s: %v", x.port.gas.Config().Name, err)
 			}
 		}
-		notify.HardwareStoppedf(x.w, "выполнение окончено: %s", work.Name)
+		notify.HardwareStoppedf(x.w, "выполнение окончено: %s", what)
 		x.hardware.WaitGroup.Done()
 	}()
 }

@@ -13,7 +13,43 @@ const (
 	Sens
 )
 
+type MainErrorPt int
+
+const (
+	MainError13 MainErrorPt = iota
+	MainError24
+	MainError35
+	MainError26
+	MainError17
+)
+
+var MainErrorPoints = []MainErrorPt{
+	MainError13,
+	MainError24,
+	MainError35,
+	MainError26,
+	MainError17,
+}
+
 type Temperature float64
+
+func (x MainErrorPt) Code() int {
+	switch x {
+	case MainError13:
+		return 1
+	case MainError24:
+		return 2
+	case MainError35:
+		return 3
+	case MainError26:
+		return 2
+	case MainError17:
+		return 1
+	default:
+		log.Panicf("wrong point: %v", x)
+		return -1
+	}
+}
 
 func (s *Product) SetCurrent(t Temperature, c ScaleType, value float64) {
 	v := sql.NullFloat64{Float64: value, Valid: true}
@@ -44,6 +80,28 @@ func (s *Product) SetCurrent(t Temperature, c ScaleType, value float64) {
 		}
 	}
 	log.Panicf("wrong point: %v: %v", t, c)
+}
+
+func (s *Product) SetMainErrorCurrent(pt MainErrorPt, value float64) {
+	v := sql.NullFloat64{Float64: value, Valid: true}
+	switch pt {
+	case MainError13:
+		s.I13 = v
+		return
+	case MainError17:
+		s.I17 = v
+		return
+	case MainError24:
+		s.I24 = v
+		return
+	case MainError26:
+		s.I26 = v
+		return
+	case MainError35:
+		s.I35 = v
+		return
+	}
+	log.Panicf("wrong point: %v", pt)
 }
 
 func (s ProductInfo) Current(t Temperature, c ScaleType) sql.NullFloat64 {
