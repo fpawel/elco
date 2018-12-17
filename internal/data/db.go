@@ -36,9 +36,9 @@ WHERE NOT EXISTS(SELECT product_id FROM product WHERE party.party_id = product.p
 
 }
 
-func GetLastPartyProductionProducts(db *reform.DB) []Product {
+func GetLastPartyProductsWithSerials(db *reform.DB) []Product {
 	rows, err := db.SelectRows(ProductTable,
-		"WHERE party_id IN (SELECT party_id FROM last_party) AND production")
+		"WHERE party_id IN (SELECT party_id FROM last_party) AND (serial NOTNULL)")
 	if err != nil {
 		panic(err)
 	}

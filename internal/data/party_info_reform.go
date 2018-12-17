@@ -27,7 +27,7 @@ func (v *partyInfoTableType) Name() string {
 
 // Columns returns a new slice of column names for that view or table in SQL database.
 func (v *partyInfoTableType) Columns() []string {
-	return []string{"party_id", "created_at", "updated_at", "product_type_name", "concentration1", "concentration2", "concentration3", "note", "last"}
+	return []string{"party_id", "created_at", "updated_at", "product_type_name", "concentration1", "concentration2", "concentration3", "note", "last", "min_fon", "max_fon", "max_d_fon", "min_k_sens20", "max_k_sens20", "min_k_sens50", "max_k_sens50", "min_d_temp", "max_d_temp", "max_d_not_measured"}
 }
 
 // NewStruct makes a new struct for that view or table.
@@ -47,13 +47,13 @@ func (v *partyInfoTableType) PKColumnIndex() uint {
 
 // PartyInfoTable represents party_info view or table in SQL database.
 var PartyInfoTable = &partyInfoTableType{
-	s: parse.StructInfo{Type: "PartyInfo", SQLSchema: "", SQLName: "party_info", Fields: []parse.FieldInfo{{Name: "PartyID", Type: "int64", Column: "party_id"}, {Name: "CreatedAt", Type: "time.Time", Column: "created_at"}, {Name: "UpdatedAt", Type: "time.Time", Column: "updated_at"}, {Name: "ProductTypeName", Type: "string", Column: "product_type_name"}, {Name: "Concentration1", Type: "float64", Column: "concentration1"}, {Name: "Concentration2", Type: "float64", Column: "concentration2"}, {Name: "Concentration3", Type: "float64", Column: "concentration3"}, {Name: "Note", Type: "sql.NullString", Column: "note"}, {Name: "Last", Type: "bool", Column: "last"}}, PKFieldIndex: 0},
+	s: parse.StructInfo{Type: "PartyInfo", SQLSchema: "", SQLName: "party_info", Fields: []parse.FieldInfo{{Name: "PartyID", Type: "int64", Column: "party_id"}, {Name: "CreatedAt", Type: "time.Time", Column: "created_at"}, {Name: "UpdatedAt", Type: "time.Time", Column: "updated_at"}, {Name: "ProductTypeName", Type: "string", Column: "product_type_name"}, {Name: "Concentration1", Type: "float64", Column: "concentration1"}, {Name: "Concentration2", Type: "float64", Column: "concentration2"}, {Name: "Concentration3", Type: "float64", Column: "concentration3"}, {Name: "Note", Type: "sql.NullString", Column: "note"}, {Name: "Last", Type: "bool", Column: "last"}, {Name: "MinFon", Type: "sql.NullFloat64", Column: "min_fon"}, {Name: "MaxFon", Type: "sql.NullFloat64", Column: "max_fon"}, {Name: "MaxDFon", Type: "sql.NullFloat64", Column: "max_d_fon"}, {Name: "MinKSens20", Type: "sql.NullFloat64", Column: "min_k_sens20"}, {Name: "MaxKSens20", Type: "sql.NullFloat64", Column: "max_k_sens20"}, {Name: "MinKSens50", Type: "sql.NullFloat64", Column: "min_k_sens50"}, {Name: "MaxKSens50", Type: "sql.NullFloat64", Column: "max_k_sens50"}, {Name: "MinDTemp", Type: "sql.NullFloat64", Column: "min_d_temp"}, {Name: "MaxDTemp", Type: "sql.NullFloat64", Column: "max_d_temp"}, {Name: "MaxDNotMeasured", Type: "sql.NullFloat64", Column: "max_d_not_measured"}}, PKFieldIndex: 0},
 	z: new(PartyInfo).Values(),
 }
 
 // String returns a string representation of this struct or record.
 func (s PartyInfo) String() string {
-	res := make([]string, 9)
+	res := make([]string, 19)
 	res[0] = "PartyID: " + reform.Inspect(s.PartyID, true)
 	res[1] = "CreatedAt: " + reform.Inspect(s.CreatedAt, true)
 	res[2] = "UpdatedAt: " + reform.Inspect(s.UpdatedAt, true)
@@ -63,6 +63,16 @@ func (s PartyInfo) String() string {
 	res[6] = "Concentration3: " + reform.Inspect(s.Concentration3, true)
 	res[7] = "Note: " + reform.Inspect(s.Note, true)
 	res[8] = "Last: " + reform.Inspect(s.Last, true)
+	res[9] = "MinFon: " + reform.Inspect(s.MinFon, true)
+	res[10] = "MaxFon: " + reform.Inspect(s.MaxFon, true)
+	res[11] = "MaxDFon: " + reform.Inspect(s.MaxDFon, true)
+	res[12] = "MinKSens20: " + reform.Inspect(s.MinKSens20, true)
+	res[13] = "MaxKSens20: " + reform.Inspect(s.MaxKSens20, true)
+	res[14] = "MinKSens50: " + reform.Inspect(s.MinKSens50, true)
+	res[15] = "MaxKSens50: " + reform.Inspect(s.MaxKSens50, true)
+	res[16] = "MinDTemp: " + reform.Inspect(s.MinDTemp, true)
+	res[17] = "MaxDTemp: " + reform.Inspect(s.MaxDTemp, true)
+	res[18] = "MaxDNotMeasured: " + reform.Inspect(s.MaxDNotMeasured, true)
 	return strings.Join(res, ", ")
 }
 
@@ -79,6 +89,16 @@ func (s *PartyInfo) Values() []interface{} {
 		s.Concentration3,
 		s.Note,
 		s.Last,
+		s.MinFon,
+		s.MaxFon,
+		s.MaxDFon,
+		s.MinKSens20,
+		s.MaxKSens20,
+		s.MinKSens50,
+		s.MaxKSens50,
+		s.MinDTemp,
+		s.MaxDTemp,
+		s.MaxDNotMeasured,
 	}
 }
 
@@ -95,6 +115,16 @@ func (s *PartyInfo) Pointers() []interface{} {
 		&s.Concentration3,
 		&s.Note,
 		&s.Last,
+		&s.MinFon,
+		&s.MaxFon,
+		&s.MaxDFon,
+		&s.MinKSens20,
+		&s.MaxKSens20,
+		&s.MinKSens50,
+		&s.MaxKSens50,
+		&s.MinDTemp,
+		&s.MaxDTemp,
+		&s.MaxDNotMeasured,
 	}
 }
 

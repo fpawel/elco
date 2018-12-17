@@ -27,7 +27,7 @@ func (v *productInfoTableType) Name() string {
 
 // Columns returns a new slice of column names for that view or table in SQL database.
 func (v *productInfoTableType) Columns() []string {
-	return []string{"product_id", "party_id", "serial", "place", "created_at", "i_f_minus20", "i_f_plus20", "i_f_plus50", "i_s_minus20", "i_s_plus20", "i_s_plus50", "i13", "i24", "i35", "i26", "i17", "not_measured", "k_sens_minus20", "k_sens20", "k_sens50", "d_fon20", "d_fon50", "d_not_measured", "ok_fon20", "ok_d_fon20", "ok_k_sens20", "ok_d_fon50", "ok_k_sens50", "ok_d_not_measured", "not_ok", "has_firmware", "production", "applied_product_type_name", "gas_code", "units_code", "gas_name", "units_name", "scale", "noble_metal_content", "lifetime_months", "lc64", "points_method", "product_type_name", "note"}
+	return []string{"product_id", "party_id", "serial", "place", "created_at", "i_f_minus20", "i_f_plus20", "i_f_plus50", "i_s_minus20", "i_s_plus20", "i_s_plus50", "i13", "i24", "i35", "i26", "i17", "not_measured", "k_sens_minus20", "k_sens20", "k_sens50", "d_fon20", "d_fon50", "d_not_measured", "ok_min_fon20", "ok_max_fon20", "ok_min_fon20_2", "ok_max_fon20_2", "ok_d_fon20", "ok_min_k_sens20", "ok_max_k_sens20", "ok_min_k_sens50", "ok_max_k_sens50", "ok_d_fon50", "ok_d_not_measured", "ok", "has_firmware", "production", "applied_product_type_name", "gas_code", "units_code", "gas_name", "units_name", "scale", "noble_metal_content", "lifetime_months", "lc64", "points_method", "product_type_name", "note"}
 }
 
 // NewStruct makes a new struct for that view or table.
@@ -47,13 +47,13 @@ func (v *productInfoTableType) PKColumnIndex() uint {
 
 // ProductInfoTable represents product_info view or table in SQL database.
 var ProductInfoTable = &productInfoTableType{
-	s: parse.StructInfo{Type: "ProductInfo", SQLSchema: "", SQLName: "product_info", Fields: []parse.FieldInfo{{Name: "ProductID", Type: "int64", Column: "product_id"}, {Name: "PartyID", Type: "int64", Column: "party_id"}, {Name: "Serial", Type: "sql.NullInt64", Column: "serial"}, {Name: "Place", Type: "int", Column: "place"}, {Name: "CreatedAt", Type: "time.Time", Column: "created_at"}, {Name: "IFMinus20", Type: "sql.NullFloat64", Column: "i_f_minus20"}, {Name: "IFPlus20", Type: "sql.NullFloat64", Column: "i_f_plus20"}, {Name: "IFPlus50", Type: "sql.NullFloat64", Column: "i_f_plus50"}, {Name: "ISMinus20", Type: "sql.NullFloat64", Column: "i_s_minus20"}, {Name: "ISPlus20", Type: "sql.NullFloat64", Column: "i_s_plus20"}, {Name: "ISPlus50", Type: "sql.NullFloat64", Column: "i_s_plus50"}, {Name: "I13", Type: "sql.NullFloat64", Column: "i13"}, {Name: "I24", Type: "sql.NullFloat64", Column: "i24"}, {Name: "I35", Type: "sql.NullFloat64", Column: "i35"}, {Name: "I26", Type: "sql.NullFloat64", Column: "i26"}, {Name: "I17", Type: "sql.NullFloat64", Column: "i17"}, {Name: "NotMeasured", Type: "sql.NullFloat64", Column: "not_measured"}, {Name: "KSensMinus20", Type: "sql.NullFloat64", Column: "k_sens_minus20"}, {Name: "KSens20", Type: "sql.NullFloat64", Column: "k_sens20"}, {Name: "KSens50", Type: "sql.NullFloat64", Column: "k_sens50"}, {Name: "DFon20", Type: "sql.NullFloat64", Column: "d_fon20"}, {Name: "DFon50", Type: "sql.NullFloat64", Column: "d_fon50"}, {Name: "DNotMeasured", Type: "sql.NullFloat64", Column: "d_not_measured"}, {Name: "OKFon20", Type: "sql.NullBool", Column: "ok_fon20"}, {Name: "OKDFon20", Type: "sql.NullBool", Column: "ok_d_fon20"}, {Name: "OKKSens20", Type: "sql.NullBool", Column: "ok_k_sens20"}, {Name: "OKDFon50", Type: "sql.NullBool", Column: "ok_d_fon50"}, {Name: "OKKSens50", Type: "sql.NullBool", Column: "ok_k_sens50"}, {Name: "OKDNotMeasured", Type: "sql.NullBool", Column: "ok_d_not_measured"}, {Name: "NotOk", Type: "sql.NullBool", Column: "not_ok"}, {Name: "HasFirmware", Type: "bool", Column: "has_firmware"}, {Name: "Production", Type: "bool", Column: "production"}, {Name: "AppliedProductTypeName", Type: "string", Column: "applied_product_type_name"}, {Name: "GasCode", Type: "uint8", Column: "gas_code"}, {Name: "UnitsCode", Type: "uint8", Column: "units_code"}, {Name: "GasName", Type: "string", Column: "gas_name"}, {Name: "UnitsName", Type: "string", Column: "units_name"}, {Name: "Scale", Type: "float64", Column: "scale"}, {Name: "NobleMetalContent", Type: "float64", Column: "noble_metal_content"}, {Name: "LifetimeMonths", Type: "int64", Column: "lifetime_months"}, {Name: "Lc64", Type: "bool", Column: "lc64"}, {Name: "PointsMethod", Type: "int64", Column: "points_method"}, {Name: "ProductTypeName", Type: "sql.NullString", Column: "product_type_name"}, {Name: "Note", Type: "sql.NullString", Column: "note"}}, PKFieldIndex: 0},
+	s: parse.StructInfo{Type: "ProductInfo", SQLSchema: "", SQLName: "product_info", Fields: []parse.FieldInfo{{Name: "ProductID", Type: "int64", Column: "product_id"}, {Name: "PartyID", Type: "int64", Column: "party_id"}, {Name: "Serial", Type: "sql.NullInt64", Column: "serial"}, {Name: "Place", Type: "int", Column: "place"}, {Name: "CreatedAt", Type: "time.Time", Column: "created_at"}, {Name: "IFMinus20", Type: "sql.NullFloat64", Column: "i_f_minus20"}, {Name: "IFPlus20", Type: "sql.NullFloat64", Column: "i_f_plus20"}, {Name: "IFPlus50", Type: "sql.NullFloat64", Column: "i_f_plus50"}, {Name: "ISMinus20", Type: "sql.NullFloat64", Column: "i_s_minus20"}, {Name: "ISPlus20", Type: "sql.NullFloat64", Column: "i_s_plus20"}, {Name: "ISPlus50", Type: "sql.NullFloat64", Column: "i_s_plus50"}, {Name: "I13", Type: "sql.NullFloat64", Column: "i13"}, {Name: "I24", Type: "sql.NullFloat64", Column: "i24"}, {Name: "I35", Type: "sql.NullFloat64", Column: "i35"}, {Name: "I26", Type: "sql.NullFloat64", Column: "i26"}, {Name: "I17", Type: "sql.NullFloat64", Column: "i17"}, {Name: "NotMeasured", Type: "sql.NullFloat64", Column: "not_measured"}, {Name: "KSensMinus20", Type: "sql.NullFloat64", Column: "k_sens_minus20"}, {Name: "KSens20", Type: "sql.NullFloat64", Column: "k_sens20"}, {Name: "KSens50", Type: "sql.NullFloat64", Column: "k_sens50"}, {Name: "DFon20", Type: "sql.NullFloat64", Column: "d_fon20"}, {Name: "DFon50", Type: "sql.NullFloat64", Column: "d_fon50"}, {Name: "DNotMeasured", Type: "sql.NullFloat64", Column: "d_not_measured"}, {Name: "OKMinFon20", Type: "bool", Column: "ok_min_fon20"}, {Name: "OKMaxFon20", Type: "bool", Column: "ok_max_fon20"}, {Name: "OKMinFon20r", Type: "bool", Column: "ok_min_fon20_2"}, {Name: "OKMaxFon20r", Type: "bool", Column: "ok_max_fon20_2"}, {Name: "OKDFon20", Type: "bool", Column: "ok_d_fon20"}, {Name: "OKMinKSens20", Type: "bool", Column: "ok_min_k_sens20"}, {Name: "OKMaxKSens20", Type: "bool", Column: "ok_max_k_sens20"}, {Name: "OKMinKSens50", Type: "bool", Column: "ok_min_k_sens50"}, {Name: "OKMaxKSens50", Type: "bool", Column: "ok_max_k_sens50"}, {Name: "OKDFon50", Type: "bool", Column: "ok_d_fon50"}, {Name: "OKDNotMeasured", Type: "bool", Column: "ok_d_not_measured"}, {Name: "Ok", Type: "bool", Column: "ok"}, {Name: "HasFirmware", Type: "bool", Column: "has_firmware"}, {Name: "Production", Type: "bool", Column: "production"}, {Name: "AppliedProductTypeName", Type: "string", Column: "applied_product_type_name"}, {Name: "GasCode", Type: "uint8", Column: "gas_code"}, {Name: "UnitsCode", Type: "uint8", Column: "units_code"}, {Name: "GasName", Type: "string", Column: "gas_name"}, {Name: "UnitsName", Type: "string", Column: "units_name"}, {Name: "Scale", Type: "float64", Column: "scale"}, {Name: "NobleMetalContent", Type: "float64", Column: "noble_metal_content"}, {Name: "LifetimeMonths", Type: "int64", Column: "lifetime_months"}, {Name: "Lc64", Type: "bool", Column: "lc64"}, {Name: "PointsMethod", Type: "int64", Column: "points_method"}, {Name: "ProductTypeName", Type: "sql.NullString", Column: "product_type_name"}, {Name: "Note", Type: "sql.NullString", Column: "note"}}, PKFieldIndex: 0},
 	z: new(ProductInfo).Values(),
 }
 
 // String returns a string representation of this struct or record.
 func (s ProductInfo) String() string {
-	res := make([]string, 44)
+	res := make([]string, 49)
 	res[0] = "ProductID: " + reform.Inspect(s.ProductID, true)
 	res[1] = "PartyID: " + reform.Inspect(s.PartyID, true)
 	res[2] = "Serial: " + reform.Inspect(s.Serial, true)
@@ -77,27 +77,32 @@ func (s ProductInfo) String() string {
 	res[20] = "DFon20: " + reform.Inspect(s.DFon20, true)
 	res[21] = "DFon50: " + reform.Inspect(s.DFon50, true)
 	res[22] = "DNotMeasured: " + reform.Inspect(s.DNotMeasured, true)
-	res[23] = "OKFon20: " + reform.Inspect(s.OKFon20, true)
-	res[24] = "OKDFon20: " + reform.Inspect(s.OKDFon20, true)
-	res[25] = "OKKSens20: " + reform.Inspect(s.OKKSens20, true)
-	res[26] = "OKDFon50: " + reform.Inspect(s.OKDFon50, true)
-	res[27] = "OKKSens50: " + reform.Inspect(s.OKKSens50, true)
-	res[28] = "OKDNotMeasured: " + reform.Inspect(s.OKDNotMeasured, true)
-	res[29] = "NotOk: " + reform.Inspect(s.NotOk, true)
-	res[30] = "HasFirmware: " + reform.Inspect(s.HasFirmware, true)
-	res[31] = "Production: " + reform.Inspect(s.Production, true)
-	res[32] = "AppliedProductTypeName: " + reform.Inspect(s.AppliedProductTypeName, true)
-	res[33] = "GasCode: " + reform.Inspect(s.GasCode, true)
-	res[34] = "UnitsCode: " + reform.Inspect(s.UnitsCode, true)
-	res[35] = "GasName: " + reform.Inspect(s.GasName, true)
-	res[36] = "UnitsName: " + reform.Inspect(s.UnitsName, true)
-	res[37] = "Scale: " + reform.Inspect(s.Scale, true)
-	res[38] = "NobleMetalContent: " + reform.Inspect(s.NobleMetalContent, true)
-	res[39] = "LifetimeMonths: " + reform.Inspect(s.LifetimeMonths, true)
-	res[40] = "Lc64: " + reform.Inspect(s.Lc64, true)
-	res[41] = "PointsMethod: " + reform.Inspect(s.PointsMethod, true)
-	res[42] = "ProductTypeName: " + reform.Inspect(s.ProductTypeName, true)
-	res[43] = "Note: " + reform.Inspect(s.Note, true)
+	res[23] = "OKMinFon20: " + reform.Inspect(s.OKMinFon20, true)
+	res[24] = "OKMaxFon20: " + reform.Inspect(s.OKMaxFon20, true)
+	res[25] = "OKMinFon20r: " + reform.Inspect(s.OKMinFon20r, true)
+	res[26] = "OKMaxFon20r: " + reform.Inspect(s.OKMaxFon20r, true)
+	res[27] = "OKDFon20: " + reform.Inspect(s.OKDFon20, true)
+	res[28] = "OKMinKSens20: " + reform.Inspect(s.OKMinKSens20, true)
+	res[29] = "OKMaxKSens20: " + reform.Inspect(s.OKMaxKSens20, true)
+	res[30] = "OKMinKSens50: " + reform.Inspect(s.OKMinKSens50, true)
+	res[31] = "OKMaxKSens50: " + reform.Inspect(s.OKMaxKSens50, true)
+	res[32] = "OKDFon50: " + reform.Inspect(s.OKDFon50, true)
+	res[33] = "OKDNotMeasured: " + reform.Inspect(s.OKDNotMeasured, true)
+	res[34] = "Ok: " + reform.Inspect(s.Ok, true)
+	res[35] = "HasFirmware: " + reform.Inspect(s.HasFirmware, true)
+	res[36] = "Production: " + reform.Inspect(s.Production, true)
+	res[37] = "AppliedProductTypeName: " + reform.Inspect(s.AppliedProductTypeName, true)
+	res[38] = "GasCode: " + reform.Inspect(s.GasCode, true)
+	res[39] = "UnitsCode: " + reform.Inspect(s.UnitsCode, true)
+	res[40] = "GasName: " + reform.Inspect(s.GasName, true)
+	res[41] = "UnitsName: " + reform.Inspect(s.UnitsName, true)
+	res[42] = "Scale: " + reform.Inspect(s.Scale, true)
+	res[43] = "NobleMetalContent: " + reform.Inspect(s.NobleMetalContent, true)
+	res[44] = "LifetimeMonths: " + reform.Inspect(s.LifetimeMonths, true)
+	res[45] = "Lc64: " + reform.Inspect(s.Lc64, true)
+	res[46] = "PointsMethod: " + reform.Inspect(s.PointsMethod, true)
+	res[47] = "ProductTypeName: " + reform.Inspect(s.ProductTypeName, true)
+	res[48] = "Note: " + reform.Inspect(s.Note, true)
 	return strings.Join(res, ", ")
 }
 
@@ -128,13 +133,18 @@ func (s *ProductInfo) Values() []interface{} {
 		s.DFon20,
 		s.DFon50,
 		s.DNotMeasured,
-		s.OKFon20,
+		s.OKMinFon20,
+		s.OKMaxFon20,
+		s.OKMinFon20r,
+		s.OKMaxFon20r,
 		s.OKDFon20,
-		s.OKKSens20,
+		s.OKMinKSens20,
+		s.OKMaxKSens20,
+		s.OKMinKSens50,
+		s.OKMaxKSens50,
 		s.OKDFon50,
-		s.OKKSens50,
 		s.OKDNotMeasured,
-		s.NotOk,
+		s.Ok,
 		s.HasFirmware,
 		s.Production,
 		s.AppliedProductTypeName,
@@ -179,13 +189,18 @@ func (s *ProductInfo) Pointers() []interface{} {
 		&s.DFon20,
 		&s.DFon50,
 		&s.DNotMeasured,
-		&s.OKFon20,
+		&s.OKMinFon20,
+		&s.OKMaxFon20,
+		&s.OKMinFon20r,
+		&s.OKMaxFon20r,
 		&s.OKDFon20,
-		&s.OKKSens20,
+		&s.OKMinKSens20,
+		&s.OKMaxKSens20,
+		&s.OKMinKSens50,
+		&s.OKMaxKSens50,
 		&s.OKDFon50,
-		&s.OKKSens50,
 		&s.OKDNotMeasured,
-		&s.NotOk,
+		&s.Ok,
 		&s.HasFirmware,
 		&s.Production,
 		&s.AppliedProductTypeName,

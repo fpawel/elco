@@ -20,6 +20,7 @@ const (
 	VtComportName
 	VtBaud
 	VtBool
+	VtNullFloat
 )
 
 type ConfigSection struct {

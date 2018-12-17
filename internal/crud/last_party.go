@@ -1,6 +1,7 @@
 package crud
 
 import (
+	"database/sql"
 	"fmt"
 	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/elco/internal/settings"
@@ -24,7 +25,7 @@ func (x LastParty) Party() data.Party {
 func (x LastParty) ProductionProducts() []data.Product {
 	x.mu.Lock()
 	defer x.mu.Unlock()
-	return data.GetLastPartyProductionProducts(x.dbr)
+	return data.GetLastPartyProductsWithSerials(x.dbr)
 }
 
 func (x LastParty) ProductAtPlace(place int) (product data.ProductInfo, err error) {
@@ -136,6 +137,50 @@ func (x LastParty) SetConfigValue(property, value string) (err error) {
 		party.Note.Valid = len(party.Note.String) > 0
 		err = x.dbr.Save(&party)
 		return
+	default:
+		var v sql.NullFloat64
+		fs := map[string]func(){
+			"MinFon": func() {
+				party.MinFon = v
+			},
+			"MaxFon": func() {
+				party.MaxFon = v
+			},
+			"MaxDFon": func() {
+				party.MaxDFon = v
+			},
+			"MinKSens20": func() {
+				party.MinKSens20 = v
+			},
+			"MaxKSens20": func() {
+				party.MaxKSens20 = v
+			},
+			"MinKSens50": func() {
+				party.MinKSens50 = v
+			},
+			"MaxKSens50": func() {
+				party.MaxKSens50 = v
+			},
+			"MinDTemp": func() {
+				party.MinDTemp = v
+			},
+			"MaxDTemp": func() {
+				party.MaxDTemp = v
+			},
+			"MaxDNotMeasured": func() {
+				party.MaxDNotMeasured = v
+			},
+		}
+		if f, ok := fs[property]; ok {
+			if len(strings.TrimSpace(value)) > 0 {
+				if v.Float64, err = parseFloat(); err != nil {
+					return err
+				}
+				v.Valid = true
+			}
+			f()
+			return x.dbr.Save(&party)
+		}
 	}
 	return errors.Errorf("%q: wrong party property")
 }
@@ -143,6 +188,14 @@ func (x LastParty) SetConfigValue(property, value string) (err error) {
 func (x LastParty) ConfigProperties() []settings.ConfigProperty {
 	party := x.party()
 	productTypesNames := x.ListProductTypesNames()
+
+	f := func(v sql.NullFloat64) string {
+		if v.Valid {
+			return fmt.Sprintf("%v", v.Float64)
+		}
+		return ""
+	}
+
 	return []settings.ConfigProperty{
 		{
 			Hint:      "Исполнение",
@@ -174,6 +227,66 @@ func (x LastParty) ConfigProperties() []settings.ConfigProperty {
 			Name:      "Note",
 			ValueType: settings.VtString,
 			Value:     fmt.Sprintf("%v", party.Note.String),
+		},
+		{
+			Hint:      "Фон.мин, мкА",
+			Name:      "MinFon",
+			ValueType: settings.VtNullFloat,
+			Value:     f(party.MinFon),
+		},
+		{
+			Hint:      "Фон.мax, мкА",
+			Name:      "MaxFon",
+			ValueType: settings.VtNullFloat,
+			Value:     f(party.MaxFon),
+		},
+		{
+			Hint:      "D.фон.мax, мкА",
+			Name:      "MaxDFon",
+			ValueType: settings.VtNullFloat,
+			Value:     f(party.MaxDFon),
+		},
+		{
+			Hint:      "Кч20.мин, мкА/мг/м3",
+			Name:      "MinKSens20",
+			ValueType: settings.VtNullFloat,
+			Value:     f(party.MinKSens20),
+		},
+		{
+			Hint:      "Кч20.макс, мкА/мг/м3",
+			Name:      "MaxKSens20",
+			ValueType: settings.VtNullFloat,
+			Value:     f(party.MaxKSens20),
+		},
+		{
+			Hint:      "Кч50.мин, мкА/мг/м3",
+			Name:      "MinKSens50",
+			ValueType: settings.VtNullFloat,
+			Value:     f(party.MinKSens50),
+		},
+		{
+			Hint:      "Кч50.макс, мкА/мг/м3",
+			Name:      "MaxKSens50",
+			ValueType: settings.VtNullFloat,
+			Value:     f(party.MaxKSens50),
+		},
+		{
+			Hint:      "Dt.мин, мкА",
+			Name:      "MinDTemp",
+			ValueType: settings.VtNullFloat,
+			Value:     f(party.MinDTemp),
+		},
+		{
+			Hint:      "Dt.мин, мкА",
+			Name:      "MaxDTemp",
+			ValueType: settings.VtNullFloat,
+			Value:     f(party.MaxDTemp),
+		},
+		{
+			Hint:      "Dn.макс, мкА",
+			Name:      "MaxDNotMeasured",
+			ValueType: settings.VtNullFloat,
+			Value:     f(party.MaxDNotMeasured),
 		},
 	}
 }
