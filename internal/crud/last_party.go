@@ -19,10 +19,10 @@ type LastParty struct {
 func (x LastParty) Party() data.Party {
 	x.mu.Lock()
 	defer x.mu.Unlock()
-	return x.party()
+	return data.LastParty(x.dbr)
 }
 
-func (x LastParty) ProductionProducts() []data.Product {
+func (x LastParty) ProductsWithSerials() (map[int]*data.Product, [12]bool) {
 	x.mu.Lock()
 	defer x.mu.Unlock()
 	return data.GetLastPartyProductsWithSerials(x.dbr)
@@ -31,7 +31,7 @@ func (x LastParty) ProductionProducts() []data.Product {
 func (x LastParty) ProductAtPlace(place int) (product data.ProductInfo, err error) {
 	x.mu.Lock()
 	defer x.mu.Unlock()
-	party := x.party()
+	party := data.LastParty(x.dbr)
 	err = x.dbr.SelectOneTo(&product, "WHERE party_id = ? AND place = ?", party.PartyID, place)
 	return
 }
@@ -104,39 +104,53 @@ func (x LastParty) SetConfigValue(property, value string) (err error) {
 	x.mu.Lock()
 	defer x.mu.Unlock()
 
-	party := x.party()
+	party := data.LastParty(x.dbr)
 
 	parseFloat := func() (float64, error) {
 		return strconv.ParseFloat(strings.Replace(value, ",", ".", -1), 64)
 	}
 
 	switch property {
+
 	case "ProductType":
 		party.ProductTypeName = value
 		return x.dbr.Save(&party)
+
 	case "Gas1":
 		party.Concentration1, err = parseFloat()
 		if err == nil {
 			err = x.dbr.Save(&party)
 		}
 		return
+
 	case "Gas2":
 		party.Concentration2, err = parseFloat()
 		if err == nil {
 			err = x.dbr.Save(&party)
 		}
 		return
+
 	case "Gas3":
 		party.Concentration3, err = parseFloat()
 		if err == nil {
 			err = x.dbr.Save(&party)
 		}
 		return
+
 	case "Note":
 		party.Note.String = strings.TrimSpace(value)
 		party.Note.Valid = len(party.Note.String) > 0
 		err = x.dbr.Save(&party)
 		return
+
+	case "PointsMethod":
+		party.PointsMethod, err = strconv.ParseInt(value, 10, 8)
+		if err != nil {
+			return err
+		}
+		err = x.dbr.Save(&party)
+		return
+
 	default:
 		var v sql.NullFloat64
 		fs := map[string]func(){
@@ -186,7 +200,7 @@ func (x LastParty) SetConfigValue(property, value string) (err error) {
 }
 
 func (x LastParty) ConfigProperties() []settings.ConfigProperty {
-	party := x.party()
+	party := x.Party()
 	productTypesNames := x.ListProductTypesNames()
 
 	f := func(v sql.NullFloat64) string {
@@ -228,6 +242,15 @@ func (x LastParty) ConfigProperties() []settings.ConfigProperty {
 			ValueType: settings.VtString,
 			Value:     fmt.Sprintf("%v", party.Note.String),
 		},
+
+		{
+			Hint:      "Кол-во точек для расчёта",
+			Name:      "PointsMethod",
+			ValueType: settings.VtString,
+			Value:     strconv.Itoa(int(party.PointsMethod)),
+			List:      []string{"2", "3"},
+		},
+
 		{
 			Hint:      "Фон.мин, мкА",
 			Name:      "MinFon",
@@ -289,15 +312,6 @@ func (x LastParty) ConfigProperties() []settings.ConfigProperty {
 			Value:     f(party.MaxDNotMeasured),
 		},
 	}
-}
-
-func (x LastParty) party() data.Party {
-	var party data.Party
-	if err := x.dbr.SelectOneTo(&party, `ORDER BY created_at DESC LIMIT 1;`); err != nil {
-		panic(err)
-	}
-	party.Products = data.GetProductsInfoByPartyID(x.dbr, party.PartyID)
-	return party
 }
 
 func (x LastParty) partyID() (lastPartyID int64) {

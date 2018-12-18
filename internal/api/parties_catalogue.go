@@ -37,3 +37,8 @@ func (x *PartiesCatalogue) Party(a [1]int64, r *data.Party) error {
 	*r = x.c.Party(a[0])
 	return nil
 }
+
+func (x *PartiesCatalogue) NewParty(_ struct{}, r *data.Party) error {
+	*r = x.c.NewParty()
+	return nil
+}

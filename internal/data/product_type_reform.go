@@ -27,7 +27,7 @@ func (v *productTypeTableType) Name() string {
 
 // Columns returns a new slice of column names for that view or table in SQL database.
 func (v *productTypeTableType) Columns() []string {
-	return []string{"product_type_name", "display_name", "gas_name", "units_name", "scale", "noble_metal_content", "lifetime_months", "lc64", "points_method"}
+	return []string{"product_type_name", "display_name", "gas_name", "units_name", "scale", "noble_metal_content", "lifetime_months"}
 }
 
 // NewStruct makes a new struct for that view or table.
@@ -47,13 +47,13 @@ func (v *productTypeTableType) PKColumnIndex() uint {
 
 // ProductTypeTable represents product_type view or table in SQL database.
 var ProductTypeTable = &productTypeTableType{
-	s: parse.StructInfo{Type: "ProductType", SQLSchema: "", SQLName: "product_type", Fields: []parse.FieldInfo{{Name: "ProductTypeName", Type: "string", Column: "product_type_name"}, {Name: "DisplayName", Type: "*string", Column: "display_name"}, {Name: "GasName", Type: "string", Column: "gas_name"}, {Name: "UnitsName", Type: "string", Column: "units_name"}, {Name: "Scale", Type: "float64", Column: "scale"}, {Name: "NobleMetalContent", Type: "float64", Column: "noble_metal_content"}, {Name: "LifetimeMonths", Type: "int64", Column: "lifetime_months"}, {Name: "Lc64", Type: "bool", Column: "lc64"}, {Name: "PointsMethod", Type: "int64", Column: "points_method"}}, PKFieldIndex: 0},
+	s: parse.StructInfo{Type: "ProductType", SQLSchema: "", SQLName: "product_type", Fields: []parse.FieldInfo{{Name: "ProductTypeName", Type: "string", Column: "product_type_name"}, {Name: "DisplayName", Type: "*string", Column: "display_name"}, {Name: "GasName", Type: "string", Column: "gas_name"}, {Name: "UnitsName", Type: "string", Column: "units_name"}, {Name: "Scale", Type: "float64", Column: "scale"}, {Name: "NobleMetalContent", Type: "float64", Column: "noble_metal_content"}, {Name: "LifetimeMonths", Type: "int64", Column: "lifetime_months"}}, PKFieldIndex: 0},
 	z: new(ProductType).Values(),
 }
 
 // String returns a string representation of this struct or record.
 func (s ProductType) String() string {
-	res := make([]string, 9)
+	res := make([]string, 7)
 	res[0] = "ProductTypeName: " + reform.Inspect(s.ProductTypeName, true)
 	res[1] = "DisplayName: " + reform.Inspect(s.DisplayName, true)
 	res[2] = "GasName: " + reform.Inspect(s.GasName, true)
@@ -61,8 +61,6 @@ func (s ProductType) String() string {
 	res[4] = "Scale: " + reform.Inspect(s.Scale, true)
 	res[5] = "NobleMetalContent: " + reform.Inspect(s.NobleMetalContent, true)
 	res[6] = "LifetimeMonths: " + reform.Inspect(s.LifetimeMonths, true)
-	res[7] = "Lc64: " + reform.Inspect(s.Lc64, true)
-	res[8] = "PointsMethod: " + reform.Inspect(s.PointsMethod, true)
 	return strings.Join(res, ", ")
 }
 
@@ -77,8 +75,6 @@ func (s *ProductType) Values() []interface{} {
 		s.Scale,
 		s.NobleMetalContent,
 		s.LifetimeMonths,
-		s.Lc64,
-		s.PointsMethod,
 	}
 }
 
@@ -93,8 +89,6 @@ func (s *ProductType) Pointers() []interface{} {
 		&s.Scale,
 		&s.NobleMetalContent,
 		&s.LifetimeMonths,
-		&s.Lc64,
-		&s.PointsMethod,
 	}
 }
 

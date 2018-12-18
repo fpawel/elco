@@ -6,6 +6,7 @@ import (
 	"github.com/fpawel/goutils/serial-comm/comm"
 	"github.com/fpawel/goutils/serial-comm/comport"
 	"github.com/pkg/errors"
+	"strconv"
 )
 
 type Config struct {
@@ -16,6 +17,9 @@ type Config struct {
 type UserConfig struct {
 	Comport struct {
 		Measurer, GasSwitcher string
+	}
+	Firmware struct {
+		ChipType int
 	}
 }
 
@@ -30,23 +34,38 @@ type WorkConfig struct {
 	HoldTemperatureMinutes int `toml:"hold_temperature_minutes" comment:"длительность выдержки термокамеры, мин."`
 }
 
-func (x *UserConfig) Section() settings.ConfigSection {
+func (x *UserConfig) Sections() []settings.ConfigSection {
 
-	return settings.ConfigSection{
-		Name: "Comport",
-		Hint: "СОМ порт",
-		Properties: []settings.ConfigProperty{
-			{
-				Hint:      "Блоки измерения",
-				Name:      "Measurer",
-				ValueType: settings.VtComportName,
-				Value:     x.Comport.Measurer,
+	return []settings.ConfigSection{
+		{
+			Name: "Comport",
+			Hint: "СОМ порт",
+			Properties: []settings.ConfigProperty{
+				{
+					Hint:      "Блоки измерения",
+					Name:      "Measurer",
+					ValueType: settings.VtComportName,
+					Value:     x.Comport.Measurer,
+				},
+				{
+					Hint:      "Газовый блок",
+					Name:      "GasSwitcher",
+					ValueType: settings.VtComportName,
+					Value:     x.Comport.GasSwitcher,
+				},
 			},
-			{
-				Hint:      "Газовый блок",
-				Name:      "GasSwitcher",
-				ValueType: settings.VtComportName,
-				Value:     x.Comport.GasSwitcher,
+		},
+		{
+			Name: "Firmware",
+			Hint: "\"Прошивка\"",
+			Properties: []settings.ConfigProperty{
+				{
+					Hint:      "Тип микросхемм",
+					Name:      "ChipType",
+					ValueType: settings.VtString,
+					Value:     strconv.Itoa(x.Firmware.ChipType),
+					List:      []string{"16", "64", "256"},
+				},
 			},
 		},
 	}
@@ -55,6 +74,17 @@ func (x *UserConfig) Section() settings.ConfigSection {
 func (x *UserConfig) setValue(section, property, value string) error {
 
 	switch section {
+	case "Firmware":
+		switch property {
+		case "ChipType":
+
+			if n, err := strconv.ParseInt(value, 10, 16); err == nil {
+				x.Firmware.ChipType = int(n)
+				return nil
+			} else {
+				return errors.Errorf("%q: %+v", value, err)
+			}
+		}
 	case "Comport":
 		switch property {
 		case "Measurer":

@@ -12,6 +12,4 @@ type ProductType struct {
 	Scale             float64 `reform:"scale"`
 	NobleMetalContent float64 `reform:"noble_metal_content"`
 	LifetimeMonths    int64   `reform:"lifetime_months"`
-	Lc64              bool    `reform:"lc64"`
-	PointsMethod      int64   `reform:"points_method"`
 }

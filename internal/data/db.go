@@ -2,7 +2,9 @@ package data
 
 import (
 	"database/sql"
+	"github.com/fpawel/goutils/dbutils"
 	"github.com/jmoiron/sqlx"
+	"github.com/sirupsen/logrus"
 	"gopkg.in/reform.v1"
 )
 
@@ -36,14 +38,40 @@ WHERE NOT EXISTS(SELECT product_id FROM product WHERE party.party_id = product.p
 
 }
 
-func GetLastPartyProductsWithSerials(db *reform.DB) []Product {
+func LastParty(db *reform.DB) Party {
+	var party Party
+	if err := db.SelectOneTo(&party, `ORDER BY created_at DESC LIMIT 1;`); err != nil {
+		panic(err)
+	}
+	party.Products = GetProductsInfoByPartyID(db, party.PartyID)
+	return party
+}
+
+func CreateNewParty(db *sqlx.DB) {
+	db.MustExec(`INSERT INTO party DEFAULT VALUES`)
+	logrus.WithField("party_id", LastPartyID(db)).Warn("new party created")
+}
+
+func LastPartyID(db *sqlx.DB) (partyID int64) {
+	dbutils.MustGet(db, &partyID, `SELECT party_id FROM last_party;`)
+	return
+}
+
+func GetLastPartyProductsWithSerials(db *reform.DB) (products map[int]*Product, blocks [12]bool) {
 	rows, err := db.SelectRows(ProductTable,
 		"WHERE party_id IN (SELECT party_id FROM last_party) AND (serial NOTNULL)")
 	if err != nil {
 		panic(err)
 	}
 	defer func() { _ = rows.Close() }()
-	return fetchProductsFromRows(db, rows)
+	productsSlice := fetchProductsFromRows(db, rows)
+	products = map[int]*Product{}
+	for i := range productsSlice {
+		p := &productsSlice[i]
+		blocks[p.Place/8] = true
+		products[p.Place] = p
+	}
+	return
 }
 
 func GetLastPartyProducts(db *reform.DB) []Product {

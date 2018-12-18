@@ -10,6 +10,10 @@ type PartiesCatalogue struct {
 	dbContext
 }
 
+func (x PartiesCatalogue) LastParty() data.Party {
+	return LastParty{x.dbContext}.Party()
+}
+
 func (x PartiesCatalogue) Years() (years []int) {
 	x.mu.Lock()
 	defer x.mu.Unlock()

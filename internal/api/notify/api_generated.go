@@ -2,6 +2,7 @@ package notify
 
 import (
 	"github.com/fpawel/elco/internal/api"
+	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/goutils/copydata"
 )
 
@@ -17,6 +18,7 @@ const (
 	msgStatus
 	msgWarning
 	msgDelay
+	msgLastPartyChanged
 )
 
 func ReadCurrent(w W, arg api.ReadCurrent) {
@@ -55,4 +57,8 @@ func Warningf(w W, format string, a ...interface{}) {
 }
 func Delay(w W, arg api.DelayInfo) {
 	w.NotifyJson(uintptr(msgDelay), arg)
+}
+
+func LastPartyChanged(w W, arg data.Party) {
+	w.NotifyJson(uintptr(msgLastPartyChanged), arg)
 }

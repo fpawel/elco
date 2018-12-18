@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/fpawel/elco/internal/api"
 	"github.com/fpawel/elco/internal/app"
+	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/goutils/winapp"
 	"log"
 	"os"
@@ -65,6 +66,10 @@ func main() {
 		{
 			serviceName: "Delay",
 			paramType:   r.TypeOf((*api.DelayInfo)(nil)).Elem(),
+		},
+		{
+			serviceName: "LastPartyChanged",
+			paramType:   r.TypeOf((*data.Party)(nil)).Elem(),
 		},
 	})
 

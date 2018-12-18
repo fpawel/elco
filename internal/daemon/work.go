@@ -10,6 +10,7 @@ import (
 	"github.com/fpawel/goutils/serial-comm/modbus"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"log"
 	"time"
 )
 
@@ -39,24 +40,68 @@ func (x *D) switchGas(n int) error {
 	return nil
 }
 
+func (x *D) getResponseGasSwitcher(b []byte) error {
+	c := x.sets.Config()
+	if _, err := x.port.gas.GetResponse(b, c.GasSwitcher); err != nil {
+		if err == context.DeadlineExceeded {
+			err = errors.New("нет ответа от газового блока: " + x.port.gas.Dump())
+		}
+		return errors.Wrapf(err, "газовый блок: %s", x.port.gas.Dump())
+	}
+	return nil
+}
+
 func (x *D) doSwitchGas(n int) error {
 	c := x.sets.Config()
 	if !x.port.gas.Opened() {
-		if err := x.port.gas.Open(c.Comport.GasSwitcher, 9600, 0, x.hardware.ctx); err != nil {
+		if err := x.port.gas.Open(c.Comport.GasSwitcher, 9600, 0, context.Background()); err != nil {
 			return err
 		}
 	}
-	req := modbus.NewSwitchGasOven(byte(n))
-	_, err := x.port.gas.GetResponse(req.Bytes(), c.GasSwitcher)
-	if err == context.DeadlineExceeded {
-		err = errors.New("нет ответа от газового блока: " + x.port.gas.Dump())
+	req := modbus.Request{
+		Addr:                5,
+		ProtocolCommandCode: 0x10,
+		Data: []byte{
+			0, 0x32, 0, 1, 2, 0, 0,
+		},
 	}
-	if err == nil {
-		logrus.WithFields(logrus.Fields{
-			"code": n,
-		}).Info("gas block")
+	switch n {
+	case 0:
+		req.Data[6] = 0
+	case 1:
+		req.Data[6] = 1
+	case 2:
+		req.Data[6] = 2
+	case 3:
+		req.Data[6] = 4
+	default:
+		log.Panicf("wrong gas code: %d", n)
 	}
-	return err
+
+	if err := x.getResponseGasSwitcher(req.Bytes()); err != nil {
+		return err
+	}
+
+	req = modbus.Request{
+		Addr:                1,
+		ProtocolCommandCode: 6,
+		Data: []byte{
+			0, 4, 0, 0,
+		},
+	}
+	if n > 0 {
+		req.Data[2] = 0x14
+		req.Data[3] = 0xD5
+
+	}
+
+	if err := x.getResponseGasSwitcher(req.Bytes()); err != nil {
+		return err
+	}
+
+	logrus.WithField("code", n).Debug("gas block")
+
+	return nil
 }
 
 func (x *D) readMeasure(place int) ([]float64, error) {
@@ -139,6 +184,25 @@ func (x *D) setupTemperature(temperature data.Temperature) error {
 	return x.hardware.ctx.Err()
 }
 
+func (x *D) determineNKU2() error {
+	if err := x.setupTemperature(20); err != nil {
+		return err
+	}
+	if err := x.blowGas(1); err != nil {
+		return err
+	}
+	m := logrus.Fields{
+		"return_NKU": struct{}{},
+	}
+	if err := x.determineProductsCurrents(m, func(p *data.Product, value float64) {
+		p.I13.Valid = true
+		p.I13.Float64 = value
+	}); err != nil {
+		return errors.Wrap(err, "снятие возврата НКУ")
+	}
+	return nil
+}
+
 func (x *D) determineTemperature(temperature data.Temperature) error {
 
 	if err := x.setupTemperature(temperature); err != nil {
@@ -162,6 +226,10 @@ func (x *D) determineTemperature(temperature data.Temperature) error {
 	}
 
 	if err := x.blowGas(1); err != nil {
+		return err
+	}
+
+	if err := x.switchGas(0); err != nil {
 		return err
 	}
 
@@ -200,14 +268,8 @@ func (x *D) determineProductsTemperatureCurrents(temperature data.Temperature, s
 }
 
 func (x *D) determineProductsCurrents(fields logrus.Fields, f func(*data.Product, float64)) error {
-	products := x.c.LastParty().ProductionProducts()
-	m := map[int]*data.Product{}
-	blocks := [12]bool{}
-	for i := range products {
-		p := &products[i]
-		blocks[p.Place/8] = true
-		m[p.Place] = p
-	}
+	products, blocks := x.c.LastParty().ProductsWithSerials()
+
 	for i := range blocks {
 		if blocks[i] {
 			values, err := x.readMeasure(i)
@@ -215,7 +277,7 @@ func (x *D) determineProductsCurrents(fields logrus.Fields, f func(*data.Product
 				return err
 			}
 			for n := 0; n < 8; n++ {
-				p := m[i*8+n]
+				p := products[i*8+n]
 				fields["product_id"] = p.ProductID
 				fields["place"] = p.Place
 				fields["value"] = values[n]
@@ -225,5 +287,6 @@ func (x *D) determineProductsCurrents(fields logrus.Fields, f func(*data.Product
 			}
 		}
 	}
+	notify.LastPartyChanged(x.w, x.c.LastParty().Party())
 	return nil
 }

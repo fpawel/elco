@@ -24,13 +24,6 @@ CREATE TABLE IF NOT EXISTS product_type
   scale               REAL             NOT NULL,
   noble_metal_content REAL             NOT NULL,
   lifetime_months     INTEGER          NOT NULL CHECK (lifetime_months > 0),
-  lc64                BOOLEAN          NOT NULL
-    CONSTRAINT boolean_lc64
-      CHECK (lc64 IN (0, 1)),
-  points_method       INTEGER          NOT NULL
-    CONSTRAINT points_method_2_or_3
-      CHECK (points_method IN (2, 3)),
-
   FOREIGN KEY (gas_name) REFERENCES gas (gas_name),
   FOREIGN KEY (units_name) REFERENCES units (units_name)
 );
@@ -46,7 +39,8 @@ CREATE TABLE IF NOT EXISTS party
   concentration2     REAL                NOT NULL DEFAULT 50 CHECK (concentration2 >= 0),
   concentration3     REAL                NOT NULL DEFAULT 100 CHECK (concentration3 >= 0),
   note               TEXT,
-
+  points_method      INTEGER             NOT NULL
+    CHECK (points_method IN (2, 3))               DEFAULT 2,
   min_fon            REAL                         DEFAULT -1,
   max_fon            REAL                         DEFAULT 2,
   max_d_fon          REAL                         DEFAULT 3,
@@ -65,8 +59,10 @@ CREATE TABLE IF NOT EXISTS product
 (
   product_id        INTEGER PRIMARY KEY NOT NULL,
   party_id          INTEGER             NOT NULL,
-  serial            INTEGER CHECK ( serial ISNULL OR serial > 0 ),
-  place             INTEGER             NOT NULL CHECK (place >= 0),
+  serial            INTEGER
+    CHECK ( serial ISNULL OR serial > 0 ),
+  place             INTEGER             NOT NULL
+    CHECK (place >= 0),
   product_type_name TEXT,
   note              TEXT,
 
@@ -85,7 +81,8 @@ CREATE TABLE IF NOT EXISTS product
   i17               REAL,
   not_measured      REAL,
   firmware          BLOB,
-  production        BOOLEAN             NOT NULL CHECK (production IN (0, 1)) DEFAULT 0,
+  production        BOOLEAN             NOT NULL
+    CHECK (production IN (0, 1)) DEFAULT 0,
 
   old_product_id    TEXT,
   old_serial        INTEGER,
@@ -95,17 +92,6 @@ CREATE TABLE IF NOT EXISTS product
 
   FOREIGN KEY (product_type_name) REFERENCES product_type (product_type_name),
   FOREIGN KEY (party_id) REFERENCES party (party_id)
-    ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS product_temperature_current_k_sens
-(
-  product_id  INTEGER NOT NULL,
-  temperature REAL    NOT NULL,
-  current     REAL,
-  k_sens      REAL,
-  CONSTRAINT product_temperature_current_k_sens_primary_key UNIQUE (product_id, temperature),
-  FOREIGN KEY (product_id) REFERENCES product (product_id)
     ON DELETE CASCADE
 );
 
@@ -184,7 +170,8 @@ SELECT product_id,
        round(max_d_temp, 3)                                                    AS max_d_temp,
        round(min_k_sens50, 3)                                                  AS min_k_sens50,
        round(max_k_sens50, 3)                                                  AS max_k_sens50,
-       round(max_d_not_measured, 3)                                            AS max_d_not_measured
+       round(max_d_not_measured, 3)                                            AS max_d_not_measured,
+       points_method
 
 FROM product
        INNER JOIN party ON party.party_id = product.party_id;
@@ -208,8 +195,8 @@ SELECT q.*,
        min_fon ISNULL OR (i_f_plus20 NOTNULL) AND i_f_plus20 > min_fon       AS ok_min_fon20,
        max_fon ISNULL OR (i_f_plus20 NOTNULL) AND i_f_plus20 < max_fon       AS ok_max_fon20,
 
-       min_fon ISNULL OR (i13 NOTNULL) AND i13 > min_fon       AS ok_min_fon20_2,
-       max_fon ISNULL OR (i13 NOTNULL) AND i13 < max_fon       AS ok_max_fon20_2,
+       min_fon ISNULL OR (i13 NOTNULL) AND i13 > min_fon                     AS ok_min_fon20_2,
+       max_fon ISNULL OR (i13 NOTNULL) AND i13 < max_fon                     AS ok_max_fon20_2,
 
        max_d_not_measured ISNULL OR
        (d_not_measured NOTNULL) AND abs(d_not_measured) < max_d_not_measured AS ok_d_not_measured,
@@ -220,9 +207,7 @@ SELECT q.*,
        units.units_name,
        scale,
        noble_metal_content,
-       lifetime_months,
-       lc64,
-       points_method
+       lifetime_months
 FROM product_info_1 q
        INNER JOIN product_type ON product_type.product_type_name = q.applied_product_type_name
        INNER JOIN gas ON product_type.gas_name = gas.gas_name
@@ -241,7 +226,8 @@ FROM product_info_2 q;
 
 INSERT
   OR
-REPLACE INTO units (units_name, code)
+REPLACE
+INTO units (units_name, code)
 VALUES ('мг/м3', 2),
        ('ppm', 3),
        ('об. дол. %', 7),
@@ -249,7 +235,8 @@ VALUES ('мг/м3', 2),
 
 INSERT
   OR
-REPLACE INTO gas (gas_name, code)
+REPLACE
+INTO gas (gas_name, code)
 VALUES ('CO', 0x11),
        ('H₂S', 0x22),
        ('NH₃', 0x33),
@@ -262,39 +249,38 @@ VALUES ('CO', 0x11),
 
 INSERT
   OR
-REPLACE INTO product_type (product_type_name,
-                           display_name,
-                           gas_name,
-                           units_name,
-                           scale,
-                           noble_metal_content,
-                           lifetime_months,
-                           lc64,
-                           points_method)
-VALUES ('035', '035', 'CO', 'мг/м3', 200, 0.1626, 18, 0, 3),
-       ('035(2)', '035', 'CO', 'мг/м3', 200, 0.1456, 12, 0, 3),
-       ('035-59', NULL, 'CO', 'об. дол. %', 0.5, 0.1891, 12, 0, 3),
-       ('035-60', NULL, 'CO', 'мг/м3', 200, 0.1891, 12, 0, 3),
-       ('035-61', NULL, 'CO', 'ppm', 2000, 0.1891, 12, 0, 3),
-       ('035-80', NULL, 'CO', 'мг/м3', 200, 0.1456, 12, 0, 3),
-       ('035-81', NULL, 'CO', 'мг/м3', 1500, 0.1456, 12, 0, 3),
-       ('035-92', NULL, 'CO', 'об. дол. %', 0.5, 0.1891, 12, 0, 3),
-       ('035-93', NULL, 'CO', 'млн-1', 200, 0.1891, 12, 0, 3),
-       ('035-94', NULL, 'CO', 'млн-1', 2000, 0.1891, 12, 0, 3),
-       ('035-105', NULL, 'CO', 'мг/м3', 200, 0.1456, 12, 0, 3),
-       ('100', NULL, 'CO', 'мг/м3', 200, 0.0816, 12, 1, 3),
-       ('100-05', NULL, 'CO', 'мг/м3', 50, 0.0816, 12, 1, 3),
-       ('100-10', NULL, 'CO', 'мг/м3', 200, 0.0816, 12, 1, 3),
-       ('100-15', NULL, 'CO', 'мг/м3', 50, 0.0816, 12, 1, 3),
-       ('035-40', NULL, 'CO', 'мг/м3', 200, 0.1456, 12, 0, 2),
-       ('035-21', NULL, 'CO', 'мг/м3', 200, 0.1456, 12, 0, 2),
-       ('130-01', NULL, 'CO', 'мг/м3', 200, 0.1626, 12, 0, 3),
-       ('035-70', NULL, 'CO', 'мг/м3', 200, 0.1626, 12, 0, 2),
-       ('130-08', NULL, 'CO', 'ppm', 100, 0.1162, 12, 0, 3),
-       ('035-117', NULL, 'NO₂', 'мг/м3', 200, 0.1626, 18, 1, 3),
-       ('010-18', NULL, 'O₂', 'об. дол. %', 21, 0, 12, 1, 3),
-       ('010-18', NULL, 'O₂', 'об. дол. %', 21, 0, 12, 1, 3),
-       ('035-111', NULL, 'CO', 'мг/м3', 200, 0.1626, 12, 1, 3);
+REPLACE
+INTO product_type (product_type_name,
+                   display_name,
+                   gas_name,
+                   units_name,
+                   scale,
+                   noble_metal_content,
+                   lifetime_months)
+VALUES ('035', '035', 'CO', 'мг/м3', 200, 0.1626, 18),
+       ('035(2)', '035', 'CO', 'мг/м3', 200, 0.1456, 12),
+       ('035-59', NULL, 'CO', 'об. дол. %', 0.5, 0.1891, 12),
+       ('035-60', NULL, 'CO', 'мг/м3', 200, 0.1891, 12),
+       ('035-61', NULL, 'CO', 'ppm', 2000, 0.1891, 12),
+       ('035-80', NULL, 'CO', 'мг/м3', 200, 0.1456, 12),
+       ('035-81', NULL, 'CO', 'мг/м3', 1500, 0.1456, 12),
+       ('035-92', NULL, 'CO', 'об. дол. %', 0.5, 0.1891, 12),
+       ('035-93', NULL, 'CO', 'млн-1', 200, 0.1891, 12),
+       ('035-94', NULL, 'CO', 'млн-1', 2000, 0.1891, 12),
+       ('035-105', NULL, 'CO', 'мг/м3', 200, 0.1456, 12),
+       ('100', NULL, 'CO', 'мг/м3', 200, 0.0816, 12),
+       ('100-05', NULL, 'CO', 'мг/м3', 50, 0.0816, 12),
+       ('100-10', NULL, 'CO', 'мг/м3', 200, 0.0816, 12),
+       ('100-15', NULL, 'CO', 'мг/м3', 50, 0.0816, 12),
+       ('035-40', NULL, 'CO', 'мг/м3', 200, 0.1456, 12),
+       ('035-21', NULL, 'CO', 'мг/м3', 200, 0.1456, 12),
+       ('130-01', NULL, 'CO', 'мг/м3', 200, 0.1626, 12),
+       ('035-70', NULL, 'CO', 'мг/м3', 200, 0.1626, 12),
+       ('130-08', NULL, 'CO', 'ppm', 100, 0.1162, 12),
+       ('035-117', NULL, 'NO₂', 'мг/м3', 200, 0.1626, 18),
+       ('010-18', NULL, 'O₂', 'об. дол. %', 21, 0, 12),
+       ('010-18', NULL, 'O₂', 'об. дол. %', 21, 0, 12),
+       ('035-111', NULL, 'CO', 'мг/м3', 200, 0.1626, 12);
 
 
 DELETE

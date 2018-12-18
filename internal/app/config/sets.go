@@ -23,6 +23,7 @@ func OpenSets(party crud.LastParty) *Sets {
 			Predefined: PredefinedConfig(),
 		},
 	}
+	sets.c.Firmware.ChipType = 16
 
 	if b, err := ioutil.ReadFile(configFileName()); err == nil {
 		err = json.Unmarshal(b, &sets.c.UserConfig)
@@ -58,18 +59,15 @@ func (x *Sets) save() error {
 	return ioutil.WriteFile(configFileName(), b, 0666)
 }
 
-func (x *Sets) Sections() settings.ConfigSections {
+func (x *Sets) Sections() (r settings.ConfigSections) {
 	c := x.Config().UserConfig
-	return settings.ConfigSections{
-		Sections: []settings.ConfigSection{
-			{
-				Name:       "Party",
-				Hint:       "Партия",
-				Properties: x.party.ConfigProperties(),
-			},
-			c.Section(),
-		},
-	}
+	r.Sections = c.Sections()
+	r.Sections = append(r.Sections, settings.ConfigSection{
+		Name:       "Party",
+		Hint:       "Партия",
+		Properties: x.party.ConfigProperties(),
+	})
+	return
 }
 
 func (x *Sets) Save() error {

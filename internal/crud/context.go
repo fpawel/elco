@@ -80,3 +80,10 @@ func (x dbContext) SaveProduct(p *data.Product) {
 		panic(err)
 	}
 }
+
+func (x dbContext) NewParty() data.Party {
+	x.mu.Lock()
+	defer x.mu.Unlock()
+	data.CreateNewParty(x.dbx)
+	return data.LastParty(x.dbr)
+}

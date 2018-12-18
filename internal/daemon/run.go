@@ -24,7 +24,7 @@ func (x *D) RunTemperature(workCheck [3]bool) {
 				}
 			}
 		}
-		return nil
+		return x.determineNKU2()
 	})
 }
 
@@ -85,6 +85,11 @@ func (x *D) runHardware(what string, work WorkFunc) {
 			}
 		}
 		if x.port.gas.Opened() {
+
+			if err := x.port.gas.Close(); err != nil {
+				notify.HardwareErrorf(x.w, "%s: %v", x.port.gas.Config().Name, err)
+			}
+
 			if err := x.switchGas(0); err != nil {
 				notify.HardwareErrorf(x.w, "отключение газового блока при завершении: %s: %v", x.port.gas.Config().Name, err)
 			}
