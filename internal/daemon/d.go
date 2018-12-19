@@ -45,6 +45,7 @@ const (
 )
 
 func New() *D {
+	// reform.NewPrintfLogger(logrus.Debugf)
 	c := crud.NewDBContext(nil)
 	sets := config.OpenSets(c.LastParty())
 	x := &D{

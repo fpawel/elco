@@ -46,6 +46,7 @@ func (x *D) RunReadCurrent(checkPlaces [12]bool) {
 		}
 	}
 	x.runHardware("опрос блоков измерительных: "+intrng.Format(xs), func() error {
+		x.port.measurer.SetLog(false)
 		for {
 			for _, place := range places {
 				if _, err := x.readMeasure(place); err != nil {
@@ -74,6 +75,7 @@ func (x *D) runHardware(what string, work WorkFunc) {
 		if err := x.port.measurer.Open(cfg.Comport.Measurer, 115200, 0, x.hardware.ctx); err != nil {
 			notify.HardwareErrorf(x.w, "%s: %v", cfg.Comport.Measurer, err)
 		} else {
+			x.port.measurer.SetLog(true)
 			if err := work(); err != nil && x.hardware.ctx.Err() != context.Canceled {
 				notify.HardwareErrorf(x.w, "%s: %v", what, err)
 			}

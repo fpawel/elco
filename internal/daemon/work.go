@@ -3,6 +3,7 @@ package daemon
 import (
 	"context"
 	"fmt"
+	"github.com/ansel1/merry"
 	"github.com/fpawel/elco/internal/api"
 	"github.com/fpawel/elco/internal/api/notify"
 	"github.com/fpawel/elco/internal/data"
@@ -44,9 +45,9 @@ func (x *D) getResponseGasSwitcher(b []byte) error {
 	c := x.sets.Config()
 	if _, err := x.port.gas.GetResponse(b, c.GasSwitcher); err != nil {
 		if err == context.DeadlineExceeded {
-			err = errors.New("нет ответа от газового блока: " + x.port.gas.Dump())
+			err = merry.New("нет ответа от газового блока")
 		}
-		return errors.Wrapf(err, "газовый блок: %s", x.port.gas.Dump())
+		return merry.WithMessage(err, "газовый блок")
 	}
 	return nil
 }
@@ -54,13 +55,14 @@ func (x *D) getResponseGasSwitcher(b []byte) error {
 func (x *D) doSwitchGas(n int) error {
 	c := x.sets.Config()
 	if !x.port.gas.Opened() {
+		x.port.gas.SetLog(true)
 		if err := x.port.gas.Open(c.Comport.GasSwitcher, 9600, 0, context.Background()); err != nil {
 			return err
 		}
 	}
-	req := modbus.Request{
-		Addr:                5,
-		ProtocolCommandCode: 0x10,
+	req := modbus.Req{
+		Addr:     5,
+		ProtoCmd: 0x10,
 		Data: []byte{
 			0, 0x32, 0, 1, 2, 0, 0,
 		},
@@ -82,9 +84,9 @@ func (x *D) doSwitchGas(n int) error {
 		return err
 	}
 
-	req = modbus.Request{
-		Addr:                1,
-		ProtocolCommandCode: 6,
+	req = modbus.Req{
+		Addr:     1,
+		ProtoCmd: 6,
 		Data: []byte{
 			0, 4, 0, 0,
 		},
@@ -126,14 +128,10 @@ func (x *D) readMeasure(place int) ([]float64, error) {
 
 	case context.DeadlineExceeded:
 
-		return nil, errors.Errorf("блок измерения №%d: не отечает: %s",
-			place+1,
-			x.port.measurer.Dump())
+		return nil, errors.Errorf("блок измерения %d: не отечает", place+1)
 
 	default:
-		return nil, errors.Errorf("блок измерения №%d: %+v: %s",
-			place+1, err,
-			x.port.measurer.Dump())
+		return nil, errors.Wrapf(err, "блок измерения %d: %+v: %s", place+1)
 	}
 }
 

@@ -6,7 +6,6 @@ import (
 	"github.com/fpawel/goutils/serial-comm/comm"
 	"github.com/fpawel/goutils/serial-comm/comport"
 	"github.com/pkg/errors"
-	"strconv"
 )
 
 type Config struct {
@@ -36,6 +35,20 @@ type WorkConfig struct {
 
 func (x *UserConfig) Sections() []settings.ConfigSection {
 
+	var chipType string
+
+	switch x.Firmware.ChipType {
+
+	case 0:
+		chipType = "24LC16"
+
+	case 1:
+		chipType = "24LC64"
+
+	default:
+		chipType = "24W256"
+	}
+
 	return []settings.ConfigSection{
 		{
 			Name: "Comport",
@@ -63,8 +76,8 @@ func (x *UserConfig) Sections() []settings.ConfigSection {
 					Hint:      "Тип микросхемм",
 					Name:      "ChipType",
 					ValueType: settings.VtString,
-					Value:     strconv.Itoa(x.Firmware.ChipType),
-					List:      []string{"16", "64", "256"},
+					Value:     chipType,
+					List:      []string{"24LC16", "24LC64", "24W256"},
 				},
 			},
 		},
@@ -78,12 +91,22 @@ func (x *UserConfig) setValue(section, property, value string) error {
 		switch property {
 		case "ChipType":
 
-			if n, err := strconv.ParseInt(value, 10, 16); err == nil {
-				x.Firmware.ChipType = int(n)
-				return nil
-			} else {
-				return errors.Errorf("%q: %+v", value, err)
+			switch value {
+
+			case "24LC16":
+				x.Firmware.ChipType = 0
+
+			case "24LC64":
+				x.Firmware.ChipType = 1
+
+			case "24W256":
+				x.Firmware.ChipType = 2
+
+			default:
+				return errors.Errorf("не верный тип микросхемы: %q", value)
+
 			}
+			return nil
 		}
 	case "Comport":
 		switch property {

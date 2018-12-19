@@ -22,16 +22,20 @@ func main() {
 	mustRunPeer := true
 	flag.BoolVar(&mustRunPeer, "must-run-peer", true, "ensure peer application")
 
-	logLevel := uint(logrus.DebugLevel)
-	flag.UintVar(&logLevel, "log-level", uint(logrus.DebugLevel), "use log level")
+	logLevelStr := "warn"
+	flag.StringVar(&logLevelStr, "log-level", "warn", "use log level")
 
 	flag.Parse()
 
 	// Log as JSON instead of the default ASCII formatter.
 	//logrus.SetFormatter(&logrus.JSONFormatter{})
 
+	logLevel, err := logrus.ParseLevel(logLevelStr)
+	if err != nil {
+		logrus.Fatal(err)
+	}
 	// Only log the warning severity or above.
-	logrus.SetLevel(logrus.Level(logLevel))
+	logrus.SetLevel(logLevel)
 
 	if mustRunPeer && !winapp.IsWindow(findPeer()) {
 		if err := runPeer(); err != nil {
