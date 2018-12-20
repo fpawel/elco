@@ -2,7 +2,7 @@ package data
 
 import (
 	"database/sql"
-	"github.com/pkg/errors"
+	"github.com/ansel1/merry"
 	"log"
 )
 
@@ -129,7 +129,7 @@ func (s ProductInfo) CurrentValue(t Temperature, c ScaleType) (float64, error) {
 		if c == Sens {
 			str = "тока чувствительности"
 		}
-		return 0, errors.Errorf("нет значения %s при %g⁰С", str, t)
+		return 0, merry.Errorf("нет значения %s при %g⁰С", str, t)
 	}
 	return v.Float64, nil
 }
@@ -142,7 +142,7 @@ func (s ProductInfo) KSensPercentValues(includeMinus20 bool) (map[float64]float6
 		return nil, err
 	}
 	if !s.KSens50.Valid {
-		return nil, errors.New("нет значения к-та чувствительности при 50⁰С")
+		return nil, merry.New("нет значения к-та чувствительности при 50⁰С")
 	}
 
 	r := map[float64]float64{
@@ -153,7 +153,7 @@ func (s ProductInfo) KSensPercentValues(includeMinus20 bool) (map[float64]float6
 		r[-20] = s.KSensMinus20.Float64
 	} else {
 		if includeMinus20 {
-			return nil, errors.New("нет значения к-та чувствительности при -20⁰С")
+			return nil, merry.New("нет значения к-та чувствительности при -20⁰С")
 		}
 	}
 	return r, nil

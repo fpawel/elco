@@ -29,8 +29,9 @@ type Predefined struct {
 }
 
 type WorkConfig struct {
-	BlowGasMinutes         int `toml:"blow_gas_minutes" comment:"длительность продувки газа, мин."`
-	HoldTemperatureMinutes int `toml:"hold_temperature_minutes" comment:"длительность выдержки термокамеры, мин."`
+	BlowGasMinutes         int  `toml:"blow_gas_minutes" comment:"длительность продувки газа, мин."`
+	HoldTemperatureMinutes int  `toml:"hold_temperature_minutes" comment:"длительность выдержки термокамеры, мин."`
+	CaptureComport         bool `toml:"capture_comport" comment:"показывать ВСЕ посылки COM порта в консоли"`
 }
 
 func (x *UserConfig) Sections() []settings.ConfigSection {

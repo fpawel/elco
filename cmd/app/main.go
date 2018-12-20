@@ -36,12 +36,7 @@ func main() {
 	}
 	// Only log the warning severity or above.
 	logrus.SetLevel(logLevel)
-
-	if mustRunPeer && !winapp.IsWindow(findPeer()) {
-		if err := runPeer(); err != nil {
-			panic(err)
-		}
-	}
+	logrus.SetReportCaller(true)
 
 	d := daemon.New()
 	d.Run(mustRunPeer)

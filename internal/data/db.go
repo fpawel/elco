@@ -57,21 +57,24 @@ func LastPartyID(db *sqlx.DB) (partyID int64) {
 	return
 }
 
-func GetLastPartyProductsWithSerials(db *reform.DB) (products map[int]*Product, blocks [12]bool) {
+func GetLastPartyProductsWithSerials(db *reform.DB) []Product {
 	rows, err := db.SelectRows(ProductTable,
 		"WHERE party_id IN (SELECT party_id FROM last_party) AND (serial NOTNULL)")
 	if err != nil {
 		panic(err)
 	}
 	defer func() { _ = rows.Close() }()
-	productsSlice := fetchProductsFromRows(db, rows)
-	products = map[int]*Product{}
-	for i := range productsSlice {
-		p := &productsSlice[i]
-		blocks[p.Place/8] = true
-		products[p.Place] = p
+	return fetchProductsFromRows(db, rows)
+}
+
+func GetLastPartyProductsWithProduction(db *reform.DB) []Product {
+	rows, err := db.SelectRows(ProductTable,
+		"WHERE party_id IN (SELECT party_id FROM last_party) AND (serial NOTNULL)")
+	if err != nil {
+		panic(err)
 	}
-	return
+	defer func() { _ = rows.Close() }()
+	return fetchProductsFromRows(db, rows)
 }
 
 func GetLastPartyProducts(db *reform.DB) []Product {

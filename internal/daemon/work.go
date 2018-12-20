@@ -12,6 +12,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"log"
+	"sort"
 	"time"
 )
 
@@ -128,10 +129,10 @@ func (x *D) readMeasure(place int) ([]float64, error) {
 
 	case context.DeadlineExceeded:
 
-		return nil, errors.Errorf("блок измерения %d: не отечает", place+1)
+		return nil, merry.Errorf("блок измерения %d: не отечает", place+1)
 
 	default:
-		return nil, errors.Wrapf(err, "блок измерения %d: %+v: %s", place+1)
+		return nil, merry.WithMessagef(err, "блок измерения %d", place+1)
 	}
 }
 
@@ -196,7 +197,7 @@ func (x *D) determineNKU2() error {
 		p.I13.Valid = true
 		p.I13.Float64 = value
 	}); err != nil {
-		return errors.Wrap(err, "снятие возврата НКУ")
+		return merry.WithMessagef(err, "снятие возврата НКУ")
 	}
 	return nil
 }
@@ -266,25 +267,40 @@ func (x *D) determineProductsTemperatureCurrents(temperature data.Temperature, s
 }
 
 func (x *D) determineProductsCurrents(fields logrus.Fields, f func(*data.Product, float64)) error {
-	products, blocks := x.c.LastParty().ProductsWithSerials()
 
-	for i := range blocks {
-		if blocks[i] {
-			values, err := x.readMeasure(i)
-			if err != nil {
-				return err
-			}
-			for n := 0; n < 8; n++ {
-				p := products[i*8+n]
-				fields["product_id"] = p.ProductID
-				fields["place"] = p.Place
-				fields["value"] = values[n]
-				logrus.WithFields(fields).Info("save product current")
-				f(p, values[n])
-				x.c.SaveProduct(p)
-			}
+	for _, products := range GroupProductsByBlocks(x.c.LastParty().ProductsWithSerials()) {
+		block := products[0].Place / 8
+		values, err := x.readMeasure(block)
+		if err != nil {
+			return err
+		}
+		for _, p := range products {
+			n := p.Place % 8
+			fields["product_id"] = p.ProductID
+			fields["place"] = p.Place
+			fields["value"] = values[n]
+			logrus.WithFields(fields).Info("save product current")
+			f(p, values[n])
+			x.c.SaveProduct(p)
 		}
 	}
 	notify.LastPartyChanged(x.w, x.c.LastParty().Party())
 	return nil
+}
+
+func GroupProductsByBlocks(ps []data.Product) (gs [][]*data.Product) {
+	m := make(map[int][]*data.Product)
+	for i := range ps {
+		p := &ps[i]
+		v, _ := m[p.Place/8]
+		m[p.Place/8] = append(v, p)
+	}
+	for _, v := range m {
+		gs = append(gs, v)
+	}
+	sort.Slice(gs, func(i, j int) bool {
+		return gs[i][0].Place/8 < gs[j][0].Place
+	})
+
+	return
 }

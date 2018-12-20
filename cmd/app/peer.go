@@ -1,16 +1,11 @@
 package main
 
 import (
-	"bytes"
-	"github.com/fpawel/elco/internal/app"
 	"github.com/fpawel/elco/internal/daemon"
 	"github.com/fpawel/goutils/winapp"
 	"github.com/hashicorp/go-multierror"
 	"github.com/lxn/win"
 	"github.com/pkg/errors"
-	"os"
-	"os/exec"
-	"path/filepath"
 )
 
 func closeAllPeerWindows() (result error) {
@@ -24,21 +19,4 @@ func closeAllPeerWindows() (result error) {
 
 func findPeer() win.HWND {
 	return winapp.FindWindow(daemon.PeerWindowClassName)
-}
-
-func runPeer() error {
-	const (
-		peerAppExe = "elcoui.exe"
-	)
-	dir := filepath.Dir(os.Args[0])
-
-	if _, err := os.Stat(filepath.Join(dir, peerAppExe)); os.IsNotExist(err) {
-		dir = app.AppName.Dir()
-	}
-
-	cmd := exec.Command(filepath.Join(dir, peerAppExe))
-	cmd.Stdout = os.Stdout
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	return cmd.Start()
 }

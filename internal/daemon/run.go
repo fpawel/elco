@@ -46,7 +46,7 @@ func (x *D) RunReadCurrent(checkPlaces [12]bool) {
 		}
 	}
 	x.runHardware("опрос блоков измерительных: "+intrng.Format(xs), func() error {
-		x.port.measurer.SetLog(false)
+		x.port.measurer.SetLog(x.sets.Config().Predefined.Work.CaptureComport)
 		for {
 			for _, place := range places {
 				if _, err := x.readMeasure(place); err != nil {

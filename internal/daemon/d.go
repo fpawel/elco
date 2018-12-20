@@ -1,20 +1,26 @@
 package daemon
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"github.com/Microsoft/go-winio"
 	"github.com/fpawel/elco/internal/api"
+	"github.com/fpawel/elco/internal/app"
 	"github.com/fpawel/elco/internal/app/config"
 	"github.com/fpawel/elco/internal/crud"
 	"github.com/fpawel/goutils/copydata"
 	"github.com/fpawel/goutils/serial-comm/comport"
+	"github.com/fpawel/goutils/winapp"
 	"github.com/hashicorp/go-multierror"
 	"github.com/lxn/win"
 	"github.com/pkg/errors"
 	"github.com/powerman/rpc-codec/jsonrpc2"
 	"net"
 	"net/rpc"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"sync"
 	"sync/atomic"
 )
@@ -63,20 +69,27 @@ func New() *D {
 	return x
 }
 
-func (x *D) Run(closeOnDisconnect bool) {
+func (x *D) Run(mustRunPeer bool) {
 
 	var cancel func()
 	x.ctx, cancel = context.WithCancel(context.Background())
 
 	wg := sync.WaitGroup{}
-	wg.Add(2)
+	wg.Add(1)
 	ln := mustPipeListener()
 	// цикл RPC сервера
 	go func() {
 		defer wg.Done()
 		defer x.w.CloseWindow()
-		x.serveRPC(ln, x.ctx, closeOnDisconnect)
+		x.serveRPC(ln, x.ctx, mustRunPeer)
 	}()
+
+	if mustRunPeer && !winapp.IsWindow(winapp.FindWindow(PeerWindowClassName)) {
+		if err := runPeer(); err != nil {
+			panic(err)
+		}
+	}
+
 	// цикл оконных сообщений
 	runWindowMessageLoop()
 
@@ -103,7 +116,7 @@ func (x *D) Close() (result error) {
 	return
 }
 
-func (x *D) serveRPC(ln net.Listener, ctx context.Context, closeOnDisconnectPeer bool) {
+func (x *D) serveRPC(ln net.Listener, ctx context.Context, mustRunPeer bool) {
 	count := int32(0)
 	for {
 		switch conn, err := ln.Accept(); err {
@@ -111,7 +124,7 @@ func (x *D) serveRPC(ln net.Listener, ctx context.Context, closeOnDisconnectPeer
 			go func() {
 				atomic.AddInt32(&count, 1)
 				jsonrpc2.ServeConnContext(ctx, conn)
-				if atomic.AddInt32(&count, -1) == 0 && closeOnDisconnectPeer {
+				if atomic.AddInt32(&count, -1) == 0 && mustRunPeer {
 					return
 				}
 			}()
@@ -156,4 +169,21 @@ func runWindowMessageLoop() {
 		win.TranslateMessage(&msg)
 		win.DispatchMessage(&msg)
 	}
+}
+
+func runPeer() error {
+	const (
+		peerAppExe = "elcoui.exe"
+	)
+	dir := filepath.Dir(os.Args[0])
+
+	if _, err := os.Stat(filepath.Join(dir, peerAppExe)); os.IsNotExist(err) {
+		dir = app.AppName.Dir()
+	}
+
+	cmd := exec.Command(filepath.Join(dir, peerAppExe), "-must-close-server")
+	cmd.Stdout = os.Stdout
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	return cmd.Start()
 }

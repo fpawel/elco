@@ -22,7 +22,13 @@ func (x LastParty) Party() data.Party {
 	return data.LastParty(x.dbr)
 }
 
-func (x LastParty) ProductsWithSerials() (map[int]*data.Product, [12]bool) {
+func (x LastParty) ProductsWithProduction() []data.Product {
+	x.mu.Lock()
+	defer x.mu.Unlock()
+	return data.GetLastPartyProductsWithProduction(x.dbr)
+}
+
+func (x LastParty) ProductsWithSerials() []data.Product {
 	x.mu.Lock()
 	defer x.mu.Unlock()
 	return data.GetLastPartyProductsWithSerials(x.dbr)

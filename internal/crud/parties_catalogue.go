@@ -85,3 +85,12 @@ func (x PartiesCatalogue) Party(partyID int64) (party data.Party) {
 	return
 
 }
+
+func (x PartiesCatalogue) ProductInfo(productID int64) (product data.ProductInfo) {
+	x.mu.Lock()
+	defer x.mu.Unlock()
+	if err := x.dbr.FindOneTo(&product, "product_id", productID); err != nil {
+		panic(err)
+	}
+	return
+}
