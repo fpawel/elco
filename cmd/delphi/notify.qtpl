@@ -13,6 +13,7 @@ procedure HandleCopydata(var Message: TMessage);
 
 {% for _,m := range x.services %}procedure SetOn{%s m.serviceName %}( AHandler : {%s m.handlerType %});
 {% endfor %}
+procedure Cancel;
 
 implementation 
 {%s uses(x.implUses) %}
@@ -23,7 +24,12 @@ type
 
 var
     {% for _,m := range x.services %}_On{%s m.serviceName %} : {%s strEnsureFirstT(m.typeName) %}Handler;
-    {% endfor %}
+    {% endfor %}_cancel:boolean;
+
+procedure Cancel;
+begin
+   _cancel := true;
+end;
 
 procedure HandleCopydata(var Message: TMessage);
 var
@@ -31,6 +37,8 @@ var
     cmd: TServerAppCmd;
     str:string;
 begin
+    if _cancel then
+        exit;
     cd := PCOPYDATASTRUCT(Message.LParam);
     cmd := TServerAppCmd(Message.WParam);
     Message.result := 1;
@@ -55,5 +63,8 @@ begin
     _On{%s m.serviceName %} := AHandler;
 end;
 {% endfor %}
+
+initialization
+    _cancel := false;
 
 end.{% endfunc %}

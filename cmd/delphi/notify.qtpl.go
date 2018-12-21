@@ -71,53 +71,59 @@ procedure HandleCopydata(var Message: TMessage);
 	}
 	//line notify.qtpl:15
 	qw422016.N().S(`
+procedure Cancel;
 
 implementation 
 `)
-	//line notify.qtpl:18
+	//line notify.qtpl:19
 	qw422016.E().S(uses(x.implUses))
-	//line notify.qtpl:18
+	//line notify.qtpl:19
 	qw422016.N().S(`
 
 type
     TServerAppCmd = (`)
-	//line notify.qtpl:21
+	//line notify.qtpl:22
 	for _, m := range x.services[:len(x.services)-1] {
-		//line notify.qtpl:21
+		//line notify.qtpl:22
 		qw422016.N().S(`Cmd`)
-		//line notify.qtpl:21
+		//line notify.qtpl:22
 		qw422016.E().S(m.serviceName)
-		//line notify.qtpl:21
+		//line notify.qtpl:22
 		qw422016.N().S(`, `)
-		//line notify.qtpl:21
+		//line notify.qtpl:22
 	}
-	//line notify.qtpl:21
+	//line notify.qtpl:22
 	qw422016.N().S(`
     Cmd`)
-	//line notify.qtpl:22
+	//line notify.qtpl:23
 	qw422016.E().S(x.services[len(x.services)-1].serviceName)
-	//line notify.qtpl:22
+	//line notify.qtpl:23
 	qw422016.N().S(`);
 
 var
     `)
-	//line notify.qtpl:25
+	//line notify.qtpl:26
 	for _, m := range x.services {
-		//line notify.qtpl:25
+		//line notify.qtpl:26
 		qw422016.N().S(`_On`)
-		//line notify.qtpl:25
+		//line notify.qtpl:26
 		qw422016.E().S(m.serviceName)
-		//line notify.qtpl:25
+		//line notify.qtpl:26
 		qw422016.N().S(` : `)
-		//line notify.qtpl:25
+		//line notify.qtpl:26
 		qw422016.E().S(strEnsureFirstT(m.typeName))
-		//line notify.qtpl:25
+		//line notify.qtpl:26
 		qw422016.N().S(`Handler;
     `)
-		//line notify.qtpl:26
+		//line notify.qtpl:27
 	}
-	//line notify.qtpl:26
-	qw422016.N().S(`
+	//line notify.qtpl:27
+	qw422016.N().S(`_cancel:boolean;
+
+procedure Cancel;
+begin
+   _cancel := true;
+end;
 
 procedure HandleCopydata(var Message: TMessage);
 var
@@ -125,45 +131,47 @@ var
     cmd: TServerAppCmd;
     str:string;
 begin
+    if _cancel then
+        exit;
     cd := PCOPYDATASTRUCT(Message.LParam);
     cmd := TServerAppCmd(Message.WParam);
     Message.result := 1;
     SetString(str, PWideChar(cd.lpData), cd.cbData div 2);
     case cmd of
         `)
-	//line notify.qtpl:39
+	//line notify.qtpl:47
 	for _, m := range x.services {
-		//line notify.qtpl:39
+		//line notify.qtpl:47
 		qw422016.N().S(`Cmd`)
-		//line notify.qtpl:39
+		//line notify.qtpl:47
 		qw422016.E().S(m.serviceName)
-		//line notify.qtpl:39
+		//line notify.qtpl:47
 		qw422016.N().S(`:
         begin
             if not Assigned(_On`)
-		//line notify.qtpl:41
+		//line notify.qtpl:49
 		qw422016.E().S(m.serviceName)
-		//line notify.qtpl:41
+		//line notify.qtpl:49
 		qw422016.N().S(`) then
                 raise Exception.Create('_On`)
-		//line notify.qtpl:42
+		//line notify.qtpl:50
 		qw422016.E().S(m.serviceName)
-		//line notify.qtpl:42
+		//line notify.qtpl:50
 		qw422016.N().S(` must be set');
             _On`)
-		//line notify.qtpl:43
+		//line notify.qtpl:51
 		qw422016.E().S(m.serviceName)
-		//line notify.qtpl:43
+		//line notify.qtpl:51
 		qw422016.N().S(`(`)
-		//line notify.qtpl:43
+		//line notify.qtpl:51
 		qw422016.N().S(m.instructionGetFromStr)
-		//line notify.qtpl:43
+		//line notify.qtpl:51
 		qw422016.N().S(`);
         end;
         `)
-		//line notify.qtpl:45
+		//line notify.qtpl:53
 	}
-	//line notify.qtpl:45
+	//line notify.qtpl:53
 	qw422016.N().S(`
     else
         raise Exception.Create('wrong message: ' + IntToStr(Message.WParam));
@@ -171,67 +179,70 @@ begin
 end;
 
 `)
-	//line notify.qtpl:51
+	//line notify.qtpl:59
 	for _, m := range x.services {
-		//line notify.qtpl:51
+		//line notify.qtpl:59
 		qw422016.N().S(`procedure SetOn`)
-		//line notify.qtpl:51
+		//line notify.qtpl:59
 		qw422016.E().S(m.serviceName)
-		//line notify.qtpl:51
+		//line notify.qtpl:59
 		qw422016.N().S(`( AHandler : `)
-		//line notify.qtpl:51
+		//line notify.qtpl:59
 		qw422016.E().S(m.handlerType)
-		//line notify.qtpl:51
+		//line notify.qtpl:59
 		qw422016.N().S(`);
 begin
     if Assigned(_On`)
-		//line notify.qtpl:53
+		//line notify.qtpl:61
 		qw422016.E().S(m.serviceName)
-		//line notify.qtpl:53
+		//line notify.qtpl:61
 		qw422016.N().S(`) then
         raise Exception.Create('_On`)
-		//line notify.qtpl:54
+		//line notify.qtpl:62
 		qw422016.E().S(m.serviceName)
-		//line notify.qtpl:54
+		//line notify.qtpl:62
 		qw422016.N().S(` already set');
     _On`)
-		//line notify.qtpl:55
+		//line notify.qtpl:63
 		qw422016.E().S(m.serviceName)
-		//line notify.qtpl:55
+		//line notify.qtpl:63
 		qw422016.N().S(` := AHandler;
 end;
 `)
-		//line notify.qtpl:57
+		//line notify.qtpl:65
 	}
-	//line notify.qtpl:57
+	//line notify.qtpl:65
 	qw422016.N().S(`
 
+initialization
+    _cancel := false;
+
 end.`)
-//line notify.qtpl:59
+//line notify.qtpl:70
 }
 
-//line notify.qtpl:59
+//line notify.qtpl:70
 func (x *NotifyServicesSrc) WriteUnit(qq422016 qtio422016.Writer) {
-	//line notify.qtpl:59
+	//line notify.qtpl:70
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line notify.qtpl:59
+	//line notify.qtpl:70
 	x.StreamUnit(qw422016)
-	//line notify.qtpl:59
+	//line notify.qtpl:70
 	qt422016.ReleaseWriter(qw422016)
-//line notify.qtpl:59
+//line notify.qtpl:70
 }
 
-//line notify.qtpl:59
+//line notify.qtpl:70
 func (x *NotifyServicesSrc) Unit() string {
-	//line notify.qtpl:59
+	//line notify.qtpl:70
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line notify.qtpl:59
+	//line notify.qtpl:70
 	x.WriteUnit(qb422016)
-	//line notify.qtpl:59
+	//line notify.qtpl:70
 	qs422016 := string(qb422016.B)
-	//line notify.qtpl:59
+	//line notify.qtpl:70
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line notify.qtpl:59
+	//line notify.qtpl:70
 	return qs422016
-//line notify.qtpl:59
+//line notify.qtpl:70
 }

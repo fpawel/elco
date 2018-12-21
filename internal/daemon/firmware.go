@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"fmt"
+	"github.com/ansel1/merry"
 	"github.com/fpawel/elco/internal/firmware"
 	"github.com/fpawel/goutils/serial-comm/modbus"
 	"github.com/sirupsen/logrus"
@@ -117,11 +118,12 @@ func (x *D) sendDataToWriteFlash(block, place int, b []byte) error {
 		}, b...),
 	}
 	resp, err := x.port.measurer.GetResponse(req.Bytes(), x.sets.Config().Measurer)
+
 	if err != nil {
 		return err
 	}
 	if err = req.CheckResponse(b); err != nil {
-		return err
+		return merry.Append(err, x.port.measurer.LastWork().FormatResponse())
 	}
 	if len(b) != 7 {
 		return modbus.ProtocolError.Here().WithMessagef("длина ответа %d не равна 7", len(b))

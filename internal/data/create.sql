@@ -84,6 +84,9 @@ CREATE TABLE IF NOT EXISTS product
   production        BOOLEAN             NOT NULL
     CHECK (production IN (0, 1)) DEFAULT 0,
 
+  points_method     INTEGER
+    CHECK (points_method IN (2, 3)),
+
   old_product_id    TEXT,
   old_serial        INTEGER,
 
@@ -171,7 +174,11 @@ SELECT product_id,
        round(min_k_sens50, 3)                                                  AS min_k_sens50,
        round(max_k_sens50, 3)                                                  AS max_k_sens50,
        round(max_d_not_measured, 3)                                            AS max_d_not_measured,
-       points_method
+       product.points_method AS points_method,
+       (CASE (product.points_method ISNULL)
+          WHEN 1 THEN party.points_method
+          WHEN 0
+            THEN product.points_method END)                                    AS applied_points_method
 
 FROM product
        INNER JOIN party ON party.party_id = product.party_id;
@@ -247,41 +254,17 @@ VALUES ('CO', 0x11),
        ('NO', 0x99),
        ('HCl', 0xAA);
 
-INSERT
-  OR
-REPLACE
-INTO product_type (product_type_name,
-                   display_name,
-                   gas_name,
-                   units_name,
-                   scale,
-                   noble_metal_content,
-                   lifetime_months)
-VALUES ('035', '035', 'CO', 'мг/м3', 200, 0.1626, 18),
-       ('035(2)', '035', 'CO', 'мг/м3', 200, 0.1456, 12),
-       ('035-59', NULL, 'CO', 'об. дол. %', 0.5, 0.1891, 12),
-       ('035-60', NULL, 'CO', 'мг/м3', 200, 0.1891, 12),
-       ('035-61', NULL, 'CO', 'ppm', 2000, 0.1891, 12),
-       ('035-80', NULL, 'CO', 'мг/м3', 200, 0.1456, 12),
-       ('035-81', NULL, 'CO', 'мг/м3', 1500, 0.1456, 12),
-       ('035-92', NULL, 'CO', 'об. дол. %', 0.5, 0.1891, 12),
-       ('035-93', NULL, 'CO', 'млн-1', 200, 0.1891, 12),
-       ('035-94', NULL, 'CO', 'млн-1', 2000, 0.1891, 12),
-       ('035-105', NULL, 'CO', 'мг/м3', 200, 0.1456, 12),
-       ('100', NULL, 'CO', 'мг/м3', 200, 0.0816, 12),
-       ('100-05', NULL, 'CO', 'мг/м3', 50, 0.0816, 12),
-       ('100-10', NULL, 'CO', 'мг/м3', 200, 0.0816, 12),
-       ('100-15', NULL, 'CO', 'мг/м3', 50, 0.0816, 12),
-       ('035-40', NULL, 'CO', 'мг/м3', 200, 0.1456, 12),
-       ('035-21', NULL, 'CO', 'мг/м3', 200, 0.1456, 12),
-       ('130-01', NULL, 'CO', 'мг/м3', 200, 0.1626, 12),
-       ('035-70', NULL, 'CO', 'мг/м3', 200, 0.1626, 12),
-       ('130-08', NULL, 'CO', 'ppm', 100, 0.1162, 12),
-       ('035-117', NULL, 'NO₂', 'мг/м3', 200, 0.1626, 18),
-       ('010-18', NULL, 'O₂', 'об. дол. %', 21, 0, 12),
-       ('010-18', NULL, 'O₂', 'об. дол. %', 21, 0, 12),
-       ('035-111', NULL, 'CO', 'мг/м3', 200, 0.1626, 12);
 
+INSERT OR
+REPLACE INTO
+  product_type (product_type_name,
+                display_name,
+                gas_name,
+                units_name,
+                scale,
+                noble_metal_content,
+                lifetime_months)
+VALUES ('035', '035', 'CO', 'мг/м3', 200, 0.1626, 18);
 
 DELETE
 FROM party

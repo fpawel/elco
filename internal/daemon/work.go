@@ -7,7 +7,6 @@ import (
 	"github.com/fpawel/elco/internal/api"
 	"github.com/fpawel/elco/internal/api/notify"
 	"github.com/fpawel/elco/internal/data"
-	"github.com/fpawel/goutils/serial-comm/comport"
 	"github.com/fpawel/goutils/serial-comm/modbus"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -27,6 +26,7 @@ func (x *D) switchGas(n int) error {
 	} else {
 		s += fmt.Sprintf("подать ПГС%d", n)
 	}
+
 	s += ": " + err.Error() + ".\n\n"
 
 	if n == 0 {
@@ -45,10 +45,11 @@ func (x *D) switchGas(n int) error {
 func (x *D) getResponseGasSwitcher(b []byte) error {
 	c := x.sets.Config()
 	if _, err := x.port.gas.GetResponse(b, c.GasSwitcher); err != nil {
+		w := x.port.gas.LastWork()
 		if err == context.DeadlineExceeded {
-			err = merry.New("нет ответа от газового блока")
+			err = merry.Errorf("нет ответа от газового блока: %s", w.FormatRequest())
 		}
-		return merry.WithMessage(err, "газовый блок")
+		return merry.Appendf(err, "газовый блок: %s", w.FormatResponse())
 	}
 	return nil
 }
@@ -105,35 +106,6 @@ func (x *D) doSwitchGas(n int) error {
 	logrus.WithField("code", n).Debug("gas block")
 
 	return nil
-}
-
-func (x *D) readMeasure(place int) ([]float64, error) {
-
-	c := x.sets.Config()
-
-	switch values, err := modbus.Read3BCDValues(comport.Comm{
-		Port:   x.port.measurer,
-		Config: c.Measurer,
-	}, modbus.Addr(place+101), 0, 8); err {
-
-	case nil:
-
-		notify.ReadCurrent(x.w, api.ReadCurrent{
-			Place:  place,
-			Values: values,
-		})
-		return values, nil
-
-	case context.Canceled:
-		return nil, context.Canceled
-
-	case context.DeadlineExceeded:
-
-		return nil, merry.Errorf("блок измерения %d: не отечает", place+1)
-
-	default:
-		return nil, merry.WithMessagef(err, "блок измерения %d", place+1)
-	}
 }
 
 func (x *D) blowGas(nGas int) error {
@@ -270,8 +242,11 @@ func (x *D) determineProductsCurrents(fields logrus.Fields, f func(*data.Product
 
 	for _, products := range GroupProductsByBlocks(x.c.LastParty().ProductsWithSerials()) {
 		block := products[0].Place / 8
-		values, err := x.readMeasure(block)
+		values, err := x.readBlockMeasure(block)
 		if err != nil {
+			for k, v := range fields {
+				err = merry.WithValue(err, k, v)
+			}
 			return err
 		}
 		for _, p := range products {

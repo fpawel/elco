@@ -29,4 +29,5 @@ type Product struct {
 	Production      bool            `reform:"production"`
 	OldProductID    sql.NullString  `reform:"old_product_id"`
 	OldSerial       sql.NullInt64   `reform:"old_serial"`
+	PointsMethod    sql.NullInt64   `reform:"points_method"`
 }

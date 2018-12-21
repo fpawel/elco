@@ -15,7 +15,7 @@ const (
 
 type ReadCurrent struct {
 	Values []float64
-	Place  int
+	Block  int
 }
 
 type DelayInfo struct {

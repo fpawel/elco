@@ -27,7 +27,7 @@ func (v *productTableType) Name() string {
 
 // Columns returns a new slice of column names for that view or table in SQL database.
 func (v *productTableType) Columns() []string {
-	return []string{"product_id", "party_id", "serial", "place", "product_type_name", "note", "i_f_minus20", "i_f_plus20", "i_f_plus50", "i_s_minus20", "i_s_plus20", "i_s_plus50", "i13", "i24", "i35", "i26", "i17", "not_measured", "firmware", "production", "old_product_id", "old_serial"}
+	return []string{"product_id", "party_id", "serial", "place", "product_type_name", "note", "i_f_minus20", "i_f_plus20", "i_f_plus50", "i_s_minus20", "i_s_plus20", "i_s_plus50", "i13", "i24", "i35", "i26", "i17", "not_measured", "firmware", "production", "old_product_id", "old_serial", "points_method"}
 }
 
 // NewStruct makes a new struct for that view or table.
@@ -47,13 +47,13 @@ func (v *productTableType) PKColumnIndex() uint {
 
 // ProductTable represents product view or table in SQL database.
 var ProductTable = &productTableType{
-	s: parse.StructInfo{Type: "Product", SQLSchema: "", SQLName: "product", Fields: []parse.FieldInfo{{Name: "ProductID", Type: "int64", Column: "product_id"}, {Name: "PartyID", Type: "int64", Column: "party_id"}, {Name: "Serial", Type: "sql.NullInt64", Column: "serial"}, {Name: "Place", Type: "int", Column: "place"}, {Name: "ProductTypeName", Type: "sql.NullString", Column: "product_type_name"}, {Name: "Note", Type: "sql.NullString", Column: "note"}, {Name: "IFMinus20", Type: "sql.NullFloat64", Column: "i_f_minus20"}, {Name: "IFPlus20", Type: "sql.NullFloat64", Column: "i_f_plus20"}, {Name: "IFPlus50", Type: "sql.NullFloat64", Column: "i_f_plus50"}, {Name: "ISMinus20", Type: "sql.NullFloat64", Column: "i_s_minus20"}, {Name: "ISPlus20", Type: "sql.NullFloat64", Column: "i_s_plus20"}, {Name: "ISPlus50", Type: "sql.NullFloat64", Column: "i_s_plus50"}, {Name: "I13", Type: "sql.NullFloat64", Column: "i13"}, {Name: "I24", Type: "sql.NullFloat64", Column: "i24"}, {Name: "I35", Type: "sql.NullFloat64", Column: "i35"}, {Name: "I26", Type: "sql.NullFloat64", Column: "i26"}, {Name: "I17", Type: "sql.NullFloat64", Column: "i17"}, {Name: "NotMeasured", Type: "sql.NullFloat64", Column: "not_measured"}, {Name: "Firmware", Type: "[]uint8", Column: "firmware"}, {Name: "Production", Type: "bool", Column: "production"}, {Name: "OldProductID", Type: "sql.NullString", Column: "old_product_id"}, {Name: "OldSerial", Type: "sql.NullInt64", Column: "old_serial"}}, PKFieldIndex: 0},
+	s: parse.StructInfo{Type: "Product", SQLSchema: "", SQLName: "product", Fields: []parse.FieldInfo{{Name: "ProductID", Type: "int64", Column: "product_id"}, {Name: "PartyID", Type: "int64", Column: "party_id"}, {Name: "Serial", Type: "sql.NullInt64", Column: "serial"}, {Name: "Place", Type: "int", Column: "place"}, {Name: "ProductTypeName", Type: "sql.NullString", Column: "product_type_name"}, {Name: "Note", Type: "sql.NullString", Column: "note"}, {Name: "IFMinus20", Type: "sql.NullFloat64", Column: "i_f_minus20"}, {Name: "IFPlus20", Type: "sql.NullFloat64", Column: "i_f_plus20"}, {Name: "IFPlus50", Type: "sql.NullFloat64", Column: "i_f_plus50"}, {Name: "ISMinus20", Type: "sql.NullFloat64", Column: "i_s_minus20"}, {Name: "ISPlus20", Type: "sql.NullFloat64", Column: "i_s_plus20"}, {Name: "ISPlus50", Type: "sql.NullFloat64", Column: "i_s_plus50"}, {Name: "I13", Type: "sql.NullFloat64", Column: "i13"}, {Name: "I24", Type: "sql.NullFloat64", Column: "i24"}, {Name: "I35", Type: "sql.NullFloat64", Column: "i35"}, {Name: "I26", Type: "sql.NullFloat64", Column: "i26"}, {Name: "I17", Type: "sql.NullFloat64", Column: "i17"}, {Name: "NotMeasured", Type: "sql.NullFloat64", Column: "not_measured"}, {Name: "Firmware", Type: "[]uint8", Column: "firmware"}, {Name: "Production", Type: "bool", Column: "production"}, {Name: "OldProductID", Type: "sql.NullString", Column: "old_product_id"}, {Name: "OldSerial", Type: "sql.NullInt64", Column: "old_serial"}, {Name: "PointsMethod", Type: "sql.NullInt64", Column: "points_method"}}, PKFieldIndex: 0},
 	z: new(Product).Values(),
 }
 
 // String returns a string representation of this struct or record.
 func (s Product) String() string {
-	res := make([]string, 22)
+	res := make([]string, 23)
 	res[0] = "ProductID: " + reform.Inspect(s.ProductID, true)
 	res[1] = "PartyID: " + reform.Inspect(s.PartyID, true)
 	res[2] = "Serial: " + reform.Inspect(s.Serial, true)
@@ -76,6 +76,7 @@ func (s Product) String() string {
 	res[19] = "Production: " + reform.Inspect(s.Production, true)
 	res[20] = "OldProductID: " + reform.Inspect(s.OldProductID, true)
 	res[21] = "OldSerial: " + reform.Inspect(s.OldSerial, true)
+	res[22] = "PointsMethod: " + reform.Inspect(s.PointsMethod, true)
 	return strings.Join(res, ", ")
 }
 
@@ -105,6 +106,7 @@ func (s *Product) Values() []interface{} {
 		s.Production,
 		s.OldProductID,
 		s.OldSerial,
+		s.PointsMethod,
 	}
 }
 
@@ -134,6 +136,7 @@ func (s *Product) Pointers() []interface{} {
 		&s.Production,
 		&s.OldProductID,
 		&s.OldSerial,
+		&s.PointsMethod,
 	}
 }
 
