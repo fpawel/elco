@@ -57,6 +57,11 @@ func LastPartyID(db *sqlx.DB) (partyID int64) {
 	return
 }
 
+func DeletePartyID(db *sqlx.DB, partyID int64) error {
+	_, err := db.Exec(`DELETE FROM party WHERE party_id = ?;`, &partyID)
+	return err
+}
+
 func GetLastPartyProductsWithSerials(db *reform.DB) []Product {
 	rows, err := db.SelectRows(ProductTable,
 		"WHERE party_id IN (SELECT party_id FROM last_party) AND (serial NOTNULL)")

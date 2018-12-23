@@ -23,6 +23,7 @@ type dbContext struct {
 
 func NewDBContext(logger reform.Logger) DBContext {
 	dbx := dbutils.MustOpen(app.DataFileName(), "sqlite3")
+	dbx.MustExec(`PRAGMA foreign_keys = ON; PRAGMA encoding = 'UTF-8';`)
 	data.DeleteEmptyRecords(dbx)
 	return DBContext{
 		dbContext{

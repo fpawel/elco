@@ -18,7 +18,6 @@ CREATE TABLE IF NOT EXISTS units
 CREATE TABLE IF NOT EXISTS product_type
 (
   product_type_name   TEXT PRIMARY KEY NOT NULL,
-  display_name        TEXT,
   gas_name            TEXT             NOT NULL,
   units_name          TEXT             NOT NULL,
   scale               REAL             NOT NULL,
@@ -254,17 +253,6 @@ VALUES ('CO', 0x11),
        ('NO', 0x99),
        ('HCl', 0xAA);
 
-
-INSERT OR
-REPLACE INTO
-  product_type (product_type_name,
-                display_name,
-                gas_name,
-                units_name,
-                scale,
-                noble_metal_content,
-                lifetime_months)
-VALUES ('035', '035', 'CO', 'мг/м3', 200, 0.1626, 18);
 
 DELETE
 FROM party

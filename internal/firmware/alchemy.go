@@ -91,23 +91,23 @@ func srcSens3(p data.ProductInfo) (M, error) {
 }
 
 func srcSens(p data.ProductInfo) (M, error) {
-	switch p.PointsMethod {
+	switch p.AppliedPointsMethod {
 	case 2:
 		return srcSens2(p)
 	case 3:
 		return srcSens3(p)
 	default:
-		panic(fmt.Sprintf("wrong points method: %d", p.PointsMethod))
+		panic(fmt.Sprintf("wrong points method: %d", p.AppliedPointsMethod))
 	}
 }
 
 func srcFon(p data.ProductInfo) (M, error) {
-	switch p.PointsMethod {
+	switch p.AppliedPointsMethod {
 	case 2:
 		return srcFon2(p)
 	case 3:
 		return srcFon3(p)
 	default:
-		panic(fmt.Sprintf("wrong points method: %d", p.PointsMethod))
+		panic(fmt.Sprintf("wrong points method: %d", p.AppliedPointsMethod))
 	}
 }

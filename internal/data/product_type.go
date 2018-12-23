@@ -6,7 +6,6 @@ package data
 //reform:product_type
 type ProductType struct {
 	ProductTypeName   string  `reform:"product_type_name,pk"`
-	DisplayName       *string `reform:"display_name"`
 	GasName           string  `reform:"gas_name"`
 	UnitsName         string  `reform:"units_name"`
 	Scale             float64 `reform:"scale"`

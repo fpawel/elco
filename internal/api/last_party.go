@@ -49,7 +49,20 @@ func (x LastParty) SetProductTypeAtPlace(p struct {
 	return
 }
 
+func (x LastParty) SetPointsMethodAtPlace(p struct {
+	Place        int
+	PointsMethod int64
+	Valid        bool
+}, r *int64) (err error) {
+	*r, err = x.c.SetPointsMethodAtPlace(p.Place, p.PointsMethod, p.Valid)
+	return
+}
+
 func (x LastParty) DeleteProductAtPlace(place [1]int, _ *struct{}) (err error) {
 	err = x.c.DeleteProductAtPlace(place[0])
 	return
+}
+
+func (x LastParty) ExportToFile(_ struct{}, _ *struct{}) error {
+	return x.c.ExportToFile()
 }

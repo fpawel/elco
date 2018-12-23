@@ -1,9 +1,14 @@
 package crud
 
 import (
+	"encoding/json"
+	"github.com/ansel1/merry"
+	"github.com/fpawel/elco/internal/app"
 	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/goutils/dbutils"
 	"gopkg.in/reform.v1"
+	"io/ioutil"
+	"time"
 )
 
 type PartiesCatalogue struct {
@@ -93,4 +98,43 @@ func (x PartiesCatalogue) ProductInfo(productID int64) (product data.ProductInfo
 		panic(err)
 	}
 	return
+}
+
+func (x PartiesCatalogue) ImportFromFile() (data.Party, error) {
+	x.mu.Lock()
+	defer x.mu.Unlock()
+	if err := x.importFromFile(); err != nil {
+		return data.Party{}, err
+	}
+	return data.LastParty(x.dbr), nil
+
+}
+
+func (x PartiesCatalogue) importFromFile() error {
+
+	b, err := ioutil.ReadFile(importFileName())
+	if err != nil {
+		return err
+	}
+	var oldParty data.OldParty
+	if err := json.Unmarshal(b, &oldParty); err != nil {
+		return err
+	}
+	party, products := oldParty.Party()
+	party.CreatedAt = time.Now()
+	if err := x.dbr.Save(&party); err != nil {
+		return err
+	}
+	for _, p := range products {
+		p.PartyID = party.PartyID
+		if err := x.dbr.Save(&p); err != nil {
+			return merry.Appendf(err, "product: serial: %v place: %d",
+				p.Serial, p.Place)
+		}
+	}
+	return nil
+}
+
+func importFileName() string {
+	return app.AppName.DataFileName("export-party.json")
 }

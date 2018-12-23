@@ -2,12 +2,14 @@ package crud
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/elco/internal/settings"
 	"github.com/fpawel/goutils/dbutils"
 	"github.com/pkg/errors"
 	"gopkg.in/reform.v1"
+	"io/ioutil"
 	"strconv"
 	"strings"
 )
@@ -79,6 +81,16 @@ func (x LastParty) SetProductNoteAtPlace(place int, note string) (int64, error) 
 	})
 }
 
+func (x LastParty) SetPointsMethodAtPlace(place int, pointsMethod int64, valid bool) (int64, error) {
+	x.mu.Lock()
+	defer x.mu.Unlock()
+	return x.updateProductAtPlace(place, func(p *data.Product) error {
+		p.PointsMethod.Int64 = pointsMethod
+		p.PointsMethod.Valid = valid
+		return nil
+	})
+}
+
 func (x LastParty) SetProductTypeAtPlace(place int, productType string) (int64, error) {
 	x.mu.Lock()
 	defer x.mu.Unlock()
@@ -102,7 +114,7 @@ func (x LastParty) DeleteProductAtPlace(place int) (err error) {
 	x.mu.Lock()
 	defer x.mu.Unlock()
 	partyID := x.partyID()
-	_, err = x.dbr.DeleteFrom(data.ProductTable, "WHERE party_id = ? AND place = ?", partyID, place)
+	_, err = x.dbx.Exec(`DELETE FROM product WHERE party_id = ? AND place = ?`, partyID, place)
 	return
 }
 
@@ -323,4 +335,19 @@ func (x LastParty) ConfigProperties() []settings.ConfigProperty {
 func (x LastParty) partyID() (lastPartyID int64) {
 	dbutils.MustGet(x.dbx, &lastPartyID, `SELECT party_id FROM last_party`)
 	return
+}
+
+func (x LastParty) ExportToFile() error {
+	x.mu.Lock()
+	defer x.mu.Unlock()
+
+	party := data.LastParty(x.dbr)
+	products := data.GetLastPartyProducts(x.dbr)
+	oldParty := party.OldParty(products)
+	b, err := json.MarshalIndent(&oldParty, "", "    ")
+	if err != nil {
+		return err
+	}
+	return ioutil.WriteFile(importFileName(), b, 0666)
+
 }

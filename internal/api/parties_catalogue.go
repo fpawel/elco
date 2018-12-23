@@ -42,3 +42,8 @@ func (x *PartiesCatalogue) NewParty(_ struct{}, r *data.Party) error {
 	*r = x.c.NewParty()
 	return nil
 }
+
+func (x *PartiesCatalogue) ImportFromFile(_ struct{}, r *data.Party) (err error) {
+	*r, err = x.c.ImportFromFile()
+	return
+}
