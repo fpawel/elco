@@ -21,7 +21,7 @@ type LastParty struct {
 func (x LastParty) Party() data.Party {
 	x.mu.Lock()
 	defer x.mu.Unlock()
-	return data.LastParty(x.dbr)
+	return data.MustLastParty(x.dbr)
 }
 
 func (x LastParty) ProductsWithProduction() []data.Product {
@@ -39,7 +39,7 @@ func (x LastParty) ProductsWithSerials() []data.Product {
 func (x LastParty) ProductAtPlace(place int) (product data.ProductInfo, err error) {
 	x.mu.Lock()
 	defer x.mu.Unlock()
-	party := data.LastParty(x.dbr)
+	party := data.MustLastParty(x.dbr)
 	err = x.dbr.SelectOneTo(&product, "WHERE party_id = ? AND place = ?", party.PartyID, place)
 	return
 }
@@ -122,7 +122,7 @@ func (x LastParty) SetConfigValue(property, value string) (err error) {
 	x.mu.Lock()
 	defer x.mu.Unlock()
 
-	party := data.LastParty(x.dbr)
+	party := data.MustLastParty(x.dbr)
 
 	parseFloat := func() (float64, error) {
 		return strconv.ParseFloat(strings.Replace(value, ",", ".", -1), 64)
@@ -341,7 +341,7 @@ func (x LastParty) ExportToFile() error {
 	x.mu.Lock()
 	defer x.mu.Unlock()
 
-	party := data.LastParty(x.dbr)
+	party := data.MustLastParty(x.dbr)
 	products := data.GetLastPartyProducts(x.dbr)
 	oldParty := party.OldParty(products)
 	b, err := json.MarshalIndent(&oldParty, "", "    ")

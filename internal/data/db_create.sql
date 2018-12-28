@@ -232,7 +232,7 @@ FROM product_info_2 q;
 
 INSERT
   OR
-REPLACE
+  IGNORE
 INTO units (units_name, code)
 VALUES ('мг/м3', 2),
        ('ppm', 3),
@@ -241,7 +241,7 @@ VALUES ('мг/м3', 2),
 
 INSERT
   OR
-REPLACE
+IGNORE
 INTO gas (gas_name, code)
 VALUES ('CO', 0x11),
        ('H₂S', 0x22),
@@ -252,6 +252,17 @@ VALUES ('CO', 0x11),
        ('O₂', 0x88),
        ('NO', 0x99),
        ('HCl', 0xAA);
+
+INSERT
+  OR
+  IGNORE
+INTO product_type (product_type_name,
+                   gas_name,
+                   units_name,
+                   scale,
+                   noble_metal_content,
+                   lifetime_months)
+VALUES ('035', 'CO', 'мг/м3', 200, 0.1626, 18);
 
 
 DELETE

@@ -8,6 +8,8 @@ import (
 	"gopkg.in/reform.v1"
 )
 
+//go:generate go run github.com/fpawel/goutils/dbutils/sqlstr/...
+
 func DeleteEmptyRecords(db *sqlx.DB) {
 	db.MustExec(`
 DELETE
@@ -38,18 +40,41 @@ WHERE NOT EXISTS(SELECT product_id FROM product WHERE party.party_id = product.p
 
 }
 
-func LastParty(db *reform.DB) Party {
-	var party Party
-	if err := db.SelectOneTo(&party, `ORDER BY created_at DESC LIMIT 1;`); err != nil {
-		panic(err)
+func EnsureParty(db *sqlx.DB) {
+	var v bool
+	dbutils.MustGet(db, &v, `SELECT exists(SELECT * FROM party LIMIT 1);`)
+	if !v {
+		CreateNewParty(db)
+	}
+}
+
+func GetLastParty(db *reform.DB) (party Party, err error) {
+	if err = db.SelectOneTo(&party, `ORDER BY created_at DESC LIMIT 1;`); err != nil {
+		return
 	}
 	party.Products = GetProductsInfoByPartyID(db, party.PartyID)
-	return party
+	return
+}
+
+func MustLastParty(db *reform.DB) Party {
+	if party, err := GetLastParty(db); err != nil {
+		panic(err)
+	} else {
+		return party
+	}
 }
 
 func CreateNewParty(db *sqlx.DB) {
-	db.MustExec(`INSERT INTO party DEFAULT VALUES`)
-	logrus.WithField("party_id", LastPartyID(db)).Warn("new party created")
+	r := db.MustExec(`INSERT INTO party DEFAULT VALUES`)
+	partyID, err := r.LastInsertId()
+	if err != nil {
+		panic(err)
+	}
+	r = db.MustExec(`INSERT INTO product(party_id, serial, place) VALUES (?, 1, 0)`, partyID)
+	if _, err = r.LastInsertId(); err != nil {
+		panic(err)
+	}
+	logrus.WithField("party_id", partyID).Warn("new party created")
 }
 
 func LastPartyID(db *sqlx.DB) (partyID int64) {

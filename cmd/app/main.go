@@ -2,10 +2,12 @@ package main
 
 import (
 	"flag"
+	"github.com/fpawel/elco/internal/app"
 	"github.com/fpawel/elco/internal/daemon"
 	"github.com/fpawel/goutils/winapp"
 	"github.com/lxn/win"
 	"github.com/sirupsen/logrus"
+	"os"
 )
 
 func main() {
@@ -20,9 +22,11 @@ func main() {
 	}
 
 	mustRunPeer := true
-	flag.BoolVar(&mustRunPeer, "must-run-peer", true, "ensure peer application")
-
+	createNewDB := false
 	logLevelStr := "warn"
+
+	flag.BoolVar(&mustRunPeer, "must-run-peer", true, "ensure peer application")
+	flag.BoolVar(&createNewDB, "create-new-db", false, "create new data base")
 	flag.StringVar(&logLevelStr, "log-level", "warn", "use log level")
 
 	flag.Parse()
@@ -37,6 +41,14 @@ func main() {
 	// Only log the warning severity or above.
 	logrus.SetLevel(logLevel)
 	logrus.SetReportCaller(true)
+
+	if createNewDB {
+		logrus.Warn("delete data base file because create-new-db flag was set")
+		// delete data base file
+		if err := os.Remove(app.DataFileName()); err != nil {
+			logrus.WithField("file", app.DataFileName()).Error(err)
+		}
+	}
 
 	d := daemon.New()
 	d.Run(mustRunPeer)

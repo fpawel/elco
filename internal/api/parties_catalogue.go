@@ -33,9 +33,9 @@ func (x *PartiesCatalogue) Parties(r struct{ Year, Month, Day int }, parties *[]
 	return nil
 }
 
-func (x *PartiesCatalogue) Party(a [1]int64, r *data.Party) error {
-	*r = x.c.Party(a[0])
-	return nil
+func (x *PartiesCatalogue) Party(a [1]int64, r *data.Party) (err error) {
+	*r, err = x.c.Party(a[0])
+	return
 }
 
 func (x *PartiesCatalogue) NewParty(_ struct{}, r *data.Party) error {
@@ -46,4 +46,20 @@ func (x *PartiesCatalogue) NewParty(_ struct{}, r *data.Party) error {
 func (x *PartiesCatalogue) ImportFromFile(_ struct{}, r *data.Party) (err error) {
 	*r, err = x.c.ImportFromFile()
 	return
+}
+
+func (x *PartiesCatalogue) DeletePartyID(partyID [1]int64, _ *struct{}) error {
+	return x.c.DeletePartyID(partyID[0])
+}
+
+func (x *PartiesCatalogue) DeleteDay(v [3]int, _ *struct{}) error {
+	return x.c.DeleteDay(v[0], v[1], v[2])
+}
+
+func (x *PartiesCatalogue) DeleteMonth(v [2]int, _ *struct{}) error {
+	return x.c.DeleteMonth(v[0], v[1])
+}
+
+func (x *PartiesCatalogue) DeleteYear(v [1]int, _ *struct{}) error {
+	return x.c.DeleteYear(v[0])
 }

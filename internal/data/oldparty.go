@@ -8,14 +8,15 @@ import (
 )
 
 type OldParty struct {
-	Date        OldPartyDate `json:"Date"`
-	ID          string       `json:"Id"`
-	Name        string       `json:"Name"`
-	PGS1        float64      `json:"PGS1"`
-	PGS2        float64      `json:"PGS2"`
-	PGS3        float64      `json:"PGS3"`
-	ProductType string       `json:"ProductType"`
-	Products    []OldProduct `json:"Products"`
+	Date            OldPartyDate `json:"Date"`
+	ID              string       `json:"Id"`
+	Name            string       `json:"Name"`
+	PGS1            float64      `json:"PGS1"`
+	PGS2            float64      `json:"PGS2"`
+	PGS3            float64      `json:"PGS3"`
+	ProductType     string       `json:"ProductType"`
+	Products        []OldProduct `json:"Products"`
+	ProductsSerials []int64      `json:"ProductsSerials"`
 }
 
 type OldProduct struct {
@@ -118,7 +119,8 @@ func (s Party) OldParty(products []Product) (p OldParty) {
 			Minute: t.Minute(),
 			Second: t.Second(),
 		},
-		Products: make([]OldProduct, 64),
+		Products:        make([]OldProduct, 64),
+		ProductsSerials: make([]int64, 64),
 	}
 
 	f := func(a sql.NullFloat64) *float64 {
@@ -129,25 +131,19 @@ func (s Party) OldParty(products []Product) (p OldParty) {
 		return &v
 	}
 
-	for i := 0; i < 64; i++ {
-		p.Products[i] = OldProduct{
-			ID:          randStringBytesMaskImprSrc(12),
-			Serial:      0,
-			N:           i,
-			CustomTermo: []struct{}{},
-		}
-	}
+	for i, y := range products {
 
-	for _, y := range products {
-
+		p.Products[y.Place].N = i
 		if y.Place >= 64 {
 			continue
 		}
+		p.ProductsSerials[y.Place] = y.Serial.Int64
 		p.Products[y.Place] = OldProduct{
 			ID:               randStringBytesMaskImprSrc(12),
 			Serial:           y.Serial.Int64,
 			N:                y.Place,
 			IsReportIncluded: y.Production,
+			IsChecked:        true,
 			Flash:            y.Firmware,
 			I13:              f(y.I13),
 			I24:              f(y.I24),
@@ -162,6 +158,7 @@ func (s Party) OldParty(products []Product) (p OldParty) {
 			Is50:             f(y.ISPlus50),
 			In:               f(y.NotMeasured),
 			CustomTermo:      []struct{}{},
+			ProductType:      y.ProductTypeName.String,
 		}
 	}
 	return

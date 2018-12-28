@@ -23,12 +23,15 @@ type dbContext struct {
 
 func NewDBContext(logger reform.Logger) DBContext {
 	dbx := dbutils.MustOpen(app.DataFileName(), "sqlite3")
-	dbx.MustExec(`PRAGMA foreign_keys = ON; PRAGMA encoding = 'UTF-8';`)
+	dbx.MustExec(data.SQLCreate)
 	data.DeleteEmptyRecords(dbx)
+	data.EnsureParty(dbx)
+	dbr := reform.NewDB(dbx.DB, sqlite3.Dialect, logger)
+
 	return DBContext{
 		dbContext{
 			dbx: dbx,
-			dbr: reform.NewDB(dbx.DB, sqlite3.Dialect, logger),
+			dbr: dbr,
 			mu:  new(sync.Mutex),
 		},
 	}
@@ -86,5 +89,5 @@ func (x dbContext) NewParty() data.Party {
 	x.mu.Lock()
 	defer x.mu.Unlock()
 	data.CreateNewParty(x.dbx)
-	return data.LastParty(x.dbr)
+	return data.MustLastParty(x.dbr)
 }

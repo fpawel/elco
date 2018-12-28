@@ -6,6 +6,7 @@ import (
 	"github.com/fpawel/elco/internal/app"
 	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/goutils/dbutils"
+	"github.com/sirupsen/logrus"
 	"gopkg.in/reform.v1"
 	"io/ioutil"
 	"time"
@@ -80,11 +81,11 @@ func (x PartiesCatalogue) Parties(year, month, day int) (parties []data.Party) {
 	return
 }
 
-func (x PartiesCatalogue) Party(partyID int64) (party data.Party) {
+func (x PartiesCatalogue) Party(partyID int64) (party data.Party, err error) {
 	x.mu.Lock()
 	defer x.mu.Unlock()
-	if err := x.dbr.FindOneTo(&party, "party_id", partyID); err != nil {
-		panic(err)
+	if err = x.dbr.FindOneTo(&party, "party_id", partyID); err != nil {
+		return
 	}
 	party.Products = data.GetProductsInfoByPartyID(x.dbr, partyID)
 	return
@@ -106,8 +107,78 @@ func (x PartiesCatalogue) ImportFromFile() (data.Party, error) {
 	if err := x.importFromFile(); err != nil {
 		return data.Party{}, err
 	}
-	return data.LastParty(x.dbr), nil
+	return data.MustLastParty(x.dbr), nil
+}
 
+func (x PartiesCatalogue) DeletePartyID(partyID int64) error {
+	x.mu.Lock()
+	defer x.mu.Unlock()
+	_, err := x.dbx.Exec(`DELETE FROM party WHERE party_id = ?`, partyID)
+
+	logrus.WithFields(logrus.Fields{
+		"party_id": partyID,
+		"result":   err,
+	}).Warn("delete party id")
+
+	data.EnsureParty(x.dbx)
+	return err
+}
+
+func (x PartiesCatalogue) DeleteDay(year, month, day int) error {
+	x.mu.Lock()
+	defer x.mu.Unlock()
+	_, err := x.dbx.Exec(`
+DELETE FROM party 
+WHERE 
+      cast(strftime('%Y', DATETIME(created_at, '+3 hours')) AS INTEGER) = ? AND
+      cast(strftime('%m', DATETIME(created_at, '+3 hours')) AS INTEGER) = ? AND
+      cast(strftime('%d', DATETIME(created_at, '+3 hours')) AS INTEGER) = ?`, year, month, day)
+
+	logrus.WithFields(logrus.Fields{
+		"year":   year,
+		"month":  month,
+		"day":    day,
+		"result": err,
+	}).Warn("delete day")
+
+	data.EnsureParty(x.dbx)
+	return err
+}
+
+func (x PartiesCatalogue) DeleteMonth(year, month int) error {
+	x.mu.Lock()
+	defer x.mu.Unlock()
+	_, err := x.dbx.Exec(`
+DELETE FROM party 
+WHERE 
+      cast(strftime('%Y', DATETIME(created_at, '+3 hours')) AS INTEGER) = ? AND
+      cast(strftime('%m', DATETIME(created_at, '+3 hours')) AS INTEGER) = ?`, year, month)
+
+	logrus.WithFields(logrus.Fields{
+		"year":   year,
+		"month":  month,
+		"result": err,
+	}).Warn("delete month")
+
+	data.EnsureParty(x.dbx)
+	return err
+}
+
+func (x PartiesCatalogue) DeleteYear(year int) error {
+	x.mu.Lock()
+	defer x.mu.Unlock()
+	_, err := x.dbx.Exec(`
+DELETE FROM party 
+WHERE cast(strftime('%Y', DATETIME(created_at, '+3 hours')) AS INTEGER) = ?`, year)
+
+	logrus.WithFields(logrus.Fields{
+		"year":   year,
+		"result": err,
+	}).Warn("delete year")
+
+	data.EnsureParty(x.dbx)
+
+	return err
 }
 
 func (x PartiesCatalogue) importFromFile() error {
