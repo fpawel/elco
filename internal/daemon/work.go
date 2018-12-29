@@ -15,6 +15,11 @@ import (
 	"time"
 )
 
+var (
+	errorMeasurer    = merry.New("блок измерения")
+	errorGasSwitcher = merry.New("газовый блок")
+)
+
 func (x *D) switchGas(n int) error {
 	err := x.doSwitchGas(n)
 	if err == nil {
@@ -45,11 +50,10 @@ func (x *D) switchGas(n int) error {
 func (x *D) getResponseGasSwitcher(b []byte) error {
 	c := x.sets.Config()
 	if _, err := x.port.gas.GetResponse(b, c.GasSwitcher); err != nil {
-		w := x.port.gas.LastWork()
 		if err == context.DeadlineExceeded {
-			err = merry.Errorf("нет ответа от газового блока: %s", w.FormatRequest())
+			err = errorGasSwitcher.Here().Append("нет ответа")
 		}
-		return merry.Appendf(err, "газовый блок: %s", w.FormatResponse())
+		return errorGasSwitcher.Here().Append(err.Error())
 	}
 	return nil
 }
@@ -62,6 +66,9 @@ func (x *D) doSwitchGas(n int) error {
 			return err
 		}
 	}
+
+	logrus.WithField("code", n).Warn("switch gas")
+
 	req := modbus.Req{
 		Addr:     5,
 		ProtoCmd: 0x10,
@@ -86,6 +93,8 @@ func (x *D) doSwitchGas(n int) error {
 		return err
 	}
 
+	logrus.Warn("set consumption")
+
 	req = modbus.Req{
 		Addr:     1,
 		ProtoCmd: 6,
@@ -96,14 +105,11 @@ func (x *D) doSwitchGas(n int) error {
 	if n > 0 {
 		req.Data[2] = 0x14
 		req.Data[3] = 0xD5
-
 	}
 
 	if err := x.getResponseGasSwitcher(req.Bytes()); err != nil {
 		return err
 	}
-
-	logrus.WithField("code", n).Debug("gas block")
 
 	return nil
 }

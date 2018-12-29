@@ -1,14 +1,18 @@
 package daemon
 
 import (
+	"context"
 	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/elco/internal/firmware"
 	"github.com/fpawel/goutils/serial-comm/modbus"
 	"github.com/sirupsen/logrus"
+	"time"
 )
 
 func (x *D) writeFlash() error {
+
+	cfg := x.sets.Config()
 
 	xs := GroupProductsByBlocks(x.c.LastParty().ProductsWithProduction())
 	gases := x.c.ListGases()
@@ -31,8 +35,11 @@ func (x *D) writeFlash() error {
 		logrus.WithField("block", block).Info("write flash")
 
 		for _, c := range []struct{ a, b uint16 }{
-			{0, 512}, {1024, 1535},
-			{1536, 1600}, {1792, 1810}, {1824, 1831},
+			{0, 512},
+			{1024, 1535},
+			{1536, 1600},
+			{1792, 1810},
+			{1824, 1831},
 		} {
 
 			var placesMask byte
@@ -57,6 +64,23 @@ func (x *D) writeFlash() error {
 			}
 			if err := x.writePreparedDataToFlash(block, placesMask, c.a, int(c.b-c.a+1)); err != nil {
 				return err
+			}
+			ctx, _ := context.WithTimeout(x.hardware.ctx,
+				time.Duration(cfg.Predefined.Firmware.StatusTimeoutSeconds)*time.Second)
+			for {
+				select {
+				case <-ctx.Done():
+					break
+				default:
+					req := modbus.Req{
+						Addr:     modbus.Addr(block) + 101,
+						ProtoCmd: 0x45,
+					}
+					if resp, err := x.port.measurer.GetResponse(req.Bytes(), cfg.Measurer); err != nil {
+						return err
+					}
+
+				}
 			}
 		}
 
@@ -97,6 +121,22 @@ func (x *D) writePreparedDataToFlash(block int, placesMask byte, addr uint16, co
 	}
 
 	return nil
+}
+
+func (x *D) checkFirmwareStatus(block int) error {
+	cfg := x.sets.Config()
+	req := modbus.Req{
+		Addr:     modbus.Addr(block) + 101,
+		ProtoCmd: 0x45,
+	}
+	resp, err := x.port.measurer.GetResponse(req.Bytes(), cfg.Measurer)
+	if err != nil {
+		return err
+	}
+	if len(resp) != 12 {
+		return modbus.ProtocolError.Here().WithMessagef("ожидалось 12 байт ответа, получено %d",
+			len(resp))
+	}
 }
 
 func (x *D) sendDataToWriteFlash(block, place int, b []byte) error {

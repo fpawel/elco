@@ -26,6 +26,9 @@ type Predefined struct {
 	Work        WorkConfig  `toml:"work" comment:"автоматическая настройка"`
 	Measurer    comm.Config `toml:"measurer" comment:"измерительный блок"`
 	GasSwitcher comm.Config `toml:"gas_block" comment:"газовый блок"`
+	Firmware    struct {
+		StatusTimeoutSeconds int `toml:"status_timeout_seconds" comment:"таймаут статуса прошивки, с"`
+	} `toml:"firmware" comment:"программатор"`
 }
 
 type WorkConfig struct {

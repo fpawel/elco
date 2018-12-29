@@ -44,8 +44,7 @@ func main() {
 
 	if createNewDB {
 		logrus.Warn("delete data base file because create-new-db flag was set")
-		// delete data base file
-		if err := os.Remove(app.DataFileName()); err != nil {
+		if err := os.Remove(app.DataFileName()); err != nil { // delete data base file
 			logrus.WithField("file", app.DataFileName()).Error(err)
 		}
 	}
