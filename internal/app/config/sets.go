@@ -23,7 +23,7 @@ func OpenSets(party crud.LastParty) *Sets {
 			Predefined: PredefinedConfig(),
 		},
 	}
-	sets.c.Firmware.ChipType = 16
+	sets.c.UserConfig.Firmware.ChipType = 16
 
 	if b, err := ioutil.ReadFile(configFileName()); err == nil {
 		err = json.Unmarshal(b, &sets.c.UserConfig)

@@ -29,7 +29,7 @@ func CalculateProductFirmwareInfo(p data.ProductInfo) ProductFirmwareInfo {
 		ProductType: p.AppliedProductTypeName,
 		Serial:      formatNullInt64(p.Serial),
 		Time:        p.CreatedAt,
-		Sensitivity: formatNullFloat64(p.KSens20,3),
+		Sensitivity: formatNullFloat64(p.KSens20, 3),
 	}
 
 	if fonM, err := srcFon(p); err == nil {
@@ -37,18 +37,17 @@ func CalculateProductFirmwareInfo(p data.ProductInfo) ProductFirmwareInfo {
 			for k := range fonM {
 				fonM[k] *= 1000
 			}
-			CalculateTempPoints(fonM, sensM)
+			x.TempPoints = CalculateTempPoints(fonM, sensM)
 		}
 	}
 	return x
 }
 
-
-func minusOne(_ float64) float64{
+func minusOne(_ float64) float64 {
 	return -1
 }
 
-func CalculateTempPoints(fonM, sensM M) (r TempPoints){
+func CalculateTempPoints(fonM, sensM M) (r TempPoints) {
 
 	fFon := minusOne
 	fSens := minusOne

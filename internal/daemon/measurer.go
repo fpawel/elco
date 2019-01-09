@@ -2,7 +2,6 @@ package daemon
 
 import (
 	"context"
-	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/elco/internal/api"
 	"github.com/fpawel/elco/internal/api/notify"
@@ -31,12 +30,7 @@ func (x *D) readBlockMeasure(block int) ([]float64, error) {
 	case context.Canceled:
 		return nil, context.Canceled
 
-	case context.DeadlineExceeded:
-		w := x.port.measurer.LastWork()
-		return nil, errorMeasurer.Here().Append("не отечает")
-
 	default:
-
-		return nil, errorMeasurer.Here().Append(err.Error())
+		return nil, merry.Wrap(err).WithValue("block", block)
 	}
 }

@@ -6,19 +6,19 @@ import (
 	"github.com/ansel1/merry"
 	"github.com/fpawel/elco/internal/firmware"
 	"github.com/fpawel/goutils/serial-comm/modbus"
+	"github.com/hako/durafmt"
+	"github.com/hashicorp/go-multierror"
 	"github.com/sirupsen/logrus"
 	"time"
 )
 
 func (x *D) writeFlash() error {
 
-	cfg := x.sets.Config()
-
-	xs := GroupProductsByBlocks(x.c.LastParty().ProductsWithProduction())
+	blockProducts := GroupProductsByBlocks(x.c.LastParty().ProductsWithProduction())
 	gases := x.c.ListGases()
 	units := x.c.ListUnits()
 
-	for _, products := range xs {
+	for _, products := range blockProducts {
 
 		m := make(map[int][firmware.Size]byte)
 		for _, p := range products {
@@ -65,28 +65,68 @@ func (x *D) writeFlash() error {
 			if err := x.writePreparedDataToFlash(block, placesMask, c.a, int(c.b-c.a+1)); err != nil {
 				return err
 			}
-			ctx, _ := context.WithTimeout(x.hardware.ctx,
-				time.Duration(cfg.Predefined.Firmware.StatusTimeoutSeconds)*time.Second)
-			for {
-				select {
-				case <-ctx.Done():
-					break
-				default:
-					req := modbus.Req{
-						Addr:     modbus.Addr(block) + 101,
-						ProtoCmd: 0x45,
-					}
-					if resp, err := x.port.measurer.GetResponse(req.Bytes(), cfg.Measurer); err != nil {
-						return err
-					}
 
-				}
+			if err := x.waitFirmwareStatus(block, placesMask); err != nil {
+				return err
 			}
+
 		}
 
 	}
 
 	return nil
+}
+
+func (x *D) waitFirmwareStatus(block int, placesMask byte) error {
+
+	t := time.Duration(x.sets.Config().Predefined.Firmware.StatusTimeoutSeconds) * time.Second
+	ctx, _ := context.WithTimeout(x.hardware.ctx, t)
+
+	for {
+
+		status, err := x.readFirmwareStatus(block)
+		if err != nil {
+			return err
+		}
+
+		err = checkFirmwareStatus(status, placesMask)
+		if err == nil {
+			return nil
+		}
+
+		select {
+		case <-ctx.Done():
+			values := logrus.Fields{
+				"block":          block,
+				"status_timeout": durafmt.Parse(t),
+				"status":         fmt.Sprintf("% X", status),
+				"places_mask":    fmt.Sprintf("%b", placesMask),
+			}
+			logrus.WithFields(values).Error(err)
+
+			return merryWithValues(x.port.measurer.LastWork().WrapError(err), values)
+		}
+	}
+}
+
+func (x *D) readFirmwareStatus(block int) ([]byte, error) {
+	req := modbus.Req{
+		Addr:     modbus.Addr(block) + 101,
+		ProtoCmd: 0x45,
+	}
+
+	resp, err := x.port.measurer.GetResponse(req.Bytes(), x.sets.Config().Measurer)
+	if err != nil {
+		return nil, err
+	}
+	w := x.port.measurer.LastWork()
+	if err = req.CheckResponse(resp); err != nil {
+		return nil, w.WrapError(err)
+	}
+	if len(resp) != 12 {
+		return nil, w.Errorf("ожидалось 12 байт ответа, получено %d", len(resp))
+	}
+	return resp[2:], nil
 }
 
 func (x *D) writePreparedDataToFlash(block int, placesMask byte, addr uint16, count int) error {
@@ -117,26 +157,19 @@ func (x *D) writePreparedDataToFlash(block int, placesMask byte, addr uint16, co
 	}
 
 	if !compareBytes(resp, req.Bytes()) {
-		return modbus.ProtocolError.Here().WithMessagef("% X != % X", resp, req.Bytes())
+		return x.port.measurer.LastWork().Errorf("% X != % X", resp, req.Bytes())
 	}
 
 	return nil
 }
 
-func (x *D) checkFirmwareStatus(block int) error {
-	cfg := x.sets.Config()
-	req := modbus.Req{
-		Addr:     modbus.Addr(block) + 101,
-		ProtoCmd: 0x45,
+func checkFirmwareStatus(b []byte, placesMask byte) (err error) {
+	for i := byte(0); i < 8; i++ {
+		if (1<<i)&placesMask != 0 && b[i] != 0 {
+			err = multierror.Append(err, fmt.Errorf("канал %d: статус %d", i, b[i]))
+		}
 	}
-	resp, err := x.port.measurer.GetResponse(req.Bytes(), cfg.Measurer)
-	if err != nil {
-		return err
-	}
-	if len(resp) != 12 {
-		return modbus.ProtocolError.Here().WithMessagef("ожидалось 12 байт ответа, получено %d",
-			len(resp))
-	}
+	return err
 }
 
 func (x *D) sendDataToWriteFlash(block, place int, b []byte) error {
@@ -162,14 +195,15 @@ func (x *D) sendDataToWriteFlash(block, place int, b []byte) error {
 	if err != nil {
 		return err
 	}
+	w := x.port.measurer.LastWork()
 	if err = req.CheckResponse(b); err != nil {
-		return merry.Append(err, x.port.measurer.LastWork().FormatResponse())
+		return w.WrapError(err)
 	}
 	if len(b) != 7 {
-		return modbus.ProtocolError.Here().WithMessagef("длина ответа %d не равна 7", len(b))
+		return w.Errorf("длина ответа %d не равна 7", len(b))
 	}
 	if !compareBytes(resp[:5], b[:5]) {
-		return modbus.ProtocolError.Here().WithMessagef("% X != % X", resp[:5], b[:5])
+		return w.Errorf("% X != % X", resp[:5], b[:5])
 	}
 	return nil
 }
@@ -181,4 +215,12 @@ func compareBytes(x, y []byte) bool {
 		}
 	}
 	return true
+}
+
+func merryWithValues(e error, values logrus.Fields) merry.Error {
+	err := merry.Wrap(e)
+	for k, v := range values {
+		err = err.WithValue(k, v)
+	}
+	return err
 }

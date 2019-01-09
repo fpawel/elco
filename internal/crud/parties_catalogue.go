@@ -193,11 +193,17 @@ func (x PartiesCatalogue) importFromFile() error {
 	}
 	party, products := oldParty.Party()
 	party.CreatedAt = time.Now()
+
+	data.EnsureProductTypeName(x.dbx, party.ProductTypeName)
+
 	if err := x.dbr.Save(&party); err != nil {
 		return err
 	}
 	for _, p := range products {
 		p.PartyID = party.PartyID
+		if p.ProductTypeName.Valid {
+			data.EnsureProductTypeName(x.dbx, p.ProductTypeName.String)
+		}
 		if err := x.dbr.Save(&p); err != nil {
 			return merry.Appendf(err, "product: serial: %v place: %d",
 				p.Serial, p.Place)

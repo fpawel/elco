@@ -79,7 +79,7 @@ func (x *D) runHardware(what string, work WorkFunc) {
 			fields := merryValues(err)
 			fields["work"] = what
 			logrus.WithFields(fields).Error(err)
-			notify.HardwareErrorf(x.w, "%s: %+v", what, err)
+			notify.HardwareErrorf(x.w, "%s: %v", what, merry.Details(err))
 		}
 
 		if err := x.port.measurer.Open(cfg.Comport.Measurer, 115200, 0, x.hardware.ctx); err != nil {

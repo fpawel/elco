@@ -15,11 +15,6 @@ import (
 	"time"
 )
 
-var (
-	errorMeasurer    = merry.New("блок измерения")
-	errorGasSwitcher = merry.New("газовый блок")
-)
-
 func (x *D) switchGas(n int) error {
 	err := x.doSwitchGas(n)
 	if err == nil {
@@ -43,17 +38,6 @@ func (x *D) switchGas(n int) error {
 	notify.Warning(x.w, s)
 	if x.hardware.ctx.Err() == context.Canceled {
 		return err
-	}
-	return nil
-}
-
-func (x *D) getResponseGasSwitcher(b []byte) error {
-	c := x.sets.Config()
-	if _, err := x.port.gas.GetResponse(b, c.GasSwitcher); err != nil {
-		if err == context.DeadlineExceeded {
-			err = errorGasSwitcher.Here().Append("нет ответа")
-		}
-		return errorGasSwitcher.Here().Append(err.Error())
 	}
 	return nil
 }
@@ -89,7 +73,7 @@ func (x *D) doSwitchGas(n int) error {
 		log.Panicf("wrong gas code: %d", n)
 	}
 
-	if err := x.getResponseGasSwitcher(req.Bytes()); err != nil {
+	if _, err := x.port.gas.GetResponse(req.Bytes(), x.sets.Config().GasSwitcher); err != nil {
 		return err
 	}
 
@@ -107,7 +91,7 @@ func (x *D) doSwitchGas(n int) error {
 		req.Data[3] = 0xD5
 	}
 
-	if err := x.getResponseGasSwitcher(req.Bytes()); err != nil {
+	if _, err := x.port.gas.GetResponse(req.Bytes(), x.sets.Config().GasSwitcher); err != nil {
 		return err
 	}
 
@@ -284,4 +268,11 @@ func GroupProductsByBlocks(ps []data.Product) (gs [][]*data.Product) {
 	})
 
 	return
+}
+
+func init() {
+	merry.RegisterDetail("Запрос", "request")
+	merry.RegisterDetail("Ответ", "response")
+	merry.RegisterDetail("Длит.ожидания", "duration")
+	merry.RegisterDetail("COM порт", "comport")
 }

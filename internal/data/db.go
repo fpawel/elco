@@ -48,6 +48,13 @@ func EnsureParty(db *sqlx.DB) {
 	}
 }
 
+func EnsureProductTypeName(db *sqlx.DB, productTypeName string) {
+	db.MustExec(`
+INSERT OR IGNORE INTO product_type 
+  (product_type_name, gas_name, units_name, scale, noble_metal_content, lifetime_months)
+VALUES (?, 'CO', 'мг/м3', 200, 0.1626, 18)`, productTypeName)
+}
+
 func GetLastParty(db *reform.DB) (party Party, err error) {
 	if err = db.SelectOneTo(&party, `ORDER BY created_at DESC LIMIT 1;`); err != nil {
 		return
