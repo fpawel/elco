@@ -31,6 +31,7 @@ func (x *D) readBlockMeasure(block int) ([]float64, error) {
 		return nil, context.Canceled
 
 	default:
-		return nil, merry.Wrap(err).WithValue("block", block)
+		err = merry.Wrap(err).WithValue("block", block)
+		return nil, x.port.measurer.LastWork().WrapError(err)
 	}
 }

@@ -192,10 +192,8 @@ func (x PartiesCatalogue) importFromFile() error {
 		return err
 	}
 	party, products := oldParty.Party()
-	party.CreatedAt = time.Now()
-
 	data.EnsureProductTypeName(x.dbx, party.ProductTypeName)
-
+	party.CreatedAt = time.Now().Add(-3 * time.Hour)
 	if err := x.dbr.Save(&party); err != nil {
 		return err
 	}

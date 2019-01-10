@@ -14,27 +14,35 @@ import (
 
 func (x *D) writeFlash() error {
 
+	logrus.Info("прошивка")
+
 	blockProducts := GroupProductsByBlocks(x.c.LastParty().ProductsWithProduction())
 	gases := x.c.ListGases()
 	units := x.c.ListUnits()
 
 	for _, products := range blockProducts {
 
-		m := make(map[int][firmware.Size]byte)
+		dataBytes := make(map[int][firmware.Size]byte)
+
 		for _, p := range products {
 			pi := x.c.PartiesCatalogue().ProductInfo(p.ProductID)
 			b, err := firmware.FromProductInfo(pi, gases, units)
 			if err != nil {
-				return err
+				return merry.Appendf(err, "расчёт не удался для места %d.%d",
+					p.Place/8+1, p.Place%8+1)
 			}
-			m[p.Place%8] = b.B
+			dataBytes[p.Place%8] = b.B
 		}
 
 		block := products[0].Place / 8
 
-		logrus.WithField("block", block).Info("write flash")
+		var placesMask byte
+		for _, p := range products {
+			place := byte(p.Place) % 8
+			placesMask |= 1 << place
+		}
 
-		for _, c := range []struct{ a, b uint16 }{
+		for _, c := range []struct{ addr1, addr2 uint16 }{
 			{0, 512},
 			{1024, 1535},
 			{1536, 1600},
@@ -42,38 +50,29 @@ func (x *D) writeFlash() error {
 			{1824, 1831},
 		} {
 
-			var placesMask byte
-			for _, p := range products {
-				place := byte(p.Place) % 8
-				placesMask |= 1 << place
-			}
-
 			logrus.WithFields(logrus.Fields{
 				"block":       block,
-				"addr1":       c.a,
-				"addr2":       c.b,
 				"places_mask": fmt.Sprintf("%08b", placesMask),
-			}).Info("iterate addresses ranges")
+				"addr1":       c.addr1,
+				"addr2":       c.addr2,
+			}).Info("write batch")
 
 			for _, p := range products {
 				place := p.Place % 8
-				d := m[place]
-				if err := x.sendDataToWriteFlash(block, place, d[c.a:c.b+1]); err != nil {
+				d := dataBytes[place]
+				if err := x.sendDataToWriteFlash(block, place, d[c.addr1:c.addr2+1]); err != nil {
 					return err
 				}
 			}
-			if err := x.writePreparedDataToFlash(block, placesMask, c.a, int(c.b-c.a+1)); err != nil {
+			if err := x.writePreparedDataToFlash(block, placesMask, c.addr1, int(c.addr2-c.addr1+1)); err != nil {
 				return err
 			}
 
 			if err := x.waitFirmwareStatus(block, placesMask); err != nil {
 				return err
 			}
-
 		}
-
 	}
-
 	return nil
 }
 
@@ -130,14 +129,12 @@ func (x *D) readFirmwareStatus(block int) ([]byte, error) {
 }
 
 func (x *D) writePreparedDataToFlash(block int, placesMask byte, addr uint16, count int) error {
-
 	logrus.WithFields(logrus.Fields{
 		"block":       block,
 		"places_mask": fmt.Sprintf("%08b", placesMask),
 		"addr":        addr,
 		"count":       count,
 	}).Info()
-
 	req := modbus.Req{
 		Addr:     modbus.Addr(block) + 101,
 		ProtoCmd: 0x43,

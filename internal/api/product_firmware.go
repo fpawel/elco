@@ -48,7 +48,7 @@ func (x *ProductFirmware) CalculateTempPoints(v TempValues, r *firmware.TempPoin
 		}
 
 		var t float64
-		t, err = strconv.ParseFloat(v.Values[n], 64)
+		t, err = strconv.ParseFloat(strings.Replace(v.Values[n], ",", ".", -1), 64)
 		if err != nil {
 			return errors.Wrapf(err, "строка %d", n)
 		}
