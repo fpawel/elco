@@ -144,7 +144,7 @@ func (x *D) registerRPCServices() {
 		api.NewProductTypes(x.c.ProductTypes()),
 		api.NewProductFirmware(x.c.ProductFirmware()),
 		api.NewSetsSvc(x.sets),
-		&api.RunnerSvc{Runner: x},
+		&api.RunnerSvc{x},
 	} {
 		if err := rpc.Register(svcObj); err != nil {
 			panic(err)

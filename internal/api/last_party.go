@@ -24,7 +24,7 @@ func (x *LastParty) SetProductSerialAtPlace(p [2]int, r *int64) (err error) {
 }
 
 func (x LastParty) ProductAtPlace(place [1]int, r *data.ProductInfo) (err error) {
-	*r, err = x.c.ProductAtPlace(place[0])
+	*r, err = x.c.GetProductInfoAtPlace(place[0])
 	return
 }
 

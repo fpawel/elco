@@ -36,11 +36,16 @@ func (x LastParty) ProductsWithSerials() []data.Product {
 	return data.GetLastPartyProductsWithSerials(x.dbr)
 }
 
-func (x LastParty) ProductAtPlace(place int) (product data.ProductInfo, err error) {
+func (x LastParty) GetProductInfoAtPlace(place int) (product data.ProductInfo, err error) {
 	x.mu.Lock()
 	defer x.mu.Unlock()
 	party := data.MustLastParty(x.dbr)
 	err = x.dbr.SelectOneTo(&product, "WHERE party_id = ? AND place = ?", party.PartyID, place)
+	return
+}
+
+func (x LastParty) GetProductAtPlace(place int) (product data.Product, err error) {
+	err = x.dbr.SelectOneTo(&product, "WHERE party_id = ? AND place = ?", x.partyID(), place)
 	return
 }
 

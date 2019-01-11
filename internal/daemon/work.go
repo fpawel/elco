@@ -103,11 +103,10 @@ func (x *D) blowGas(nGas int) error {
 		return err
 	}
 	timeMinutes := x.sets.Config().Work.BlowGasMinutes
-	x.delay(fmt.Sprintf("Продувка ПГС%d", nGas), time.Minute*time.Duration(timeMinutes))
-	return x.hardware.ctx.Err()
+	return x.delay(fmt.Sprintf("Продувка ПГС%d", nGas), time.Minute*time.Duration(timeMinutes))
 }
 
-func (x *D) delay(what string, duration time.Duration) {
+func (x *D) delay(what string, duration time.Duration) error {
 
 	var ctx context.Context
 	ctx, x.hardware.skipDelay = context.WithCancel(x.hardware.ctx)
@@ -119,20 +118,36 @@ func (x *D) delay(what string, duration time.Duration) {
 		What:        what,
 		TimeSeconds: int(duration.Seconds()),
 	})
-
+	x.port.measurer.SetLog(false)
+	defer x.port.measurer.SetLog(true)
 	defer notify.Delay(x.w, api.DelayInfo{Run: false})
-
 	for {
-		select {
+		productsWithSerials := x.c.LastParty().ProductsWithSerials()
+		if len(productsWithSerials) == 0 {
+			return merry.New("фоновый опрос: не задано ни одного серийного номера ЭХЯ в данной партии")
+		}
+		for _, products := range GroupProductsByBlocks(productsWithSerials) {
 
-		case <-ctx.Done():
-			return
+			select {
 
-		case <-t:
-			return
+			case <-ctx.Done():
+				return nil
 
-		default:
-			time.Sleep(50 * time.Millisecond)
+			case <-t:
+				return nil
+
+			default:
+				block := products[0].Place / 8
+				for _, err := x.readBlockMeasure(block); err != nil; _, err = x.readBlockMeasure(block) {
+					if err == context.Canceled {
+						return err
+					}
+					notify.Warning(x.w, fmt.Sprintf("фоновый опрос: блок измерения %d: %v", block+1, err))
+					if x.hardware.ctx.Err() == context.Canceled {
+						return err
+					}
+				}
+			}
 		}
 	}
 }
@@ -141,8 +156,7 @@ func (x *D) setupTemperature(temperature data.Temperature) error {
 	notify.Warningf(x.w, `Установите в термокамере температуру %v⁰C. 
 Нажмите \"Ok\" чтобы перейти к выдержке на температуре %v⁰C.`, temperature, temperature)
 	duration := time.Minute * time.Duration(x.sets.Config().Work.HoldTemperatureMinutes)
-	x.delay(fmt.Sprintf("Выдержка термокамеры: %v⁰C", temperature), duration)
-	return x.hardware.ctx.Err()
+	return x.delay(fmt.Sprintf("Выдержка термокамеры: %v⁰C", temperature), duration)
 }
 
 func (x *D) determineNKU2() error {
@@ -229,16 +243,30 @@ func (x *D) determineProductsTemperatureCurrents(temperature data.Temperature, s
 }
 
 func (x *D) determineProductsCurrents(fields logrus.Fields, f func(*data.Product, float64)) error {
+	defer notify.LastPartyChanged(x.w, x.c.LastParty().Party())
 
-	for _, products := range GroupProductsByBlocks(x.c.LastParty().ProductsWithSerials()) {
+	productsWithSerials := x.c.LastParty().ProductsWithSerials()
+	if len(productsWithSerials) == 0 {
+		return merry.New("снятие: не задано ни одного серийного номера ЭХЯ в данной партии")
+	}
+	for _, products := range GroupProductsByBlocks(productsWithSerials) {
 		block := products[0].Place / 8
+
 		values, err := x.readBlockMeasure(block)
-		if err != nil {
-			for k, v := range fields {
-				err = merry.WithValue(err, k, v)
+
+		for ; err != nil; values, err = x.readBlockMeasure(block) {
+			if err == context.Canceled {
+				return err
 			}
-			return err
+			notify.Warning(x.w, fmt.Sprintf("снятие: блок измерения %d: %v", block+1, err))
+			if x.hardware.ctx.Err() == context.Canceled {
+				for k, v := range fields {
+					err = merry.WithValue(err, k, v)
+				}
+				return err
+			}
 		}
+
 		for _, p := range products {
 			n := p.Place % 8
 			fields["product_id"] = p.ProductID
@@ -248,9 +276,10 @@ func (x *D) determineProductsCurrents(fields logrus.Fields, f func(*data.Product
 			f(p, values[n])
 			x.c.SaveProduct(p)
 		}
+		return nil
 	}
-	notify.LastPartyChanged(x.w, x.c.LastParty().Party())
 	return nil
+
 }
 
 func GroupProductsByBlocks(ps []data.Product) (gs [][]*data.Product) {
@@ -275,4 +304,5 @@ func init() {
 	merry.RegisterDetail("Ответ", "response")
 	merry.RegisterDetail("Длит.ожидания", "duration")
 	merry.RegisterDetail("COM порт", "comport")
+	merry.RegisterDetail("Блок измерительный", "block")
 }

@@ -7,6 +7,8 @@ type Runner interface {
 	StopHardware()
 	SkipDelay()
 	RunTemperature([3]bool)
+	RunWritePartyFirmware()
+	RunWriteProductFirmware(place int)
 	RunMainError()
 }
 
@@ -14,8 +16,17 @@ type RunnerSvc struct {
 	Runner Runner
 }
 
-func (x *RunnerSvc) RunTemperature(workCheck [3]bool, _ *struct{}) error {
+func (x *RunnerSvc) RunWritePartyFirmware(_ struct{}, _ *struct{}) error {
+	x.Runner.RunWritePartyFirmware()
+	return nil
+}
 
+func (x *RunnerSvc) RunWriteProductFirmware(place [1]int, _ *struct{}) error {
+	x.Runner.RunWriteProductFirmware(place[0])
+	return nil
+}
+
+func (x *RunnerSvc) RunTemperature(workCheck [3]bool, _ *struct{}) error {
 	for _, v := range workCheck {
 		if v {
 			x.Runner.RunTemperature(workCheck)
@@ -23,7 +34,6 @@ func (x *RunnerSvc) RunTemperature(workCheck [3]bool, _ *struct{}) error {
 		}
 	}
 	return errors.New("необходимо отметить как минимум одну теммпературу")
-
 }
 
 func (x *RunnerSvc) RunReadCurrent(checkPlaces [12]bool, _ *struct{}) error {

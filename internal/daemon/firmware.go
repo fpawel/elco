@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/ansel1/merry"
+	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/elco/internal/firmware"
 	"github.com/fpawel/goutils/serial-comm/modbus"
 	"github.com/hako/durafmt"
@@ -12,65 +13,89 @@ import (
 	"time"
 )
 
-func (x *D) writeFlash() error {
+func (x *D) writePartyFirmware() error {
+	c := x.c.LastParty()
+	blockProducts := GroupProductsByBlocks(c.ProductsWithProduction())
 
-	logrus.Info("прошивка")
+	logrus.WithFields(logrus.Fields{
+		"party_id": c.Party().PartyID,
+	}).Info("write party firmware")
 
-	blockProducts := GroupProductsByBlocks(x.c.LastParty().ProductsWithProduction())
+	for _, products := range blockProducts {
+		if err := x.writeProductsFirmware(products); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (x *D) writeProductsFirmware(products []*data.Product) error {
+
+	block := products[0].Place / 8
+
+	var placesMask byte
+	for _, p := range products {
+		place := byte(p.Place) % 8
+		placesMask |= 1 << place
+	}
+
+	strProducts := ""
+
+	for i, p := range products {
+		if i > 0 {
+			strProducts += ", "
+		}
+		strProducts += fmt.Sprintf("%d", p.Place%8)
+	}
+	logrus.WithFields(logrus.Fields{
+		"block":       block,
+		"products":    strProducts,
+		"places_mask": fmt.Sprintf("%08b", placesMask),
+	}).Info("write products firmware")
+
+	dataBytes := make(map[int][firmware.Size]byte)
+
 	gases := x.c.ListGases()
 	units := x.c.ListUnits()
 
-	for _, products := range blockProducts {
+	for _, p := range products {
+		pi := x.c.PartiesCatalogue().ProductInfo(p.ProductID)
+		b, err := firmware.FromProductInfo(pi, gases, units)
+		if err != nil {
+			return merry.Appendf(err, "расчёт не удался для места %d.%d",
+				p.Place/8+1, p.Place%8+1)
+		}
+		dataBytes[p.Place%8] = b.B
+	}
 
-		dataBytes := make(map[int][firmware.Size]byte)
+	for _, c := range []struct{ addr1, addr2 uint16 }{
+		{0, 512},
+		{1024, 1535},
+		{1536, 1600},
+		{1792, 1810},
+		{1824, 1831},
+	} {
+
+		logrus.WithFields(logrus.Fields{
+			"block":       block,
+			"places_mask": fmt.Sprintf("%08b", placesMask),
+			"addr1":       c.addr1,
+			"addr2":       c.addr2,
+		}).Info("write batch")
 
 		for _, p := range products {
-			pi := x.c.PartiesCatalogue().ProductInfo(p.ProductID)
-			b, err := firmware.FromProductInfo(pi, gases, units)
-			if err != nil {
-				return merry.Appendf(err, "расчёт не удался для места %d.%d",
-					p.Place/8+1, p.Place%8+1)
-			}
-			dataBytes[p.Place%8] = b.B
-		}
-
-		block := products[0].Place / 8
-
-		var placesMask byte
-		for _, p := range products {
-			place := byte(p.Place) % 8
-			placesMask |= 1 << place
-		}
-
-		for _, c := range []struct{ addr1, addr2 uint16 }{
-			{0, 512},
-			{1024, 1535},
-			{1536, 1600},
-			{1792, 1810},
-			{1824, 1831},
-		} {
-
-			logrus.WithFields(logrus.Fields{
-				"block":       block,
-				"places_mask": fmt.Sprintf("%08b", placesMask),
-				"addr1":       c.addr1,
-				"addr2":       c.addr2,
-			}).Info("write batch")
-
-			for _, p := range products {
-				place := p.Place % 8
-				d := dataBytes[place]
-				if err := x.sendDataToWriteFlash(block, place, d[c.addr1:c.addr2+1]); err != nil {
-					return err
-				}
-			}
-			if err := x.writePreparedDataToFlash(block, placesMask, c.addr1, int(c.addr2-c.addr1+1)); err != nil {
+			place := p.Place % 8
+			d := dataBytes[place]
+			if err := x.sendDataToWriteFlash(block, place, d[c.addr1:c.addr2+1]); err != nil {
 				return err
 			}
+		}
+		if err := x.writePreparedDataToFlash(block, placesMask, c.addr1, int(c.addr2-c.addr1+1)); err != nil {
+			return err
+		}
 
-			if err := x.waitFirmwareStatus(block, placesMask); err != nil {
-				return err
-			}
+		if err := x.waitFirmwareStatus(block, placesMask); err != nil {
+			return err
 		}
 	}
 	return nil

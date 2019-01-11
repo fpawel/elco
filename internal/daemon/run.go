@@ -12,6 +12,21 @@ import (
 	"sync"
 )
 
+func (x *D) RunWritePartyFirmware() {
+	x.runHardware("Прошивка партии", x.writePartyFirmware)
+}
+
+func (x *D) RunWriteProductFirmware(place int) {
+	what := fmt.Sprintf("Прошивка места %d.%d", place/8+1, place%8+1)
+	x.runHardware(what, func() error {
+		if p, err := x.c.LastParty().GetProductAtPlace(place); err != nil {
+			return err
+		} else {
+			return x.writeProductsFirmware([]*data.Product{&p})
+		}
+	})
+}
+
 func (x *D) RunMainError() {
 	x.runHardware("Снятие основной погрешности", x.determineMainError)
 }
@@ -88,7 +103,7 @@ func (x *D) runHardware(what string, work WorkFunc) {
 		}
 
 		x.port.measurer.SetLog(true)
-		if err := work(); err != nil && x.hardware.ctx.Err() != context.Canceled {
+		if err := work(); err != nil && err != context.Canceled {
 			notifyErr(err)
 		}
 
