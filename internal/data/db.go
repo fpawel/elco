@@ -77,6 +77,7 @@ func CreateNewParty(db *sqlx.DB) {
 	if err != nil {
 		panic(err)
 	}
+
 	r = db.MustExec(`INSERT INTO product(party_id, serial, place) VALUES (?, 1, 0)`, partyID)
 	if _, err = r.LastInsertId(); err != nil {
 		panic(err)

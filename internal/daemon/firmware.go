@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/elco/internal/data"
-	"github.com/fpawel/elco/internal/firmware"
 	"github.com/fpawel/goutils/serial-comm/modbus"
 	"github.com/hako/durafmt"
 	"github.com/hashicorp/go-multierror"
@@ -53,28 +52,19 @@ func (x *D) writeProductsFirmware(products []*data.Product) error {
 		"places_mask": fmt.Sprintf("%08b", placesMask),
 	}).Info("write products firmware")
 
-	dataBytes := make(map[int][firmware.Size]byte)
-
-	gases := x.c.ListGases()
-	units := x.c.ListUnits()
+	firmwareBytes := make(map[int]data.FirmwareBytes)
 
 	for _, p := range products {
 		pi := x.c.PartiesCatalogue().ProductInfo(p.ProductID)
-		b, err := firmware.FromProductInfo(pi, gases, units)
+		firmware, err := pi.Firmware()
 		if err != nil {
 			return merry.Appendf(err, "расчёт не удался для места %d.%d",
 				p.Place/8+1, p.Place%8+1)
 		}
-		dataBytes[p.Place%8] = b.B
+		firmwareBytes[p.Place%8] = firmware.Bytes()
 	}
 
-	for _, c := range []struct{ addr1, addr2 uint16 }{
-		{0, 512},
-		{1024, 1535},
-		{1536, 1600},
-		{1792, 1810},
-		{1824, 1831},
-	} {
+	for _, c := range firmwareAddresses {
 
 		logrus.WithFields(logrus.Fields{
 			"block":       block,
@@ -85,7 +75,7 @@ func (x *D) writeProductsFirmware(products []*data.Product) error {
 
 		for _, p := range products {
 			place := p.Place % 8
-			d := dataBytes[place]
+			d := firmwareBytes[place]
 			if err := x.sendDataToWriteFlash(block, place, d[c.addr1:c.addr2+1]); err != nil {
 				return err
 			}
@@ -245,4 +235,12 @@ func merryWithValues(e error, values logrus.Fields) merry.Error {
 		err = err.WithValue(k, v)
 	}
 	return err
+}
+
+var firmwareAddresses = []struct{ addr1, addr2 uint16 }{
+	{0, 512},
+	{1024, 1535},
+	{1536, 1600},
+	{1792, 1810},
+	{1824, 1831},
 }

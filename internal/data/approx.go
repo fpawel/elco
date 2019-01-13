@@ -1,18 +1,20 @@
-package firmware
+package data
 
 import "sort"
 
-// approxTbl - таблица кусочно-линейной апроксимации
-type approxTbl struct {
+type TableXY = map[float64]float64
+
+// tblApprox - таблица кусочно-линейной апроксимации
+type tblApprox struct {
 	vx, vy []float64
 }
 
-func newApproxTbl(xy M) *approxTbl {
+func newApproxTbl(xy TableXY) *tblApprox {
 	n := len(xy)
 	if n == 0 {
 		panic("map must be not empty")
 	}
-	tbl := new(approxTbl)
+	tbl := new(tblApprox)
 
 	var xys [][2]float64
 	for x, y := range xy {
@@ -28,7 +30,7 @@ func newApproxTbl(xy M) *approxTbl {
 	return tbl
 }
 
-func (tbl *approxTbl) F(x float64) float64 {
+func (tbl *tblApprox) F(x float64) float64 {
 	if x < tbl.vx[0] {
 		return tbl.vy[0]
 	}

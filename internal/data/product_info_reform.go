@@ -223,7 +223,7 @@ func (s *ProductInfo) View() reform.View {
 	return ProductInfoTable
 }
 
-// Table returns Table object for that record.
+// TableXY returns TableXY object for that record.
 func (s *ProductInfo) Table() reform.Table {
 	return ProductInfoTable
 }

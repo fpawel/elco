@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/elco/internal/settings"
+	"github.com/fpawel/goutils"
 	"github.com/fpawel/goutils/dbutils"
 	"github.com/pkg/errors"
 	"gopkg.in/reform.v1"
@@ -129,10 +130,6 @@ func (x LastParty) SetConfigValue(property, value string) (err error) {
 
 	party := data.MustLastParty(x.dbr)
 
-	parseFloat := func() (float64, error) {
-		return strconv.ParseFloat(strings.Replace(value, ",", ".", -1), 64)
-	}
-
 	switch property {
 
 	case "ProductType":
@@ -140,21 +137,21 @@ func (x LastParty) SetConfigValue(property, value string) (err error) {
 		return x.dbr.Save(&party)
 
 	case "Gas1":
-		party.Concentration1, err = parseFloat()
+		party.Concentration1, err = goutils.ParseFloat(value)
 		if err == nil {
 			err = x.dbr.Save(&party)
 		}
 		return
 
 	case "Gas2":
-		party.Concentration2, err = parseFloat()
+		party.Concentration2, err = goutils.ParseFloat(value)
 		if err == nil {
 			err = x.dbr.Save(&party)
 		}
 		return
 
 	case "Gas3":
-		party.Concentration3, err = parseFloat()
+		party.Concentration3, err = goutils.ParseFloat(value)
 		if err == nil {
 			err = x.dbr.Save(&party)
 		}
@@ -210,7 +207,7 @@ func (x LastParty) SetConfigValue(property, value string) (err error) {
 		}
 		if f, ok := fs[property]; ok {
 			if len(strings.TrimSpace(value)) > 0 {
-				if v.Float64, err = parseFloat(); err != nil {
+				if v.Float64, err = goutils.ParseFloat(value); err != nil {
 					return err
 				}
 				v.Valid = true

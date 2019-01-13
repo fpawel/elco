@@ -145,7 +145,7 @@ func (s *Product) View() reform.View {
 	return ProductTable
 }
 
-// Table returns Table object for that record.
+// TableXY returns TableXY object for that record.
 func (s *Product) Table() reform.Table {
 	return ProductTable
 }
