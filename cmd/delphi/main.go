@@ -24,8 +24,8 @@ func main() {
 		"ProductInfo": "Product",
 	}
 
-	dir := filepath.Join(os.Getenv("DELPHIPATH"),
-		"src", "github.com", "fpawel", "elcoui", "api")
+	dir := filepath.Join(os.Getenv("GOPATH"),
+		"src", "github.com", "fpawel", "elco", "ui", "api")
 	winapp.MustDir(dir)
 
 	openFile := func(fileName string) *os.File {

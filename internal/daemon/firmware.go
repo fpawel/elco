@@ -91,6 +91,45 @@ func (x *D) writeProductsFirmware(products []*data.Product) error {
 	return nil
 }
 
+func (x *D) writeSingleProductFirmware(block, place int, bytes []byte) error {
+	logrus.WithFields(logrus.Fields{
+		"block": block,
+		"place": place,
+		"bytes": fmt.Sprintf("% X", bytes),
+	}).Info("write single product firmware")
+
+	placesMask := byte(1) << byte(place)
+
+	for _, c := range firmwareAddresses {
+
+		logrus.WithFields(logrus.Fields{
+			"block":       block,
+			"places_mask": fmt.Sprintf("%08b", placesMask),
+			"addr1":       c.addr1,
+			"addr2":       c.addr2,
+			"bytes":       fmt.Sprintf("% X", bytes[c.addr1:c.addr2+1]),
+		}).Info("write single product firmware batch")
+
+		if err := x.sendDataToWriteFlash(block, place, bytes[c.addr1:c.addr2+1]); err != nil {
+			return err
+		}
+
+		if err := x.writePreparedDataToFlash(block, placesMask, c.addr1, int(c.addr2-c.addr1+1)); err != nil {
+			return err
+		}
+
+		if err := x.waitFirmwareStatus(block, placesMask); err != nil {
+			return err
+		}
+	}
+	logrus.WithFields(logrus.Fields{
+		"block": block,
+		"place": place,
+		"bytes": fmt.Sprintf("% X", bytes),
+	}).Info("write single product firmware: ok")
+	return nil
+}
+
 func (x *D) waitFirmwareStatus(block int, placesMask byte) error {
 
 	t := time.Duration(x.sets.Config().Predefined.Firmware.StatusTimeoutSeconds) * time.Second
