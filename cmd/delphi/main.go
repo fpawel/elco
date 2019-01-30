@@ -4,6 +4,7 @@ import (
 	"github.com/fpawel/elco/internal/api"
 	"github.com/fpawel/elco/internal/app"
 	"github.com/fpawel/elco/internal/data"
+	"github.com/fpawel/goutils/delphirpc"
 	"github.com/fpawel/goutils/winapp"
 	"log"
 	"os"
@@ -36,54 +37,60 @@ func main() {
 		return file
 	}
 
-	servicesSrc := NewServicesSrc(app.PipeName, types, m)
+	servicesSrc := delphirpc.NewServicesSrc(app.PipeName, "services", "server_data_types", types, m)
 
-	notifySvcSrc := NewNotifyServicesSrc(servicesSrc.dataTypes, []notifyServiceType{
+	notifySvcSrc := delphirpc.NewNotifyServicesSrc("notify_services", servicesSrc.DataTypes, []delphirpc.NotifyServiceType{
 		{
-			serviceName: "ReadCurrent",
-			paramType:   r.TypeOf((*api.ReadCurrent)(nil)).Elem(),
+			"ReadCurrent",
+			r.TypeOf((*api.ReadCurrent)(nil)).Elem(),
 		},
 		{
-			serviceName: "HardwareError",
-			paramType:   r.TypeOf((*string)(nil)).Elem(),
+			"HardwareError",
+			r.TypeOf((*string)(nil)).Elem(),
 		},
 		{
-			serviceName: "HardwareStarted",
-			paramType:   r.TypeOf((*string)(nil)).Elem(),
+			"HardwareStarted",
+			r.TypeOf((*string)(nil)).Elem(),
 		},
 		{
-			serviceName: "HardwareStopped",
-			paramType:   r.TypeOf((*string)(nil)).Elem(),
+			"HardwareStopped",
+			r.TypeOf((*string)(nil)).Elem(),
 		},
 		{
-			serviceName: "Status",
-			paramType:   r.TypeOf((*string)(nil)).Elem(),
+			"Status",
+			r.TypeOf((*string)(nil)).Elem(),
 		},
 		{
-			serviceName: "Warning",
-			paramType:   r.TypeOf((*string)(nil)).Elem(),
+			"Warning",
+			r.TypeOf((*string)(nil)).Elem(),
 		},
 		{
-			serviceName: "Delay",
-			paramType:   r.TypeOf((*api.DelayInfo)(nil)).Elem(),
+			"Delay",
+			r.TypeOf((*api.DelayInfo)(nil)).Elem(),
 		},
 		{
-			serviceName: "LastPartyChanged",
-			paramType:   r.TypeOf((*data.Party)(nil)).Elem(),
+			"LastPartyChanged",
+			r.TypeOf((*data.Party)(nil)).Elem(),
 		},
 	})
 
 	file := openFile("services.pas")
 	servicesSrc.WriteUnit(file)
-	file.Close()
+	if err := file.Close(); err != nil {
+		panic(err)
+	}
 
 	file = openFile("server_data_types.pas")
-	servicesSrc.dataTypes.WriteUnit(file)
-	file.Close()
+	servicesSrc.DataTypes.WriteUnit(file)
+	if err := file.Close(); err != nil {
+		panic(err)
+	}
 
 	file = openFile("notify_services.pas")
 	notifySvcSrc.WriteUnit(file)
-	file.Close()
+	if err := file.Close(); err != nil {
+		panic(err)
+	}
 
 	dir = filepath.Join(os.Getenv("GOPATH"),
 		"src", "github.com", "fpawel", "elco", "internal", "api", "notify")
@@ -92,6 +99,8 @@ func main() {
 		log.Fatal(err)
 	}
 	notifySvcSrc.WriteGoFile(file)
-	file.Close()
+	if err := file.Close(); err != nil {
+		panic(err)
+	}
 
 }
