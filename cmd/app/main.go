@@ -13,9 +13,9 @@ import (
 func main() {
 
 	// Преверяем, не было ли приложение запущено ранее
-	if winapp.IsWindow(winapp.FindWindow(daemon.ServerWindowClassName)) {
+	if winapp.IsWindow(winapp.FindWindow(app.ServerWindowClassName)) {
 		// Если было, выдвигаем окно приложения на передний план и завершаем процесс
-		hWnd := winapp.FindWindow(daemon.PeerWindowClassName)
+		hWnd := winapp.FindWindow(app.PeerWindowClassName)
 		win.ShowWindow(hWnd, win.SW_RESTORE)
 		win.SetForegroundWindow(hWnd)
 		return
@@ -49,6 +49,8 @@ func main() {
 		}
 	}
 
+	logrus.Warn("run application")
+
 	d := daemon.New()
 	d.Run(mustRunPeer)
 
@@ -61,4 +63,5 @@ func main() {
 			panic(err)
 		}
 	}
+	logrus.Warn("application completed")
 }

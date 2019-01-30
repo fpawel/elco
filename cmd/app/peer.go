@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/fpawel/elco/internal/daemon"
+	"github.com/fpawel/elco/internal/app"
 	"github.com/fpawel/goutils/winapp"
 	"github.com/hashicorp/go-multierror"
 	"github.com/lxn/win"
@@ -18,5 +18,5 @@ func closeAllPeerWindows() (result error) {
 }
 
 func findPeer() win.HWND {
-	return winapp.FindWindow(daemon.PeerWindowClassName)
+	return winapp.FindWindow(app.PeerWindowClassName)
 }
