@@ -44,12 +44,6 @@ type D struct {
 	}
 }
 
-const (
-	PipeName              = `\\.\pipe\elco`
-	ServerWindowClassName = "ElcoServerWindow"
-	PeerWindowClassName   = "TElcoMainForm"
-)
-
 func New() *D {
 	// reform.NewPrintfLogger(logrus.Debugf)
 	c := crud.NewDBContext(nil)
@@ -57,7 +51,7 @@ func New() *D {
 	x := &D{
 		c:    c,
 		sets: sets,
-		w:    copydata.NewNotifyWindow(ServerWindowClassName, PeerWindowClassName),
+		w:    copydata.NewNotifyWindow(app.ServerWindowClassName, app.PeerWindowClassName),
 	}
 	x.port.measurer = new(comport.Port)
 	x.port.gas = new(comport.Port)
@@ -84,7 +78,7 @@ func (x *D) Run(mustRunPeer bool) {
 		x.serveRPC(ln, x.ctx, mustRunPeer)
 	}()
 
-	if mustRunPeer && !winapp.IsWindow(winapp.FindWindow(PeerWindowClassName)) {
+	if mustRunPeer && !winapp.IsWindow(winapp.FindWindow(app.PeerWindowClassName)) {
 		if err := runPeer(); err != nil {
 			panic(err)
 		}
@@ -153,7 +147,7 @@ func (x *D) registerRPCServices() {
 }
 
 func mustPipeListener() net.Listener {
-	ln, err := winio.ListenPipe(PipeName, nil)
+	ln, err := winio.ListenPipe(app.PipeName, nil)
 	if err != nil {
 		panic(err)
 	}
