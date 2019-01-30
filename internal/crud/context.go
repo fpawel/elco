@@ -37,6 +37,8 @@ func NewDBContext(logger reform.Logger) DBContext {
 	}
 }
 func (x DBContext) Close() error {
+	x.mu.Lock()
+	defer x.mu.Unlock()
 	return x.dbx.Close()
 }
 
