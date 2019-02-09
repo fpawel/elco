@@ -2,34 +2,41 @@ package main
 
 import (
 	"flag"
-	"github.com/fpawel/elco/internal/app"
 	"github.com/fpawel/elco/internal/daemon"
+	"github.com/fpawel/elco/internal/elco"
 	"github.com/fpawel/goutils/winapp"
 	"github.com/lxn/win"
 	"github.com/sirupsen/logrus"
 	"os"
+	"time"
 )
 
 func main() {
 
 	// Преверяем, не было ли приложение запущено ранее
-	if winapp.IsWindow(winapp.FindWindow(app.ServerWindowClassName)) {
+	if winapp.IsWindow(winapp.FindWindow(elco.ServerWindowClassName)) {
 		// Если было, выдвигаем окно приложения на передний план и завершаем процесс
-		hWnd := winapp.FindWindow(app.PeerWindowClassName)
+		hWnd := winapp.FindWindow(elco.PeerWindowClassName)
 		win.ShowWindow(hWnd, win.SW_RESTORE)
 		win.SetForegroundWindow(hWnd)
 		return
 	}
 
-	mustRunPeer := true
 	createNewDB := false
-	logLevelStr := "warn"
+	hideCon := false
+	logLevelStr := "info"
+	skipRunUIApp := false
 
-	flag.BoolVar(&mustRunPeer, "must-run-peer", true, "ensure peer application")
-	flag.BoolVar(&createNewDB, "create-new-db", false, "create new data base")
-	flag.StringVar(&logLevelStr, "log-level", "warn", "use log level")
+	flag.BoolVar(&createNewDB, "new-db", false, "create new data base")
+	flag.BoolVar(&hideCon, "hide-con", false, "hide console window")
+	flag.BoolVar(&skipRunUIApp, "skip-run-ui", false, "skip running ui")
+	flag.StringVar(&logLevelStr, "log-level", "info", "use log level")
 
 	flag.Parse()
+
+	if hideCon {
+		win.ShowWindow(win.GetConsoleWindow(), win.SW_HIDE)
+	}
 
 	// Log as JSON instead of the default ASCII formatter.
 	//logrus.SetFormatter(&logrus.JSONFormatter{})
@@ -38,30 +45,18 @@ func main() {
 	if err != nil {
 		logrus.Fatal(err)
 	}
-	// Only log the warning severity or above.
 	logrus.SetLevel(logLevel)
-	logrus.SetReportCaller(true)
+	customFormatter := new(logrus.TextFormatter)
+	customFormatter.TimestampFormat = time.RFC3339Nano
+	logrus.SetFormatter(customFormatter)
+	//logrus.SetReportCaller(true)
 
 	if createNewDB {
 		logrus.Warn("delete data base file because create-new-db flag was set")
-		if err := os.Remove(app.DataFileName()); err != nil { // delete data base file
-			logrus.WithField("file", app.DataFileName()).Error(err)
+		if err := os.Remove(elco.DataFileName()); err != nil { // delete data base file
+			logrus.WithField("file", elco.DataFileName()).Error(err)
 		}
 	}
 
-	logrus.Warn("run application")
-
-	d := daemon.New()
-	d.Run(mustRunPeer)
-
-	if err := d.Close(); err != nil {
-		panic(err)
-	}
-
-	if mustRunPeer {
-		if err := closeAllPeerWindows(); err != nil {
-			panic(err)
-		}
-	}
-	logrus.Warn("application completed")
+	daemon.New().Run(skipRunUIApp)
 }
