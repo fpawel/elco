@@ -1,8 +1,8 @@
 package crud
 
 import (
-	"github.com/fpawel/elco/internal/app"
 	"github.com/fpawel/elco/internal/data"
+	"github.com/fpawel/elco/internal/elco"
 	"github.com/fpawel/goutils/dbutils"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
@@ -22,7 +22,7 @@ type dbContext struct {
 }
 
 func NewDBContext(logger reform.Logger) DBContext {
-	dbx := dbutils.MustOpen(app.DataFileName(), "sqlite3")
+	dbx := dbutils.MustOpen(elco.DataFileName(), "sqlite3")
 	dbx.MustExec(data.SQLCreate)
 	data.DeleteEmptyRecords(dbx)
 	data.EnsureParty(dbx)
