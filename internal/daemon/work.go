@@ -45,7 +45,7 @@ func (x *D) switchGas(n int) error {
 func (x *D) doSwitchGas(n int) error {
 	c := x.sets.Config()
 	if !x.port.gas.Opened() {
-		x.port.gas.SetLog(true)
+		x.port.gas.SetLogConsole(true)
 		if err := x.port.gas.Open(c.Comport.GasSwitcher, 9600, 0, context.Background()); err != nil {
 			return err
 		}
@@ -118,8 +118,10 @@ func (x *D) delay(what string, duration time.Duration) error {
 		What:        what,
 		TimeSeconds: int(duration.Seconds()),
 	})
-	x.port.measurer.SetLog(false)
-	defer x.port.measurer.SetLog(true)
+	x.port.measurer.SetLogConsole(false)
+	defer func() {
+		x.port.measurer.SetLogConsole(true)
+	}()
 	defer notify.Delay(x.w, api.DelayInfo{Run: false})
 	for {
 		productsWithSerials := x.c.LastParty().ProductsWithSerials()
