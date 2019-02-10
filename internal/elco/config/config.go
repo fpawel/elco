@@ -1,7 +1,7 @@
 package config
 
 import (
-	"github.com/fpawel/elco/internal/app"
+	"github.com/fpawel/elco/internal/elco"
 	"github.com/fpawel/elco/internal/settings"
 	"github.com/fpawel/goutils/serial-comm/comm"
 	"github.com/fpawel/goutils/serial-comm/comport"
@@ -32,9 +32,8 @@ type Predefined struct {
 }
 
 type WorkConfig struct {
-	BlowGasMinutes         int  `toml:"blow_gas_minutes" comment:"длительность продувки газа, мин."`
-	HoldTemperatureMinutes int  `toml:"hold_temperature_minutes" comment:"длительность выдержки термокамеры, мин."`
-	CaptureComport         bool `toml:"capture_comport" comment:"показывать ВСЕ посылки COM порта в консоли"`
+	BlowGasMinutes         int `toml:"blow_gas_minutes" comment:"длительность продувки газа, мин."`
+	HoldTemperatureMinutes int `toml:"hold_temperature_minutes" comment:"длительность выдержки термокамеры, мин."`
 }
 
 func (x *UserConfig) Sections() []settings.ConfigSection {
@@ -133,7 +132,7 @@ func (x *UserConfig) setValue(section, property, value string) error {
 }
 
 func configFileName() string {
-	return app.AppName.FileName("config.json")
+	return elco.AppName.FileName("config.json")
 }
 
 var predefined = Predefined{
