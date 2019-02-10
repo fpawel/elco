@@ -37,7 +37,7 @@ func (x *D) RunTemperature(workCheck [3]bool) {
 			if workCheck[i] {
 				notify.Statusf(x.w, "%v⁰C: снятие термокомпенсации", temperature)
 				if err := x.determineTemperature(temperature); err != nil {
-					logrus.WithField("thermal_compensation_determination", temperature).Errorf("%v", err)
+					logrus.WithField("temperature", temperature).Errorf("%v", err)
 					return err
 				}
 			}
@@ -52,7 +52,7 @@ func (x *D) StopHardware() {
 
 func (x *D) SkipDelay() {
 	x.hardware.skipDelay()
-	logrus.Warn("пользователь перрвал задержку")
+	logrus.Warn("пользователь прервал задержку")
 }
 
 func (x *D) RunReadCurrent(checkPlaces [12]bool) {
@@ -64,7 +64,7 @@ func (x *D) RunReadCurrent(checkPlaces [12]bool) {
 		}
 	}
 	x.runHardware("опрос блоков измерительных: "+intrng.Format(xs), func() error {
-		x.port.measurer.SetLog(x.sets.Config().Predefined.Work.CaptureComport)
+		x.port.measurer.SetLogConsole(false)
 		for {
 			for _, place := range places {
 				if _, err := x.readBlockMeasure(place); err != nil {
@@ -78,6 +78,7 @@ func (x *D) RunReadCurrent(checkPlaces [12]bool) {
 type WorkFunc = func() error
 
 func (x *D) runHardware(what string, work WorkFunc) {
+
 	x.hardware.cancel()
 	x.hardware.WaitGroup.Wait()
 	x.hardware.WaitGroup = sync.WaitGroup{}
@@ -87,12 +88,12 @@ func (x *D) runHardware(what string, work WorkFunc) {
 
 	notify.HardwareStarted(x.w, what)
 	x.hardware.WaitGroup.Add(1)
+	x.hardware.logFields["work"] = what
 
 	go func() {
 
 		notifyErr := func(err error) {
 			fields := merryValues(err)
-			fields["work"] = what
 			logrus.WithFields(fields).Error(err)
 			notify.HardwareErrorf(x.w, "%s: %v", what, merry.Details(err))
 		}
@@ -102,7 +103,7 @@ func (x *D) runHardware(what string, work WorkFunc) {
 			return
 		}
 
-		x.port.measurer.SetLog(true)
+		x.port.measurer.SetLogConsole(true)
 		if err := work(); err != nil && err != context.Canceled {
 			notifyErr(err)
 		}
@@ -112,6 +113,7 @@ func (x *D) runHardware(what string, work WorkFunc) {
 		}
 
 		notify.HardwareStoppedf(x.w, "выполнение окончено: %s", what)
+		delete(x.hardware.logFields, "work")
 		x.hardware.WaitGroup.Done()
 	}()
 }
