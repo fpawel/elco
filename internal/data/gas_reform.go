@@ -82,7 +82,7 @@ func (s *Gas) View() reform.View {
 	return GasTable
 }
 
-// TableXY returns TableXY object for that record.
+// Table returns Table object for that record.
 func (s *Gas) Table() reform.Table {
 	return GasTable
 }
