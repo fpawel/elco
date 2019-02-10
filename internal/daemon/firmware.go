@@ -13,6 +13,7 @@ import (
 )
 
 func (x *D) writePartyFirmware() error {
+
 	c := x.c.LastParty()
 	blockProducts := GroupProductsByBlocks(c.ProductsWithProduction())
 
@@ -46,11 +47,18 @@ func (x *D) writeProductsFirmware(products []*data.Product) error {
 		}
 		strProducts += fmt.Sprintf("%d", p.Place%8)
 	}
-	logrus.WithFields(logrus.Fields{
-		"block":       block,
-		"products":    strProducts,
-		"places_mask": fmt.Sprintf("%08b", placesMask),
-	}).Info("write products firmware")
+
+	x.hardware.logFields["block"] = block
+	x.hardware.logFields["products"] = strProducts
+	x.hardware.logFields["places_mask"] = fmt.Sprintf("%08b", placesMask)
+	defer func() {
+		delete(x.hardware.logFields, "block")
+		delete(x.hardware.logFields, "products")
+		delete(x.hardware.logFields, "places_mask")
+
+	}()
+
+	logrus.Info("write products firmware")
 
 	firmwareBytes := make(map[int]data.FirmwareBytes)
 
@@ -67,10 +75,8 @@ func (x *D) writeProductsFirmware(products []*data.Product) error {
 	for _, c := range firmwareAddresses {
 
 		logrus.WithFields(logrus.Fields{
-			"block":       block,
-			"places_mask": fmt.Sprintf("%08b", placesMask),
-			"addr1":       c.addr1,
-			"addr2":       c.addr2,
+			"addr1": c.addr1,
+			"addr2": c.addr2,
 		}).Info("write batch")
 
 		for _, p := range products {
