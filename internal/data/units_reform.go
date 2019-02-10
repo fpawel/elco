@@ -82,7 +82,7 @@ func (s *Units) View() reform.View {
 	return UnitsTable
 }
 
-// TableXY returns TableXY object for that record.
+// Table returns Table object for that record.
 func (s *Units) Table() reform.Table {
 	return UnitsTable
 }

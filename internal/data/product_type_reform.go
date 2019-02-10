@@ -94,7 +94,7 @@ func (s *ProductType) View() reform.View {
 	return ProductTypeTable
 }
 
-// TableXY returns TableXY object for that record.
+// Table returns Table object for that record.
 func (s *ProductType) Table() reform.Table {
 	return ProductTypeTable
 }

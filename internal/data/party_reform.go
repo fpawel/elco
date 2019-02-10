@@ -136,7 +136,7 @@ func (s *Party) View() reform.View {
 	return PartyTable
 }
 
-// TableXY returns TableXY object for that record.
+// Table returns Table object for that record.
 func (s *Party) Table() reform.Table {
 	return PartyTable
 }
