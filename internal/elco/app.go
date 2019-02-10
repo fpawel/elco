@@ -1,10 +1,9 @@
-package app
+package elco
 
 import "github.com/fpawel/goutils/winapp"
 
 const (
 	AppName               winapp.AnalitpriborAppName = "elco"
-	PeerExeName                                      = "elcoui.exe"
 	PipeName                                         = `\\.\pipe\elco`
 	ServerWindowClassName                            = "ElcoServerWindow"
 	PeerWindowClassName                              = "TElcoMainForm"
