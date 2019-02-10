@@ -9,8 +9,8 @@ bin
 *.tds
 *.~*
 *.dcu
-__history
-__recovery
+__history/
+__recovery/
 *.local
 *.identcache
 *.stat
