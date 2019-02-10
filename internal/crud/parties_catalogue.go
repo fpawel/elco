@@ -3,8 +3,8 @@ package crud
 import (
 	"encoding/json"
 	"github.com/ansel1/merry"
-	"github.com/fpawel/elco/internal/app"
 	"github.com/fpawel/elco/internal/data"
+	"github.com/fpawel/elco/internal/elco"
 	"github.com/fpawel/goutils/dbutils"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/reform.v1"
@@ -211,5 +211,5 @@ func (x PartiesCatalogue) importFromFile() error {
 }
 
 func importFileName() string {
-	return app.AppName.DataFileName("export-party.json")
+	return elco.AppName.DataFileName("export-party.json")
 }
