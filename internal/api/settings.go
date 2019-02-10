@@ -1,7 +1,7 @@
 package api
 
 import (
-	"github.com/fpawel/elco/internal/app/config"
+	"github.com/fpawel/elco/internal/elco/config"
 	"github.com/fpawel/elco/internal/settings"
 	"github.com/pelletier/go-toml"
 )
