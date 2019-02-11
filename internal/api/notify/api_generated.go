@@ -19,6 +19,7 @@ const (
 	msgWarning
 	msgDelay
 	msgLastPartyChanged
+	msgComportEntry
 )
 
 func ReadCurrent(w W, arg api.ReadCurrent) {
@@ -61,4 +62,8 @@ func Delay(w W, arg api.DelayInfo) {
 
 func LastPartyChanged(w W, arg data.Party) {
 	w.NotifyJson(uintptr(msgLastPartyChanged), arg)
+}
+
+func ComportEntry(w W, arg api.ComportEntry) {
+	w.NotifyJson(uintptr(msgComportEntry), arg)
 }

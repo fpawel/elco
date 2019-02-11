@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/Microsoft/go-winio"
 	"github.com/fpawel/elco/internal/api"
+	"github.com/fpawel/elco/internal/api/notify"
 	"github.com/fpawel/elco/internal/crud"
 	"github.com/fpawel/elco/internal/elco"
 	"github.com/fpawel/elco/internal/elco/config"
@@ -35,14 +36,16 @@ type D struct {
 		measurer, gas *comport.Port
 	}
 
-	hardware struct {
-		sync.WaitGroup
-		Continue,
-		cancel,
-		skipDelay context.CancelFunc
-		ctx       context.Context
-		logFields logFields
-	}
+	hardware hardware
+}
+
+type hardware struct {
+	sync.WaitGroup
+	Continue,
+	cancel,
+	skipDelay context.CancelFunc
+	ctx       context.Context
+	logFields logFields
 }
 
 type logFields logrus.Fields
@@ -67,16 +70,17 @@ func New() *D {
 		c:    c,
 		sets: sets,
 		w:    copydata.NewNotifyWindow(elco.ServerWindowClassName, elco.PeerWindowClassName),
+		hardware: hardware{
+			Continue:  func() {},
+			cancel:    func() {},
+			skipDelay: func() {},
+			ctx:       context.Background(),
+			logFields: make(logFields),
+		},
 	}
-	x.port.measurer = new(comport.Port)
-	x.port.gas = new(comport.Port)
-	x.hardware.cancel = func() {}
-	x.hardware.Continue = func() {}
-	x.hardware.skipDelay = func() {}
-	x.hardware.ctx = context.Background()
-	x.hardware.logFields = make(logFields)
+	x.port.measurer = comport.NewPortWithHook(x.onComport)
+	x.port.gas = comport.NewPortWithHook(x.onComport)
 	logrus.AddHook(&x.hardware.logFields)
-
 	return x
 }
 
@@ -92,7 +96,7 @@ func (x *D) Run(skipRunUIApp bool) {
 		api.NewPartiesCatalogue(x.c.PartiesCatalogue()),
 		api.NewLastParty(x.c.LastParty()),
 		api.NewProductTypes(x.c.ProductTypes()),
-		api.NewProductFirmware(x.c.ProductFirmware()),
+		api.NewProductFirmware(x.c.ProductFirmware(), x),
 		api.NewSetsSvc(x.sets),
 		&api.RunnerSvc{x},
 	} {
@@ -153,6 +157,16 @@ func (x *D) Run(skipRunUIApp bool) {
 
 	logrus.Debugln("close sqlite data base on exit:", x.c.Close())
 	logrus.Debugln("save config on exit:", x.sets.Save())
+}
+
+func (x *D) onComport(w comport.LastWork) {
+	if x.sets.Config().Comport.LogComports {
+		notify.ComportEntry(x.w, api.ComportEntry{
+			Port:  w.Port,
+			Error: w.Error != nil,
+			Msg:   w.String(),
+		})
+	}
 }
 
 func (x *D) serveRPC(ln net.Listener, ctx context.Context) {

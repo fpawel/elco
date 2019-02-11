@@ -23,3 +23,9 @@ type DelayInfo struct {
 	TimeSeconds int
 	What        string
 }
+
+type ComportEntry struct {
+	Port  string
+	Error bool
+	Msg   string
+}

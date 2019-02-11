@@ -16,10 +16,10 @@ func NewTempPoints(fonM, sensM TableXY) (r TempPoints) {
 	fSens := minusOne
 
 	if len(fonM) > 0 {
-		fFon = newApproxTbl(fonM).F
+		fFon = NewApproximationTable(fonM).F
 	}
 	if len(sensM) > 0 {
-		fSens = newApproxTbl(sensM).F
+		fSens = NewApproximationTable(sensM).F
 	}
 	i := 0
 	for t := float64(-124); t <= 125; t++ {

@@ -6,6 +6,7 @@ import (
 	"github.com/fpawel/goutils/serial-comm/comm"
 	"github.com/fpawel/goutils/serial-comm/comport"
 	"github.com/pkg/errors"
+	"strconv"
 )
 
 type Config struct {
@@ -16,6 +17,7 @@ type Config struct {
 type UserConfig struct {
 	Comport struct {
 		Measurer, GasSwitcher string
+		LogComports           bool
 	}
 	Firmware struct {
 		ChipType int
@@ -34,6 +36,7 @@ type Predefined struct {
 type WorkConfig struct {
 	BlowGasMinutes         int `toml:"blow_gas_minutes" comment:"длительность продувки газа, мин."`
 	HoldTemperatureMinutes int `toml:"hold_temperature_minutes" comment:"длительность выдержки термокамеры, мин."`
+	//LogComports            bool `toml:"log_comports" comment:"показывать посылки COM портов"`
 }
 
 func (x *UserConfig) Sections() []settings.ConfigSection {
@@ -69,11 +72,17 @@ func (x *UserConfig) Sections() []settings.ConfigSection {
 					ValueType: settings.VtComportName,
 					Value:     x.Comport.GasSwitcher,
 				},
+				{
+					Hint:      "Консоль СОМ порта",
+					Name:      "ComportConsole",
+					ValueType: settings.VtBool,
+					Value:     strconv.FormatBool(x.Comport.LogComports),
+				},
 			},
 		},
 		{
-			Name: "Firmware",
-			Hint: "\"Прошивка\"",
+			Name: "Hardware",
+			Hint: "Стенд",
 			Properties: []settings.ConfigProperty{
 				{
 					Hint:      "Тип микросхемм",
@@ -90,7 +99,7 @@ func (x *UserConfig) Sections() []settings.ConfigSection {
 func (x *UserConfig) setValue(section, property, value string) error {
 
 	switch section {
-	case "Firmware":
+	case "Hardware":
 		switch property {
 		case "ChipType":
 
@@ -110,6 +119,7 @@ func (x *UserConfig) setValue(section, property, value string) error {
 
 			}
 			return nil
+
 		}
 	case "Comport":
 		switch property {
@@ -125,6 +135,12 @@ func (x *UserConfig) setValue(section, property, value string) error {
 			}
 			x.Comport.GasSwitcher = value
 			return nil
+		case "ComportConsole":
+			v, err := strconv.ParseBool(value)
+			if err == nil {
+				x.Comport.LogComports = v
+			}
+			return err
 
 		}
 	}
@@ -147,5 +163,6 @@ var predefined = Predefined{
 	Measurer: comm.Config{
 		ReadByteTimeoutMillis: 50,
 		ReadTimeoutMillis:     1000,
+		MaxAttemptsRead:       5,
 	},
 }

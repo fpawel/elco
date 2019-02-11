@@ -12,6 +12,12 @@ import (
 	"sync"
 )
 
+func (x *D) RunWriteSingleProductFirmware(number int, bytes []byte) {
+	x.runHardware(fmt.Sprintf("Прошивка места %d", number+1), func() error {
+		return x.writeSingleProductFirmware(number, bytes)
+	})
+}
+
 func (x *D) RunWritePartyFirmware() {
 	x.runHardware("Прошивка партии", x.writePartyFirmware)
 }
@@ -95,7 +101,9 @@ func (x *D) runHardware(what string, work WorkFunc) {
 		notifyErr := func(err error) {
 			fields := merryValues(err)
 			logrus.WithFields(fields).Error(err)
-			notify.HardwareErrorf(x.w, "%s: %v", what, merry.Details(err))
+			if !merry.Is(err, context.Canceled) {
+				notify.HardwareErrorf(x.w, "%s: %v", what, merry.Details(err))
+			}
 		}
 
 		if err := x.port.measurer.Open(cfg.Comport.Measurer, 115200, 0, x.hardware.ctx); err != nil {

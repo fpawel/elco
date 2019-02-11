@@ -6,15 +6,22 @@ import (
 	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/goutils"
 	"github.com/pkg/errors"
+	"regexp"
 	"strings"
 	"time"
 )
 
 type ProductFirmware struct {
 	c crud.ProductFirmware
+	w WriteSingleProductFirmwareRunner
+}
+
+type WriteSingleProductFirmwareRunner interface {
+	RunWriteSingleProductFirmware(number int, bytes []byte)
 }
 
 type FirmwareInfo2 struct {
+	Number                                 int
 	Year, Month, Day, Hour, Minute, Second int
 	Sensitivity,
 	Serial,
@@ -29,8 +36,8 @@ type TempValues struct {
 	Values []string
 }
 
-func NewProductFirmware(c crud.ProductFirmware) *ProductFirmware {
-	return &ProductFirmware{c}
+func NewProductFirmware(c crud.ProductFirmware, w WriteSingleProductFirmwareRunner) *ProductFirmware {
+	return &ProductFirmware{c, w}
 }
 
 func (x *ProductFirmware) StoredFirmwareInfo(productID [1]int64, r *data.FirmwareInfo) error {
@@ -47,9 +54,13 @@ func (x *ProductFirmware) CalculateFirmwareInfo(productID [1]int64, r *data.Firm
 	return
 }
 
-func (x *ProductFirmware) TempPoints(v TempValues, r *data.TempPoints) (err error) {
-	*r, err = tempPoints(v.Values)
-	return
+func (x *ProductFirmware) TempPoints(v TempValues, r *data.TempPoints) error {
+	fonM, sensM := data.TableXY{}, data.TableXY{}
+	if err := tempPoints(v.Values, fonM, sensM); err != nil {
+		return err
+	}
+	*r = data.NewTempPoints(fonM, sensM)
+	return nil
 }
 
 func (x *ProductFirmware) Write(v FirmwareInfo2, _ *struct{}) (err error) {
@@ -84,40 +95,51 @@ func (x *ProductFirmware) Write(v FirmwareInfo2, _ *struct{}) (err error) {
 		return merry.Errorf("код единиц измерения не задан: %q ", v.Units)
 	}
 
-	z.Scale, err = goutils.ParseFloat(v.Scale)
-	if err != nil {
-		return merry.Append(err, "не верный формат значения шкалы")
+	m := regexp.MustCompile(`\s*(\d+)\s*-\s*(\d+)\s*`).FindStringSubmatch(v.Scale)
+	if len(m) < 3 {
+		return merry.Appendf(err, "не верный формат значения шкалы: %s", v.Scale)
 	}
+
+	z.Scale, err = goutils.ParseFloat(m[2])
+	if err != nil {
+		return merry.Appendf(err, "не верный формат значения шкалы: %s", m[2])
+	}
+
+	z.Fon, z.Sens = data.TableXY{}, data.TableXY{}
+
+	if err = tempPoints(v.Values, z.Fon, z.Sens); err != nil {
+		return merry.Append(err, "не удался расчёт температурных точек")
+	}
+
+	z.KSens20 = data.NewApproximationTable(z.Sens).F(20)
+
+	b := z.Bytes()
+	x.w.RunWriteSingleProductFirmware(v.Number, b[:])
 
 	return
 }
 
-func tempPoints(values []string) (r data.TempPoints, err error) {
+func tempPoints(values []string, fonM data.TableXY, sensM data.TableXY) error {
 	if len(values)%3 != 0 {
-		err = errors.New("sequence length is not a multiple of three")
-		return
+		return errors.New("sequence length is not a multiple of three")
 	}
 
-	fonM, sensM := data.TableXY{}, data.TableXY{}
 	for n := 0; n < len(values); n += 3 {
 		strT := strings.TrimSpace(values[n+0])
 		if len(strT) == 0 {
 			continue
 		}
 
-		var t float64
-		t, err = goutils.ParseFloat(values[n])
+		t, err := goutils.ParseFloat(values[n])
 		if err != nil {
-			err = merry.Appendf(err, "строка %d", n)
-			return
+			return merry.Appendf(err, "строка %d", n)
 		}
 		strI := strings.TrimSpace(values[n+1])
 		if len(strI) > 0 {
 			var i float64
 			i, err = goutils.ParseFloat(strI)
 			if err != nil {
-				err = merry.Appendf(err, "строка %d", n)
-				return
+				return merry.Appendf(err, "строка %d", n)
 			}
 			fonM[t] = i
 		}
@@ -126,12 +148,11 @@ func tempPoints(values []string) (r data.TempPoints, err error) {
 			var k float64
 			k, err = goutils.ParseFloat(strS)
 			if err != nil {
-				err = merry.Appendf(err, "строка %d", n)
-				return
+				return merry.Appendf(err, "строка %d", n)
 			}
 			sensM[t] = k
 		}
 	}
-	r = data.NewTempPoints(fonM, sensM)
-	return
+	// r = data.NewTempPoints(fonM, sensM)
+	return nil
 }

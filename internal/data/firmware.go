@@ -319,7 +319,7 @@ func (x Firmware) Bytes() (b FirmwareBytes) {
 		binary.LittleEndian.PutUint16(b[i:], n)
 	}
 
-	at := newApproxTbl(x.Fon)
+	at := NewApproximationTable(x.Fon)
 	t := float64(-124)
 	for i := 0x00F8; i >= 0; i -= 2 {
 		putTempValue(at.F(t), i)
@@ -331,7 +331,7 @@ func (x Firmware) Bytes() (b FirmwareBytes) {
 		t++
 	}
 
-	at = newApproxTbl(x.Sens)
+	at = NewApproximationTable(x.Sens)
 	t = float64(-124)
 	for i := 0x04F8; i >= 0x0400; i -= 2 {
 		putTempValue(at.F(t), i)

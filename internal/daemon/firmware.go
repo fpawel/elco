@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/elco/internal/data"
+	"github.com/fpawel/goutils/serial-comm/comport"
 	"github.com/fpawel/goutils/serial-comm/modbus"
 	"github.com/hako/durafmt"
 	"github.com/hashicorp/go-multierror"
@@ -97,7 +98,9 @@ func (x *D) writeProductsFirmware(products []*data.Product) error {
 	return nil
 }
 
-func (x *D) writeSingleProductFirmware(block, place int, bytes []byte) error {
+func (x *D) writeSingleProductFirmware(number int, bytes []byte) error {
+	block := number / 8
+	place := number % 8
 	logrus.WithFields(logrus.Fields{
 		"block": block,
 		"place": place,
@@ -107,7 +110,6 @@ func (x *D) writeSingleProductFirmware(block, place int, bytes []byte) error {
 	placesMask := byte(1) << byte(place)
 
 	for _, c := range firmwareAddresses {
-
 		logrus.WithFields(logrus.Fields{
 			"block":       block,
 			"places_mask": fmt.Sprintf("%08b", placesMask),
@@ -142,17 +144,14 @@ func (x *D) waitFirmwareStatus(block int, placesMask byte) error {
 	ctx, _ := context.WithTimeout(x.hardware.ctx, t)
 
 	for {
-
 		status, err := x.readFirmwareStatus(block)
 		if err != nil {
 			return err
 		}
-
 		err = checkFirmwareStatus(status, placesMask)
 		if err == nil {
 			return nil
 		}
-
 		select {
 		case <-ctx.Done():
 			values := logrus.Fields{
@@ -162,7 +161,6 @@ func (x *D) waitFirmwareStatus(block int, placesMask byte) error {
 				"places_mask":    fmt.Sprintf("%b", placesMask),
 			}
 			logrus.WithFields(values).Error(err)
-
 			return merryWithValues(x.port.measurer.LastWork().WrapError(err), values)
 		}
 	}
@@ -174,7 +172,12 @@ func (x *D) readFirmwareStatus(block int) ([]byte, error) {
 		ProtoCmd: 0x45,
 	}
 
-	resp, err := x.port.measurer.GetResponse(req.Bytes(), x.sets.Config().Measurer)
+	responseReader := comport.Comm{
+		Port:   x.port.measurer,
+		Config: x.sets.Config().Measurer,
+	}
+
+	resp, err := responseReader.GetResponse(req.Bytes())
 	if err != nil {
 		return nil, err
 	}
@@ -208,11 +211,14 @@ func (x *D) writePreparedDataToFlash(block int, placesMask byte, addr uint16, co
 		},
 	}
 
-	resp, err := x.port.measurer.GetResponse(req.Bytes(), x.sets.Config().Measurer)
+	responseReader := comport.Comm{
+		Port:   x.port.measurer,
+		Config: x.sets.Config().Measurer,
+	}
+	resp, err := responseReader.GetResponse(req.Bytes())
 	if err != nil {
 		return err
 	}
-
 	if !compareBytes(resp, req.Bytes()) {
 		return x.port.measurer.LastWork().Errorf("% X != % X", resp, req.Bytes())
 	}
@@ -230,7 +236,6 @@ func checkFirmwareStatus(b []byte, placesMask byte) (err error) {
 }
 
 func (x *D) sendDataToWriteFlash(block, place int, b []byte) error {
-
 	logrus.WithFields(logrus.Fields{
 		"block":    block,
 		"place":    place,
@@ -242,25 +247,29 @@ func (x *D) sendDataToWriteFlash(block, place int, b []byte) error {
 		Addr:     modbus.Addr(block) + 101,
 		ProtoCmd: 0x42,
 		Data: append([]byte{
-			byte(place),
+			byte(place + 1),
 			byte(len(b) >> 8),
 			byte(len(b)),
 		}, b...),
 	}
-	resp, err := x.port.measurer.GetResponse(req.Bytes(), x.sets.Config().Measurer)
+	responseReader := comport.Comm{
+		Port:   x.port.measurer,
+		Config: x.sets.Config().Measurer,
+	}
+	resp, err := responseReader.GetResponse(req.Bytes())
 
 	if err != nil {
 		return err
 	}
 	w := x.port.measurer.LastWork()
-	if err = req.CheckResponse(b); err != nil {
+	if err = req.CheckResponse(resp); err != nil {
 		return w.WrapError(err)
 	}
-	if len(b) != 7 {
-		return w.Errorf("длина ответа %d не равна 7", len(b))
+	if len(resp) != 7 {
+		return w.Errorf("длина ответа %d не равна 7", len(resp))
 	}
-	if !compareBytes(resp[:5], b[:5]) {
-		return w.Errorf("% X != % X", resp[:5], b[:5])
+	if !compareBytes(resp[:5], req.Bytes()[:5]) {
+		return w.Errorf("% X != % X", resp[:5], req.Bytes()[:5])
 	}
 	return nil
 }

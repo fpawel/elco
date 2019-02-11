@@ -4,17 +4,17 @@ import "sort"
 
 type TableXY = map[float64]float64
 
-// tblApprox - таблица кусочно-линейной апроксимации
-type tblApprox struct {
+// ApproximationTable - таблица кусочно-линейной апроксимации
+type ApproximationTable struct {
 	vx, vy []float64
 }
 
-func newApproxTbl(xy TableXY) *tblApprox {
+func NewApproximationTable(xy TableXY) *ApproximationTable {
 	n := len(xy)
 	if n == 0 {
 		panic("map must be not empty")
 	}
-	tbl := new(tblApprox)
+	tbl := new(ApproximationTable)
 
 	var xys [][2]float64
 	for x, y := range xy {
@@ -30,7 +30,7 @@ func newApproxTbl(xy TableXY) *tblApprox {
 	return tbl
 }
 
-func (tbl *tblApprox) F(x float64) float64 {
+func (tbl *ApproximationTable) F(x float64) float64 {
 	if x < tbl.vx[0] {
 		return tbl.vy[0]
 	}

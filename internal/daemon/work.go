@@ -7,6 +7,7 @@ import (
 	"github.com/fpawel/elco/internal/api"
 	"github.com/fpawel/elco/internal/api/notify"
 	"github.com/fpawel/elco/internal/data"
+	"github.com/fpawel/goutils/serial-comm/comport"
 	"github.com/fpawel/goutils/serial-comm/modbus"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -73,7 +74,12 @@ func (x *D) doSwitchGas(n int) error {
 		log.Panicf("wrong gas code: %d", n)
 	}
 
-	if _, err := x.port.gas.GetResponse(req.Bytes(), x.sets.Config().GasSwitcher); err != nil {
+	responseReader := comport.Comm{
+		Port:   x.port.gas,
+		Config: x.sets.Config().GasSwitcher,
+	}
+
+	if _, err := responseReader.GetResponse(req.Bytes()); err != nil {
 		return err
 	}
 
@@ -91,7 +97,7 @@ func (x *D) doSwitchGas(n int) error {
 		req.Data[3] = 0xD5
 	}
 
-	if _, err := x.port.gas.GetResponse(req.Bytes(), x.sets.Config().GasSwitcher); err != nil {
+	if _, err := responseReader.GetResponse(req.Bytes()); err != nil {
 		return err
 	}
 

@@ -72,6 +72,10 @@ func main() {
 			"LastPartyChanged",
 			r.TypeOf((*data.Party)(nil)).Elem(),
 		},
+		{
+			"ComportEntry",
+			r.TypeOf((*api.ComportEntry)(nil)).Elem(),
+		},
 	})
 
 	file := openFile("services.pas")
