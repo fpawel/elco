@@ -1,4 +1,4 @@
-SET dir=%HOMEDRIVE%%HOMEPATH%\.elco
-set GOARCH=386
-buildmingw32 go build -o %dir%\elco.exe github.com/fpawel/elco/cmd/app
-start %dir%
+SET APP_DIR=%HOMEDRIVE%%HOMEPATH%\.elco
+SET GOARCH=386
+buildmingw32 go build -o %APP_DIR%\elco.exe github.com/fpawel/elco/cmd/app
+start %APP_DIR%

@@ -7,6 +7,7 @@ import (
 	"github.com/fpawel/elco/internal/api"
 	"github.com/fpawel/elco/internal/api/notify"
 	"github.com/fpawel/elco/internal/data"
+	"github.com/fpawel/elco/internal/utils"
 	"github.com/fpawel/goutils/serial-comm/comport"
 	"github.com/fpawel/goutils/serial-comm/modbus"
 	"github.com/pkg/errors"
@@ -46,7 +47,7 @@ func (x *D) switchGas(n int) error {
 func (x *D) doSwitchGas(n int) error {
 	c := x.sets.Config()
 	if !x.port.gas.Opened() {
-		x.port.gas.SetLogConsole(true)
+		x.port.gas.SetLogger(utils.Logger)
 		if err := x.port.gas.Open(c.Comport.GasSwitcher, 9600, 0, context.Background()); err != nil {
 			return err
 		}
@@ -124,9 +125,9 @@ func (x *D) delay(what string, duration time.Duration) error {
 		What:        what,
 		TimeSeconds: int(duration.Seconds()),
 	})
-	x.port.measurer.SetLogConsole(false)
+	x.port.measurer.SetLogger(nil)
 	defer func() {
-		x.port.measurer.SetLogConsole(true)
+		x.port.measurer.SetLogger(utils.Logger)
 	}()
 	defer notify.Delay(x.w, api.DelayInfo{Run: false})
 	for {
@@ -310,7 +311,11 @@ func GroupProductsByBlocks(ps []data.Product) (gs [][]*data.Product) {
 func init() {
 	merry.RegisterDetail("Запрос", "request")
 	merry.RegisterDetail("Ответ", "response")
-	merry.RegisterDetail("Длит.ожидания", "duration")
+	merry.RegisterDetail("Длительность ожидания", "duration")
 	merry.RegisterDetail("COM порт", "comport")
 	merry.RegisterDetail("Блок измерительный", "block")
+	merry.RegisterDetail("Длительность ожидания статуса", "status_timeout")
+	merry.RegisterDetail("Место", "place")
+	merry.RegisterDetail("Код статуса", "status")
+
 }

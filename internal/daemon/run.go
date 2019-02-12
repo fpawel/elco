@@ -6,6 +6,7 @@ import (
 	"github.com/ansel1/merry"
 	"github.com/fpawel/elco/internal/api/notify"
 	"github.com/fpawel/elco/internal/data"
+	"github.com/fpawel/elco/internal/utils"
 	"github.com/fpawel/goutils/intrng"
 	"github.com/hashicorp/go-multierror"
 	"github.com/sirupsen/logrus"
@@ -70,7 +71,7 @@ func (x *D) RunReadCurrent(checkPlaces [12]bool) {
 		}
 	}
 	x.runHardware("опрос блоков измерительных: "+intrng.Format(xs), func() error {
-		x.port.measurer.SetLogConsole(false)
+		x.port.measurer.SetLogger(nil)
 		for {
 			for _, place := range places {
 				if _, err := x.readBlockMeasure(place); err != nil {
@@ -99,7 +100,8 @@ func (x *D) runHardware(what string, work WorkFunc) {
 	go func() {
 
 		notifyErr := func(err error) {
-			fields := merryValues(err)
+			fields := logrus.Fields{}
+			merryValues(err, fields)
 			logrus.WithFields(fields).Error(err)
 			if !merry.Is(err, context.Canceled) {
 				notify.HardwareErrorf(x.w, "%s: %v", what, merry.Details(err))
@@ -111,7 +113,7 @@ func (x *D) runHardware(what string, work WorkFunc) {
 			return
 		}
 
-		x.port.measurer.SetLogConsole(true)
+		x.port.measurer.SetLogger(utils.Logger)
 		if err := work(); err != nil && err != context.Canceled {
 			notifyErr(err)
 		}
@@ -148,16 +150,19 @@ func (x *D) closeHardware() (mulErr error) {
 	return
 }
 
-func merryValues(err error) (r logrus.Fields) {
-	r = logrus.Fields{}
+func merryValues(err error, m logrus.Fields) {
 	for k, v := range merry.Values(err) {
+		var s string
 		switch k := k.(type) {
 		case string:
-			r[k] = v
+			s = k
 		default:
-			r[fmt.Sprintf("%+v", k)] = v
+			s = fmt.Sprintf("%+v", k)
+		}
+		if _, f := m[s]; !f {
+			m[s] = v
 		}
 	}
-	r["stack"] = merry.Stacktrace(err)
+	m["stack"] = merry.Stacktrace(err)
 	return
 }

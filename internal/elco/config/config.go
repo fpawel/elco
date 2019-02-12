@@ -25,12 +25,14 @@ type UserConfig struct {
 }
 
 type Predefined struct {
-	Work        WorkConfig  `toml:"work" comment:"автоматическая настройка"`
-	Measurer    comm.Config `toml:"measurer" comment:"измерительный блок"`
-	GasSwitcher comm.Config `toml:"gas_block" comment:"газовый блок"`
-	Firmware    struct {
-		StatusTimeoutSeconds int `toml:"status_timeout_seconds" comment:"таймаут статуса прошивки, с"`
-	} `toml:"firmware" comment:"программатор"`
+	Work           WorkConfig          `toml:"work" comment:"автоматическая настройка"`
+	Measurer       comm.Config         `toml:"measurer" comment:"измерительный блок"`
+	GasSwitcher    comm.Config         `toml:"gas_block" comment:"газовый блок"`
+	FirmwareWriter WriteFirmwareConfig `toml:"firmware" comment:"программатор"`
+}
+
+type WriteFirmwareConfig struct {
+	StatusTimeoutSeconds int `toml:"status_timeout_seconds" comment:"таймаут статуса прошивки, с"`
 }
 
 type WorkConfig struct {
@@ -163,6 +165,9 @@ var predefined = Predefined{
 	Measurer: comm.Config{
 		ReadByteTimeoutMillis: 50,
 		ReadTimeoutMillis:     1000,
-		MaxAttemptsRead:       5,
+		MaxAttemptsRead:       0,
+	},
+	FirmwareWriter: WriteFirmwareConfig{
+		StatusTimeoutSeconds: 3,
 	},
 }
