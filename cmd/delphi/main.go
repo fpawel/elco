@@ -76,6 +76,10 @@ func main() {
 			"ComportEntry",
 			r.TypeOf((*api.ComportEntry)(nil)).Elem(),
 		},
+		{
+			"StartServerApplication",
+			r.TypeOf((*string)(nil)).Elem(),
+		},
 	})
 
 	file := openFile("services.pas")

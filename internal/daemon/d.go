@@ -127,6 +127,7 @@ func (x *D) Run(skipRunUIApp bool) {
 	} else {
 		logrus.Warn("skip running ui flag set")
 	}
+	notify.StartServerApplication(x.w, "")
 
 	// цикл оконных сообщений
 	for {

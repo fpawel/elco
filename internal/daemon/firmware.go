@@ -176,7 +176,7 @@ func (x *D) readFirmwareStatus(block int) ([]byte, error) {
 
 	responseReader := comport.Comm{
 		Port:   x.port.measurer,
-		Config: x.sets.Config().Measurer,
+		Config: x.sets.Config().MeasurerComm,
 	}
 
 	resp, err := responseReader.GetResponse(req.Bytes())
@@ -215,7 +215,7 @@ func (x *D) writePreparedDataToFlash(block int, placesMask byte, addr uint16, co
 
 	responseReader := comport.Comm{
 		Port:   x.port.measurer,
-		Config: x.sets.Config().Measurer,
+		Config: x.sets.Config().MeasurerComm,
 	}
 	resp, err := responseReader.GetResponse(req.Bytes())
 	if err != nil {
@@ -258,7 +258,7 @@ func (x *D) sendDataToWriteFlash(block, place int, b []byte) error {
 	}
 	responseReader := comport.Comm{
 		Port:   x.port.measurer,
-		Config: x.sets.Config().Measurer,
+		Config: x.sets.Config().MeasurerComm,
 	}
 	resp, err := responseReader.GetResponse(req.Bytes())
 

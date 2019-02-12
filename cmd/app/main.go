@@ -4,7 +4,6 @@ import (
 	"flag"
 	"github.com/fpawel/elco/internal/daemon"
 	"github.com/fpawel/elco/internal/elco"
-	"github.com/fpawel/elco/internal/utils"
 	"github.com/fpawel/goutils/winapp"
 	"github.com/lxn/win"
 	"github.com/sirupsen/logrus"
@@ -45,11 +44,11 @@ func main() {
 	if err != nil {
 		logrus.Fatal(err)
 	}
-	utils.Logger.SetLevel(logLevel)
+	elco.Logger.SetLevel(logLevel)
 
 	logrus.SetLevel(logLevel)
-	logrus.SetFormatter(utils.Logger.Formatter)
-	logrus.SetOutput(utils.Logger.Out)
+	logrus.SetFormatter(elco.Logger.Formatter)
+	logrus.SetOutput(elco.Logger.Out)
 
 	if createNewDB {
 		logrus.Warn("delete data base file because create-new-db flag was set")

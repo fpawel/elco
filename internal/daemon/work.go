@@ -7,7 +7,7 @@ import (
 	"github.com/fpawel/elco/internal/api"
 	"github.com/fpawel/elco/internal/api/notify"
 	"github.com/fpawel/elco/internal/data"
-	"github.com/fpawel/elco/internal/utils"
+	"github.com/fpawel/elco/internal/elco"
 	"github.com/fpawel/goutils/serial-comm/comport"
 	"github.com/fpawel/goutils/serial-comm/modbus"
 	"github.com/pkg/errors"
@@ -47,8 +47,7 @@ func (x *D) switchGas(n int) error {
 func (x *D) doSwitchGas(n int) error {
 	c := x.sets.Config()
 	if !x.port.gas.Opened() {
-		x.port.gas.SetLogger(utils.Logger)
-		if err := x.port.gas.Open(c.Comport.GasSwitcher, 9600, 0, context.Background()); err != nil {
+		if err := x.port.gas.Open(c.Comport.Gas, 9600, 0, context.Background()); err != nil {
 			return err
 		}
 	}
@@ -77,7 +76,7 @@ func (x *D) doSwitchGas(n int) error {
 
 	responseReader := comport.Comm{
 		Port:   x.port.gas,
-		Config: x.sets.Config().GasSwitcher,
+		Config: x.sets.Config().PortGasComm,
 	}
 
 	if _, err := responseReader.GetResponse(req.Bytes()); err != nil {
@@ -127,7 +126,7 @@ func (x *D) delay(what string, duration time.Duration) error {
 	})
 	x.port.measurer.SetLogger(nil)
 	defer func() {
-		x.port.measurer.SetLogger(utils.Logger)
+		x.port.measurer.SetLogger(elco.Logger)
 	}()
 	defer notify.Delay(x.w, api.DelayInfo{Run: false})
 	for {
@@ -306,6 +305,31 @@ func GroupProductsByBlocks(ps []data.Product) (gs [][]*data.Product) {
 	})
 
 	return
+}
+
+func (x *D) readBlockMeasure(block int) ([]float64, error) {
+
+	values, err := modbus.Read3BCDValues(comport.Comm{
+		Port:   x.port.measurer,
+		Config: x.sets.Config().MeasurerComm,
+	}, modbus.Addr(block+101), 0, 8)
+
+	switch err {
+
+	case nil:
+		notify.ReadCurrent(x.w, api.ReadCurrent{
+			Block:  block,
+			Values: values,
+		})
+		return values, nil
+
+	case context.Canceled:
+		return nil, context.Canceled
+
+	default:
+		err = merry.Wrap(err).WithValue("block", block)
+		return nil, x.port.measurer.LastWork().WrapError(err)
+	}
 }
 
 func init() {

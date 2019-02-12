@@ -51,7 +51,7 @@ func (s ProductInfo) FirmwareInfo() FirmwareInfo {
 	x := FirmwareInfo{
 		Gas:         s.GasName,
 		Units:       s.UnitsName,
-		Scale:       fmt.Sprintf("0 - %v", s.Scale),
+		Scale:       fmt.Sprintf("%v", s.Scale),
 		ProductType: s.AppliedProductTypeName,
 		Serial:      formatNullInt64(s.Serial),
 		Time:        s.CreatedAt,

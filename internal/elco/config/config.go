@@ -16,8 +16,8 @@ type Config struct {
 
 type UserConfig struct {
 	Comport struct {
-		Measurer, GasSwitcher string
-		LogComports           bool
+		Measurer, Gas string
+		LogComports   bool
 	}
 	Firmware struct {
 		ChipType int
@@ -26,8 +26,8 @@ type UserConfig struct {
 
 type Predefined struct {
 	Work           WorkConfig          `toml:"work" comment:"автоматическая настройка"`
-	Measurer       comm.Config         `toml:"measurer" comment:"измерительный блок"`
-	GasSwitcher    comm.Config         `toml:"gas_block" comment:"газовый блок"`
+	MeasurerComm   comm.Config         `toml:"measurer" comment:"измерительный блок"`
+	PortGasComm    comm.Config         `toml:"gas_block" comment:"газовый блок"`
 	FirmwareWriter WriteFirmwareConfig `toml:"firmware" comment:"программатор"`
 }
 
@@ -64,15 +64,15 @@ func (x *UserConfig) Sections() []settings.ConfigSection {
 			Properties: []settings.ConfigProperty{
 				{
 					Hint:      "Блоки измерения",
-					Name:      "Measurer",
+					Name:      "MeasurerComm",
 					ValueType: settings.VtComportName,
 					Value:     x.Comport.Measurer,
 				},
 				{
 					Hint:      "Газовый блок",
-					Name:      "GasSwitcher",
+					Name:      "Gas",
 					ValueType: settings.VtComportName,
-					Value:     x.Comport.GasSwitcher,
+					Value:     x.Comport.Gas,
 				},
 				{
 					Hint:      "Консоль СОМ порта",
@@ -125,17 +125,17 @@ func (x *UserConfig) setValue(section, property, value string) error {
 		}
 	case "Comport":
 		switch property {
-		case "Measurer":
+		case "MeasurerComm":
 			if err := comport.CheckPortAvailable(value); err != nil {
 				return errors.Errorf("%q: %+v", value, err)
 			}
 			x.Comport.Measurer = value
 			return nil
-		case "GasSwitcher":
+		case "Gas":
 			if err := comport.CheckPortAvailable(value); err != nil {
 				return errors.Errorf("%q: %+v", value, err)
 			}
-			x.Comport.GasSwitcher = value
+			x.Comport.Gas = value
 			return nil
 		case "ComportConsole":
 			v, err := strconv.ParseBool(value)
@@ -158,11 +158,11 @@ var predefined = Predefined{
 		BlowGasMinutes:         5,
 		HoldTemperatureMinutes: 120,
 	},
-	GasSwitcher: comm.Config{
+	PortGasComm: comm.Config{
 		ReadByteTimeoutMillis: 50,
 		ReadTimeoutMillis:     1000,
 	},
-	Measurer: comm.Config{
+	MeasurerComm: comm.Config{
 		ReadByteTimeoutMillis: 50,
 		ReadTimeoutMillis:     1000,
 		MaxAttemptsRead:       0,

@@ -20,6 +20,7 @@ const (
 	msgDelay
 	msgLastPartyChanged
 	msgComportEntry
+	msgStartServerApplication
 )
 
 func ReadCurrent(w W, arg api.ReadCurrent) {
@@ -66,4 +67,11 @@ func LastPartyChanged(w W, arg data.Party) {
 
 func ComportEntry(w W, arg api.ComportEntry) {
 	w.NotifyJson(uintptr(msgComportEntry), arg)
+}
+
+func StartServerApplication(w W, arg string) {
+	w.NotifyStr(uintptr(msgStartServerApplication), arg)
+}
+func StartServerApplicationf(w W, format string, a ...interface{}) {
+	w.Notifyf(uintptr(msgStartServerApplication), format, a...)
 }

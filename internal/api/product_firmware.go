@@ -6,7 +6,6 @@ import (
 	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/goutils"
 	"github.com/pkg/errors"
-	"regexp"
 	"strings"
 	"time"
 )
@@ -95,14 +94,9 @@ func (x *ProductFirmware) Write(v FirmwareInfo2, _ *struct{}) (err error) {
 		return merry.Errorf("код единиц измерения не задан: %q ", v.Units)
 	}
 
-	m := regexp.MustCompile(`\s*(\d+)\s*-\s*(\d+)\s*`).FindStringSubmatch(v.Scale)
-	if len(m) < 3 {
-		return merry.Appendf(err, "не верный формат значения шкалы: %s", v.Scale)
-	}
-
-	z.Scale, err = goutils.ParseFloat(m[2])
+	z.Scale, err = goutils.ParseFloat(v.Scale)
 	if err != nil {
-		return merry.Appendf(err, "не верный формат значения шкалы: %s", m[2])
+		return merry.Appendf(err, "не верный формат значения шкалы: %s", v.Scale)
 	}
 
 	z.Fon, z.Sens = data.TableXY{}, data.TableXY{}

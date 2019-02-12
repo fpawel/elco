@@ -6,7 +6,7 @@ import (
 	"github.com/ansel1/merry"
 	"github.com/fpawel/elco/internal/api/notify"
 	"github.com/fpawel/elco/internal/data"
-	"github.com/fpawel/elco/internal/utils"
+	"github.com/fpawel/elco/internal/elco"
 	"github.com/fpawel/goutils/intrng"
 	"github.com/hashicorp/go-multierror"
 	"github.com/sirupsen/logrus"
@@ -99,6 +99,11 @@ func (x *D) runHardware(what string, work WorkFunc) {
 
 	go func() {
 
+		defer x.port.measurer.SetLogger(elco.Logger)
+		defer x.port.gas.SetLogger(elco.Logger)
+		x.port.measurer.SetLogger(elco.Logger)
+		x.port.gas.SetLogger(elco.Logger)
+
 		notifyErr := func(err error) {
 			fields := logrus.Fields{}
 			merryValues(err, fields)
@@ -113,7 +118,6 @@ func (x *D) runHardware(what string, work WorkFunc) {
 			return
 		}
 
-		x.port.measurer.SetLogger(utils.Logger)
 		if err := work(); err != nil && err != context.Canceled {
 			notifyErr(err)
 		}
