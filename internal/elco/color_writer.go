@@ -19,7 +19,7 @@ func (x ColorStdOutWriter) Write(p []byte) (int, error) {
 				value := string(d.Value())
 				switch value {
 				case "error", "panic", "fatal":
-					return color.New(color.FgHiYellow, color.Bold).Println(s)
+					return color.New(color.FgYellow, color.Bold).Println(s)
 				case "warn", "warning":
 					return color.New(color.FgHiMagenta, color.Bold).Println(s)
 				case "info":
