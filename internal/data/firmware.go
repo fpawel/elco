@@ -12,11 +12,14 @@ import (
 )
 
 type Firmware struct {
-	CreatedAt              time.Time
-	Serial, Scale, KSens20 float64
-	Fon, Sens              TableXY
-	Gas, Units             byte
-	ProductType            string
+	CreatedAt time.Time
+	Serial,
+	ScaleBegin,
+	ScaleEnd,
+	KSens20 float64
+	Fon, Sens   TableXY
+	Gas, Units  byte
+	ProductType string
 }
 
 type FirmwareInfo struct {
@@ -27,7 +30,11 @@ type FirmwareInfo struct {
 	ProductType,
 	Gas,
 	Units,
-	Scale string
+	ScaleBeg,
+	ScaleEnd,
+	ISMinus20,
+	ISPlus20,
+	ISPlus50 string
 }
 
 const FirmwareSize = 1832
@@ -51,11 +58,15 @@ func (s ProductInfo) FirmwareInfo() FirmwareInfo {
 	x := FirmwareInfo{
 		Gas:         s.GasName,
 		Units:       s.UnitsName,
-		Scale:       fmt.Sprintf("%v", s.Scale),
+		ScaleBeg:    "0",
+		ScaleEnd:    fmt.Sprintf("%v", s.Scale),
 		ProductType: s.AppliedProductTypeName,
 		Serial:      formatNullInt64(s.Serial),
 		Time:        s.CreatedAt,
 		Sensitivity: formatNullFloat64(s.KSens20, 3),
+		ISPlus20:    formatNullFloat64K(s.ISPlus20, 1000, -1),
+		ISMinus20:   formatNullFloat64K(s.ISMinus20, 1000, -1),
+		ISPlus50:    formatNullFloat64K(s.ISPlus50, 1000, -1),
 	}
 
 	if fonM, err := s.TableFon(); err == nil {
@@ -85,7 +96,8 @@ func (s ProductInfo) Firmware() (x Firmware, err error) {
 		ProductType: s.AppliedProductTypeName,
 		Serial:      float64(s.Serial.Int64),
 		KSens20:     s.KSens20.Float64,
-		Scale:       s.Scale,
+		ScaleBegin:  0,
+		ScaleEnd:    s.Scale,
 		Gas:         s.GasCode,
 		Units:       s.UnitsCode,
 	}
@@ -229,7 +241,8 @@ func (x FirmwareBytes) FirmwareInfo(units []Units, gases []Gas) FirmwareInfo {
 		Time:        x.Time(),
 		ProductType: x.ProductType(),
 		Serial:      formatBCD(x[0x0701:0x0705], -1),
-		Scale:       formatBCD(x[0x0602:0x0606], -1) + " - " + formatBCD(x[0x0606:0x060A], -1),
+		ScaleBeg:    formatBCD(x[0x0602:0x0606], -1),
+		ScaleEnd:    formatBCD(x[0x0606:0x060A], -1),
 		Sensitivity: formatFloat(math.Float64frombits(binary.LittleEndian.Uint64(x[0x0720:])), 3),
 	}
 	for _, a := range units {
@@ -294,8 +307,8 @@ func (x Firmware) Bytes() (b FirmwareBytes) {
 	}
 
 	goutils.PutBCD6(b[0x0701:], float64(x.Serial))
-	goutils.PutBCD6(b[0x0602:], 0)
-	goutils.PutBCD6(b[0x0606:], x.Scale)
+	goutils.PutBCD6(b[0x0602:], x.ScaleBegin)
+	goutils.PutBCD6(b[0x0606:], x.ScaleEnd)
 
 	b[0x070F] = byte(x.CreatedAt.Year() - 2000)
 	b[0x070E] = byte(x.CreatedAt.Month())
@@ -352,15 +365,19 @@ func formatNullInt64(v sql.NullInt64) string {
 	return ""
 }
 
-func formatNullFloat64(v sql.NullFloat64, precision int) string {
+func formatNullFloat64K(v sql.NullFloat64, k float64, precision int) string {
 	if v.Valid {
-		return formatFloat(v.Float64, precision)
+		return formatFloat(v.Float64*k, precision)
 	}
 	return ""
 }
 
+func formatNullFloat64(v sql.NullFloat64, precision int) string {
+	return formatNullFloat64K(v, 1, precision)
+}
+
 func formatFloat(v float64, precision int) string {
-	return strconv.FormatFloat(v, 'g', precision, 64)
+	return strconv.FormatFloat(v, 'f', precision, 64)
 }
 
 func formatBCD(b []byte, precision int) string {

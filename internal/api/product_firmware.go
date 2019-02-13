@@ -27,7 +27,8 @@ type FirmwareInfo2 struct {
 	ProductType,
 	Gas,
 	Units,
-	Scale string
+	ScaleBegin,
+	ScaleEnd string
 	Values []string
 }
 
@@ -94,9 +95,14 @@ func (x *ProductFirmware) Write(v FirmwareInfo2, _ *struct{}) (err error) {
 		return merry.Errorf("код единиц измерения не задан: %q ", v.Units)
 	}
 
-	z.Scale, err = goutils.ParseFloat(v.Scale)
+	z.ScaleBegin, err = goutils.ParseFloat(v.ScaleBegin)
 	if err != nil {
-		return merry.Appendf(err, "не верный формат значения шкалы: %s", v.Scale)
+		return merry.Appendf(err, "не верный формат значения начала шкалы: %s", v.ScaleBegin)
+	}
+
+	z.ScaleEnd, err = goutils.ParseFloat(v.ScaleEnd)
+	if err != nil {
+		return merry.Appendf(err, "не верный формат значения конца шкалы: %s", v.ScaleEnd)
 	}
 
 	z.Fon, z.Sens = data.TableXY{}, data.TableXY{}

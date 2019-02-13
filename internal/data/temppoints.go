@@ -1,20 +1,19 @@
 package data
 
-import "math"
+import (
+	"math"
+)
 
 type TempPoints struct {
 	Temp, Fon, Sens [250]float64
 }
 
 func NewTempPoints(fonM, sensM TableXY) (r TempPoints) {
-
 	minusOne := func(_ float64) float64 {
 		return -1
 	}
-
 	fFon := minusOne
 	fSens := minusOne
-
 	if len(fonM) > 0 {
 		fFon = NewApproximationTable(fonM).F
 	}
