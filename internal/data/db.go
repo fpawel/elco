@@ -79,7 +79,6 @@ func GetLastParty(db *reform.DB) (Party, error) {
 	if err != nil {
 		return party, err
 	}
-	party.Products, err = GetProductsInfoWithPartyID(db, party.PartyID)
 	return party, err
 }
 
@@ -125,36 +124,27 @@ func GetLastPartyProducts(db *reform.DB, f ProductsFilter) ([]Product, error) {
 	if f.WithProduction {
 		tail += " AND (production NOTNULL)"
 	}
-	rows, err := db.SelectRows(ProductTable, tail)
+	xs, err := db.SelectAllFrom(ProductTable, tail)
 	if err != nil {
 		return nil, err
 	}
-	defer func() { _ = rows.Close() }()
-	return fetchProductsFromRows(db, rows)
+	return structToProductSlice(xs), nil
 }
 
 func GetProductsWithPartyID(db *reform.DB, partyID int64) ([]Product, error) {
-	rows, err := db.SelectRows(ProductTable, "WHERE party_id = ?", partyID)
+	xs, err := db.SelectAllFrom(ProductTable, "WHERE party_id = ?", partyID)
 	if err != nil {
 		return nil, err
 	}
-	defer func() { _ = rows.Close() }()
-	return fetchProductsFromRows(db, rows)
+	return structToProductSlice(xs), nil
 }
 
-func fetchProductsFromRows(db *reform.DB, rows *sql.Rows) ([]Product, error) {
-	var products []Product
-	for {
-		var product Product
-		if err := db.NextRow(&product, rows); err == nil {
-			products = append(products, product)
-		} else {
-			if err == reform.ErrNoRows {
-				return products, nil
-			}
-			return products, err
-		}
+func structToProductSlice(xs []reform.Struct) (products []Product) {
+	for _, x := range xs {
+		p := x.(*Product)
+		products = append(products, *p)
 	}
+	return
 }
 
 func GetProductsInfoWithPartyID(db *reform.DB, partyID int64) ([]ProductInfo, error) {

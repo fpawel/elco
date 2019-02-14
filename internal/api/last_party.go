@@ -14,9 +14,13 @@ func NewLastParty(db *reform.DB) *LastParty {
 	return &LastParty{db}
 }
 
-func (x *LastParty) Party(_ struct{}, r *data.Party) (err error) {
-	*r, err = data.GetLastParty(x.db)
-	return nil
+func (x *LastParty) Party(_ struct{}, r *Party) error {
+	party, err := data.GetLastParty(x.db)
+	if err != nil {
+		return err
+	}
+	*r, err = makeParty(x.db, party, party.PartyID)
+	return err
 }
 
 func (x *LastParty) SetProductSerialAtPlace(p [2]int, r *int64) (err error) {
@@ -92,6 +96,10 @@ WHERE party_id IN (
 	return
 }
 
-func (x LastParty) ExportToFile(_ struct{}, _ *struct{}) error {
-	return x.c.ExportToFile()
+func (x LastParty) Export(_ struct{}, _ *struct{}) error {
+	return data.ExportLastParty(x.db)
+}
+
+func (x *PartiesCatalogue) Import(_ struct{}, r *data.Party) (err error) {
+	return data.ImportLastParty(x.db)
 }

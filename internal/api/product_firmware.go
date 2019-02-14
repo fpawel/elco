@@ -2,17 +2,17 @@ package api
 
 import (
 	"github.com/ansel1/merry"
-	"github.com/fpawel/elco/internal/crud"
 	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/goutils"
 	"github.com/pkg/errors"
+	"gopkg.in/reform.v1"
 	"strings"
 	"time"
 )
 
 type ProductFirmware struct {
-	c crud.ProductFirmware
-	f FirmwareRunner
+	db *reform.DB
+	f  FirmwareRunner
 }
 
 type FirmwareRunner interface {
@@ -32,22 +32,41 @@ type TempValues struct {
 	Values []string
 }
 
-func NewProductFirmware(c crud.ProductFirmware, f FirmwareRunner) *ProductFirmware {
-	return &ProductFirmware{c, f}
+func NewProductFirmware(db *reform.DB, f FirmwareRunner) *ProductFirmware {
+	return &ProductFirmware{db, f}
 }
 
 func (x *ProductFirmware) StoredFirmwareInfo(productID [1]int64, r *data.FirmwareInfo) error {
-	if b, err := x.c.StoredFirmwareInfo(productID[0]); err != nil {
+
+	var p data.Product
+	if err := x.db.SelectOneTo(&p, `WHERE product_id = ?`, productID[0]); err != nil {
 		return err
-	} else {
-		*r = b.FirmwareInfo(x.c.ListUnits(), x.c.ListGases())
-		return nil
 	}
+	if len(p.Firmware) == 0 {
+		return merry.New("ЭХЯ не \"прошита\"")
+	}
+	if len(p.Firmware) < data.FirmwareSize {
+		return merry.New("не верный формат \"прошивки\"")
+	}
+	gases, err := data.ListGases(x.db)
+	if err != nil {
+		return err
+	}
+	units, err := data.ListUnits(x.db)
+	if err != nil {
+		return err
+	}
+	*r = data.FirmwareBytes(p.Firmware).FirmwareInfo(units, gases)
+	return nil
 }
 
 func (x *ProductFirmware) CalculateFirmwareInfo(productID [1]int64, r *data.FirmwareInfo) (err error) {
-	*r, err = x.c.CalculateFirmwareInfo(productID[0])
-	return
+	var p data.ProductInfo
+	if err := x.db.SelectOneTo(&p, `WHERE product_id = ?`, productID); err != nil {
+		return err
+	}
+	*r = p.FirmwareInfo()
+	return nil
 }
 
 func (x *ProductFirmware) TempPoints(v TempValues, r *data.TempPoints) error {
@@ -70,8 +89,17 @@ func (x *ProductFirmware) RunWriteFirmware(v FirmwareInfo2, _ *struct{}) (err er
 		CreatedAt: time.Date(v.Year, time.Month(v.Month), v.Day, v.Hour, v.Minute, v.Second, 0, time.Local),
 	}
 
+	gases, err := data.ListGases(x.db)
+	if err != nil {
+		return err
+	}
+	units, err := data.ListUnits(x.db)
+	if err != nil {
+		return err
+	}
+
 	ok := false
-	gases := x.c.ListGases()
+
 	for _, gas := range gases {
 		if gas.GasName == v.Gas {
 			z.Gas = gas.Code
@@ -84,7 +112,7 @@ func (x *ProductFirmware) RunWriteFirmware(v FirmwareInfo2, _ *struct{}) (err er
 	}
 
 	ok = false
-	units := x.c.ListUnits()
+
 	for _, u := range units {
 		if u.UnitsName == v.Units {
 			z.Units = u.Code

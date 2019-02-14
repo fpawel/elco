@@ -1,65 +1,178 @@
 package api
 
 import (
-	"github.com/fpawel/elco/internal/crud"
+	"database/sql"
 	"github.com/fpawel/elco/internal/data"
+	"gopkg.in/reform.v1"
 )
 
 type PartiesCatalogue struct {
-	c crud.PartiesCatalogue
+	db *reform.DB
 }
 
-func NewPartiesCatalogue(c crud.PartiesCatalogue) *PartiesCatalogue {
-	return &PartiesCatalogue{c}
+func NewPartiesCatalogue(db *reform.DB) *PartiesCatalogue {
+	return &PartiesCatalogue{db}
 }
 
 func (x *PartiesCatalogue) Years(_ struct{}, years *[]int) error {
-	*years = x.c.Years()
-	return nil
+	rows, err := x.db.Query(`SELECT DISTINCT year FROM party_info ORDER BY year ASC;`)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = rows.Close() }()
+	for {
+		var n int
+		err := rows.Scan(&n)
+		if err != sql.ErrNoRows {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		*years = append(*years, n)
+	}
 }
 
 func (x *PartiesCatalogue) Months(r struct{ Year int }, months *[]int) error {
-	*months = x.c.Months(r.Year)
-	return nil
+	rows, err := x.db.Query(`
+SELECT DISTINCT month FROM party_info WHERE year = ? ORDER BY month ASC;`, r.Year)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = rows.Close() }()
+	for {
+		var n int
+		err := rows.Scan(&n)
+		if err != sql.ErrNoRows {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		*months = append(*months, n)
+	}
 }
 
 func (x *PartiesCatalogue) Days(r struct{ Year, Month int }, days *[]int) error {
-	*days = x.c.Days(r.Year, r.Month)
+	rows, err := x.db.Query(`
+SELECT DISTINCT day FROM party_info WHERE year = ? AND month = ? ORDER BY day ASC;`,
+		r.Year, r.Month)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = rows.Close() }()
+	for {
+		var n int
+		err := rows.Scan(&n)
+		if err != sql.ErrNoRows {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		*days = append(*days, n)
+	}
+}
+
+func (x *PartiesCatalogue) Parties(r struct{ Year, Month, Day int }, parties *[]Party) error {
+	xs, err := x.db.SelectAllFrom(data.PartyTable, `WHERE 
+cast(strftime('%Y', DATETIME(created_at, '+3 hours')) AS INTEGER) = ? AND 
+cast(strftime('%m', DATETIME(created_at, '+3 hours')) AS INTEGER) = ? AND 
+cast(strftime('%d', DATETIME(created_at, '+3 hours')) AS INTEGER) = ?`,
+		r.Year, r.Month, r.Day)
+	if err != nil {
+		return err
+	}
+
+	lastPartyID, err := data.GetLastPartyID(x.db)
+	if err != nil {
+		return err
+	}
+
+	for _, y := range xs {
+		p := y.(*data.Party)
+		party, err := makeParty(x.db, *p, lastPartyID)
+		if err != nil {
+			return err
+		}
+		*parties = append(*parties, party)
+	}
+
 	return nil
 }
 
-func (x *PartiesCatalogue) Parties(r struct{ Year, Month, Day int }, parties *[]data.Party) error {
-	*parties = x.c.Parties(r.Year, r.Month, r.Day)
-	return nil
+func (x *PartiesCatalogue) Party(a [1]int64, r *Party) error {
+	var p data.Party
+	if err := x.db.FindByPrimaryKeyTo(&p, a[0]); err != nil {
+		return err
+	}
+	lastPartyID, err := data.GetLastPartyID(x.db)
+	if err != nil {
+		return err
+	}
+	*r, err = makeParty(x.db, p, lastPartyID)
+	return err
 }
 
-func (x *PartiesCatalogue) Party(a [1]int64, r *data.Party) (err error) {
-	*r, err = x.c.Party(a[0])
-	return
-}
-
-func (x *PartiesCatalogue) NewParty(_ struct{}, r *data.Party) error {
-	*r = x.c.NewParty()
-	return nil
-}
-
-func (x *PartiesCatalogue) ImportFromFile(_ struct{}, r *data.Party) (err error) {
-	*r, err = x.c.ImportFromFile()
-	return
+func (x *PartiesCatalogue) NewParty(_ struct{}, r *Party) error {
+	newPartyID, err := data.CreateNewParty(x.db)
+	if err != nil {
+		return err
+	}
+	var p data.Party
+	if err := x.db.FindByPrimaryKeyTo(&p, newPartyID); err != nil {
+		return err
+	}
+	*r, err = makeParty(x.db, p, newPartyID)
+	return err
 }
 
 func (x *PartiesCatalogue) DeletePartyID(partyID [1]int64, _ *struct{}) error {
-	return x.c.DeletePartyID(partyID[0])
+	if _, err := x.db.Exec(`DELETE FROM party WHERE party_id = ?`, partyID[0]); err != nil {
+		return err
+	}
+	_, err := data.GetLastPartyID(x.db)
+	return err
 }
 
 func (x *PartiesCatalogue) DeleteDay(v [3]int, _ *struct{}) error {
-	return x.c.DeleteDay(v[0], v[1], v[2])
+	if _, err := x.db.Exec(`
+DELETE FROM party 
+WHERE 
+      cast(strftime('%Y', DATETIME(created_at, '+3 hours')) AS INTEGER) = ? AND
+      cast(strftime('%m', DATETIME(created_at, '+3 hours')) AS INTEGER) = ? AND
+      cast(strftime('%d', DATETIME(created_at, '+3 hours')) AS INTEGER) = ?`, v[0], v[1], v[2]); err != nil {
+		return err
+	}
+	_, err := data.GetLastPartyID(x.db)
+	return err
 }
 
 func (x *PartiesCatalogue) DeleteMonth(v [2]int, _ *struct{}) error {
-	return x.c.DeleteMonth(v[0], v[1])
+	if _, err := x.db.Exec(`
+DELETE FROM party 
+WHERE 
+      cast(strftime('%Y', DATETIME(created_at, '+3 hours')) AS INTEGER) = ? AND
+      cast(strftime('%m', DATETIME(created_at, '+3 hours')) AS INTEGER) = ?`, v[0], v[1]); err != nil {
+		return err
+	}
+	_, err := data.GetLastPartyID(x.db)
+	return err
 }
 
 func (x *PartiesCatalogue) DeleteYear(v [1]int, _ *struct{}) error {
-	return x.c.DeleteYear(v[0])
+	if _, err := x.db.Exec(`
+DELETE FROM party 
+WHERE cast(strftime('%Y', DATETIME(created_at, '+3 hours')) AS INTEGER) = ?`, v[0]); err != nil {
+		return err
+	}
+	_, err := data.GetLastPartyID(x.db)
+	return err
+}
+
+func makeParty(db *reform.DB, p data.Party, lastPartyID int64) (r Party, err error) {
+	r.Party = p
+	r.IsLast = r.PartyID == lastPartyID
+	r.Products, err = data.GetProductsInfoWithPartyID(db, r.PartyID)
+	return
 }
