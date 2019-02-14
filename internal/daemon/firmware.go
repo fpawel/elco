@@ -48,12 +48,12 @@ func (x *D) writeProductsFirmware(products []*data.Product) error {
 		strProducts += fmt.Sprintf("%d", p.Place%8)
 	}
 
-	x.hardware.logFields["block"] = block
-	x.hardware.logFields["products"] = strProducts
+	x.hardware.logFields["write_firmware_block"] = block
+	x.hardware.logFields["write_firmware_products"] = strProducts
 	x.hardware.logFields["places_mask"] = fmt.Sprintf("%08b", placesMask)
 	defer func() {
-		delete(x.hardware.logFields, "block")
-		delete(x.hardware.logFields, "products")
+		delete(x.hardware.logFields, "write_firmware_block")
+		delete(x.hardware.logFields, "write_firmware_products")
 		delete(x.hardware.logFields, "places_mask")
 
 	}()
@@ -97,27 +97,69 @@ func (x *D) writeProductsFirmware(products []*data.Product) error {
 	return nil
 }
 
-func (x *D) writeSingleProductFirmware(number int, bytes []byte) error {
-	block := number / 8
-	place := number % 8
-	logrus.WithFields(logrus.Fields{
-		"block": block,
-		"place": place,
-		"bytes": fmt.Sprintf("% X", bytes),
-	}).Info("write single product firmware")
+func (x *D) readFirmware(place int) ([]byte, error) {
 
+	x.hardware.logFields["read_firmware_place"] = place
+	defer delete(x.hardware.logFields, "read_firmware_place")
+	logrus.Info("read firmware")
+
+	block := place / 8
+	placeInBlock := place % 8
+
+	responseReader := comport.Comm{
+		Port:   x.port.measurer,
+		Config: x.sets.Config().MeasurerComm,
+	}
+
+	b := make([]byte, data.FirmwareSize)
+	for i := range b {
+		b[i] = 0xff
+	}
+
+	for _, c := range firmwareAddresses {
+		count := c.addr2 - c.addr1 + 1
+		req := modbus.Req{
+			Addr:     modbus.Addr(block) + 101,
+			ProtoCmd: 0x44,
+			Data: []byte{
+				byte(placeInBlock + 1),
+				byte(x.sets.Config().UserConfig.Firmware.ChipType),
+				byte(c.addr1 >> 8),
+				byte(c.addr1),
+				byte(count >> 8),
+				byte(count),
+			},
+		}
+		resp, err := responseReader.GetResponse(req.Bytes())
+		if err != nil {
+			return nil, err
+		}
+		w := x.port.measurer.LastWork()
+		if err = req.CheckResponse(resp); err != nil {
+			return nil, w.WrapError(err)
+		}
+		if len(resp) != 10+int(count) {
+			return nil, w.Errorf("ожидалось %d байт ответа, получено %d",
+				10+int(count), len(resp))
+		}
+		copy(b[c.addr1:c.addr1+count], resp[8:8+count])
+	}
+	return b, nil
+}
+
+func (x *D) writeFirmware(place int, bytes []byte) error {
+	x.hardware.logFields["write_firmware_place"] = place
+	defer delete(x.hardware.logFields, "write_firmware_place")
+	logrus.Infof("write firmware: % X", bytes)
+
+	block := place / 8
+	placeInBlock := place % 8
 	placesMask := byte(1) << byte(place)
 
 	for _, c := range firmwareAddresses {
-		logrus.WithFields(logrus.Fields{
-			"block":       block,
-			"places_mask": fmt.Sprintf("%08b", placesMask),
-			"addr1":       c.addr1,
-			"addr2":       c.addr2,
-			"bytes":       fmt.Sprintf("% X", bytes[c.addr1:c.addr2+1]),
-		}).Info("write single product firmware batch")
+		logrus.Infof("write firmware batch: % X", bytes[c.addr1:c.addr2+1])
 
-		if err := x.sendDataToWriteFlash(block, place, bytes[c.addr1:c.addr2+1]); err != nil {
+		if err := x.sendDataToWriteFlash(block, placeInBlock, bytes[c.addr1:c.addr2+1]); err != nil {
 			return err
 		}
 
@@ -129,11 +171,7 @@ func (x *D) writeSingleProductFirmware(number int, bytes []byte) error {
 			return err
 		}
 	}
-	logrus.WithFields(logrus.Fields{
-		"block": block,
-		"place": place,
-		"bytes": fmt.Sprintf("% X", bytes),
-	}).Info("write single product firmware: ok")
+	logrus.Info("write firmware: ok")
 	return nil
 }
 
@@ -195,11 +233,9 @@ func (x *D) readFirmwareStatus(block int) ([]byte, error) {
 
 func (x *D) writePreparedDataToFlash(block int, placesMask byte, addr uint16, count int) error {
 	logrus.WithFields(logrus.Fields{
-		"block":       block,
-		"places_mask": fmt.Sprintf("%08b", placesMask),
-		"addr":        addr,
-		"count":       count,
-	}).Info()
+		"addr":  addr,
+		"count": count,
+	}).Info("write prepared data to flash")
 	req := modbus.Req{
 		Addr:     modbus.Addr(block) + 101,
 		ProtoCmd: 0x43,
@@ -221,28 +257,35 @@ func (x *D) writePreparedDataToFlash(block int, placesMask byte, addr uint16, co
 	if err != nil {
 		return err
 	}
+	w := x.port.measurer.LastWork()
+	if err = req.CheckResponse(resp); err != nil {
+		return w.WrapError(err)
+	}
+
 	if !compareBytes(resp, req.Bytes()) {
-		return x.port.measurer.LastWork().Errorf("% X != % X", resp, req.Bytes())
+		return w.Errorf("% X != % X", resp, req.Bytes())
 	}
 
 	return nil
 }
 
-func checkFirmwareStatus(b []byte, placesMask byte) error {
+func checkFirmwareStatus(b []byte, placesMask byte) (err error) {
 	for i := byte(0); i < 8; i++ {
 		if (1<<i)&placesMask != 0 && b[i] != 0 {
-			return merry.New("не верный код статуса").
-				WithValue("place", i).
-				WithValue("status", fmt.Sprintf("%X", b[i]))
+			if err == nil {
+				err = merry.New("не верный код статуса")
+			}
+			err = merry.Appendf(err, "[%d]=%X", i, b[i])
 		}
 	}
-	return nil
+	if err != nil {
+		err = merry.Appendf(err, "status bytes: % X", b)
+	}
+	return err
 }
 
-func (x *D) sendDataToWriteFlash(block, place int, b []byte) error {
+func (x *D) sendDataToWriteFlash(block, placeInBlock int, b []byte) error {
 	logrus.WithFields(logrus.Fields{
-		"block":    block,
-		"place":    place,
 		"data":     fmt.Sprintf("% X", b),
 		"data_len": len(b),
 	}).Info()
@@ -251,7 +294,7 @@ func (x *D) sendDataToWriteFlash(block, place int, b []byte) error {
 		Addr:     modbus.Addr(block) + 101,
 		ProtoCmd: 0x42,
 		Data: append([]byte{
-			byte(place + 1),
+			byte(placeInBlock + 1),
 			byte(len(b) >> 8),
 			byte(len(b)),
 		}, b...),
@@ -285,14 +328,6 @@ func compareBytes(x, y []byte) bool {
 		}
 	}
 	return true
-}
-
-func merryWithValues(e error, values logrus.Fields) merry.Error {
-	err := merry.Wrap(e)
-	for k, v := range values {
-		err = err.WithValue(k, v)
-	}
-	return err
 }
 
 var firmwareAddresses = []struct{ addr1, addr2 uint16 }{

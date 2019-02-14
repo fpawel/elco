@@ -80,6 +80,10 @@ func main() {
 			"StartServerApplication",
 			r.TypeOf((*string)(nil)).Elem(),
 		},
+		{
+			"ReadFirmware",
+			r.TypeOf((*data.FirmwareInfo)(nil)).Elem(),
+		},
 	})
 
 	file := openFile("services.pas")

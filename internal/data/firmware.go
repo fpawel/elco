@@ -12,6 +12,7 @@ import (
 )
 
 type Firmware struct {
+	Place     int
 	CreatedAt time.Time
 	Serial,
 	ScaleBegin,
@@ -24,7 +25,8 @@ type Firmware struct {
 
 type FirmwareInfo struct {
 	TempPoints
-	Time time.Time
+	Place int
+	Time  time.Time
 	Sensitivity,
 	Serial,
 	ProductType,
@@ -39,7 +41,7 @@ type FirmwareInfo struct {
 
 const FirmwareSize = 1832
 
-type FirmwareBytes [FirmwareSize]byte
+type FirmwareBytes []byte
 
 func (s Product) FirmwareBytes() (b FirmwareBytes, err error) {
 	if len(s.Firmware) == 0 {
@@ -50,12 +52,13 @@ func (s Product) FirmwareBytes() (b FirmwareBytes, err error) {
 		err = merry.New("не верный формат \"прошивки\"")
 		return
 	}
-	copy(b[:], s.Firmware)
+	b = s.Firmware
 	return
 }
 
 func (s ProductInfo) FirmwareInfo() FirmwareInfo {
 	x := FirmwareInfo{
+		Place:       s.Place,
 		Gas:         s.GasName,
 		Units:       s.UnitsName,
 		ScaleBeg:    "0",
@@ -92,6 +95,7 @@ func (s ProductInfo) Firmware() (x Firmware, err error) {
 	}
 
 	x = Firmware{
+		Place:       s.Place,
 		CreatedAt:   s.CreatedAt,
 		ProductType: s.AppliedProductTypeName,
 		Serial:      float64(s.Serial.Int64),
@@ -301,6 +305,8 @@ func (x FirmwareBytes) TempPoints() (r TempPoints) {
 }
 
 func (x Firmware) Bytes() (b FirmwareBytes) {
+
+	b = make(FirmwareBytes, FirmwareSize)
 
 	for i := 0; i < len(b); i++ {
 		b[i] = 0xFF

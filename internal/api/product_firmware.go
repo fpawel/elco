@@ -12,23 +12,19 @@ import (
 
 type ProductFirmware struct {
 	c crud.ProductFirmware
-	w WriteSingleProductFirmwareRunner
+	f FirmwareRunner
 }
 
-type WriteSingleProductFirmwareRunner interface {
-	RunWriteSingleProductFirmware(number int, bytes []byte)
+type FirmwareRunner interface {
+	RunWriteFirmware(place int, bytes []byte)
+	RunReadFirmware(place int)
 }
 
 type FirmwareInfo2 struct {
-	Number                                 int
+	Place,
 	Year, Month, Day, Hour, Minute, Second int
-	Sensitivity,
-	Serial,
-	ProductType,
-	Gas,
-	Units,
-	ScaleBegin,
-	ScaleEnd string
+	Sensitivity, Serial, ProductType,
+	Gas, Units, ScaleBegin, ScaleEnd string
 	Values []string
 }
 
@@ -36,8 +32,8 @@ type TempValues struct {
 	Values []string
 }
 
-func NewProductFirmware(c crud.ProductFirmware, w WriteSingleProductFirmwareRunner) *ProductFirmware {
-	return &ProductFirmware{c, w}
+func NewProductFirmware(c crud.ProductFirmware, f FirmwareRunner) *ProductFirmware {
+	return &ProductFirmware{c, f}
 }
 
 func (x *ProductFirmware) StoredFirmwareInfo(productID [1]int64, r *data.FirmwareInfo) error {
@@ -63,7 +59,12 @@ func (x *ProductFirmware) TempPoints(v TempValues, r *data.TempPoints) error {
 	return nil
 }
 
-func (x *ProductFirmware) Write(v FirmwareInfo2, _ *struct{}) (err error) {
+func (x *ProductFirmware) RunReadFirmware(place [1]int, _ *struct{}) error {
+	x.f.RunReadFirmware(place[0])
+	return nil
+}
+
+func (x *ProductFirmware) RunWriteFirmware(v FirmwareInfo2, _ *struct{}) (err error) {
 
 	z := data.Firmware{
 		CreatedAt: time.Date(v.Year, time.Month(v.Month), v.Day, v.Hour, v.Minute, v.Second, 0, time.Local),
@@ -113,9 +114,7 @@ func (x *ProductFirmware) Write(v FirmwareInfo2, _ *struct{}) (err error) {
 
 	z.KSens20 = data.NewApproximationTable(z.Sens).F(20)
 
-	b := z.Bytes()
-	x.w.RunWriteSingleProductFirmware(v.Number, b[:])
-
+	x.f.RunWriteFirmware(v.Place, z.Bytes())
 	return
 }
 

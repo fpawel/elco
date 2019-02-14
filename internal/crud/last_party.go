@@ -25,24 +25,16 @@ func (x LastParty) Party() data.Party {
 	return data.MustLastParty(x.dbr)
 }
 
-func (x LastParty) ProductsWithProduction() []data.Product {
+func (x LastParty) ProductsWithProduction() ([]data.Product, error) {
 	x.mu.Lock()
 	defer x.mu.Unlock()
 	return data.GetLastPartyProductsWithProduction(x.dbr)
 }
 
-func (x LastParty) ProductsWithSerials() []data.Product {
+func (x LastParty) ProductsWithSerials() ([]data.Product, error) {
 	x.mu.Lock()
 	defer x.mu.Unlock()
 	return data.GetLastPartyProductsWithSerials(x.dbr)
-}
-
-func (x LastParty) GetProductInfoAtPlace(place int) (product data.ProductInfo, err error) {
-	x.mu.Lock()
-	defer x.mu.Unlock()
-	party := data.MustLastParty(x.dbr)
-	err = x.dbr.SelectOneTo(&product, "WHERE party_id = ? AND place = ?", party.PartyID, place)
-	return
 }
 
 func (x LastParty) GetProductAtPlace(place int) (product data.Product, err error) {
@@ -116,11 +108,32 @@ func (x LastParty) ToggleProductProductionAtPlace(place int) (int64, error) {
 	})
 }
 
+func (x LastParty) ToggleProductsProduction() error {
+	x.mu.Lock()
+	defer x.mu.Unlock()
+	products, err := data.GetLastPartyProducts(x.dbr)
+	if err != nil {
+		return err
+	}
+	if len(products) == 0 {
+		return nil
+	}
+	f := false
+	for _, p := range products {
+		if p.Production {
+			f = true
+			break
+		}
+	}
+	_, err = x.dbr.Exec(`UPDATE product SET production = ? WHERE party_id = ?`, f, products[0].PartyID)
+	return err
+}
+
 func (x LastParty) DeleteProductAtPlace(place int) (err error) {
 	x.mu.Lock()
 	defer x.mu.Unlock()
 	partyID := x.partyID()
-	_, err = x.dbx.Exec(`DELETE FROM product WHERE party_id = ? AND place = ?`, partyID, place)
+	_, err = x.dbr.Exec(`DELETE FROM product WHERE party_id = ? AND place = ?`, partyID, place)
 	return
 }
 
@@ -344,7 +357,10 @@ func (x LastParty) ExportToFile() error {
 	defer x.mu.Unlock()
 
 	party := data.MustLastParty(x.dbr)
-	products := data.GetLastPartyProducts(x.dbr)
+	products, err := data.GetLastPartyProducts(x.dbr)
+	if err != nil {
+		return err
+	}
 	oldParty := party.OldParty(products)
 	b, err := json.MarshalIndent(&oldParty, "", "    ")
 	if err != nil {

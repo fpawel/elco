@@ -13,10 +13,22 @@ import (
 	"sync"
 )
 
-func (x *D) RunWriteSingleProductFirmware(number int, bytes []byte) {
-	x.runHardware(fmt.Sprintf("Прошивка места %d", number+1), func() error {
-		return x.writeSingleProductFirmware(number, bytes)
+func (x *D) RunWriteFirmware(place int, bytes []byte) {
+	x.runHardware(fmt.Sprintf("Запись места %d", place+1), func() error {
+		return x.writeFirmware(place, bytes)
 	})
+}
+
+func (x *D) RunReadFirmware(place int) {
+	x.runHardware(fmt.Sprintf("Считывание места %d", place+1), func() error {
+		b, err := x.readFirmware(place)
+		if err != nil {
+			return err
+		}
+		notify.ReadFirmware(x.w, data.FirmwareBytes(b).FirmwareInfo(x.c.ListUnits(), x.c.ListGases()))
+		return nil
+	})
+	return
 }
 
 func (x *D) RunWritePartyFirmware() {

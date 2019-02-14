@@ -21,6 +21,7 @@ const (
 	msgLastPartyChanged
 	msgComportEntry
 	msgStartServerApplication
+	msgReadFirmware
 )
 
 func ReadCurrent(w W, arg api.ReadCurrent) {
@@ -74,4 +75,7 @@ func StartServerApplication(w W, arg string) {
 }
 func StartServerApplicationf(w W, format string, a ...interface{}) {
 	w.Notifyf(uintptr(msgStartServerApplication), format, a...)
+}
+func ReadFirmware(w W, arg data.FirmwareInfo) {
+	w.NotifyJson(uintptr(msgReadFirmware), arg)
 }
