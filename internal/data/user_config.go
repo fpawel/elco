@@ -2,7 +2,7 @@ package data
 
 import (
 	"encoding/json"
-	"github.com/fpawel/goutils/serial-comm/comport"
+	"github.com/fpawel/elco/pkg/serial-comm/comport"
 	"github.com/pkg/errors"
 	"io/ioutil"
 	"strconv"

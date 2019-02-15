@@ -3,7 +3,6 @@ package data
 import (
 	"database/sql"
 	"fmt"
-	"github.com/fpawel/goutils"
 	"github.com/pkg/errors"
 	"gopkg.in/reform.v1"
 	"strconv"
@@ -141,21 +140,21 @@ func SetPartyConfigValue(db *reform.DB, property, value string) (err error) {
 		return db.Save(&party)
 
 	case "Gas1":
-		party.Concentration1, err = goutils.ParseFloat(value)
+		party.Concentration1, err = parseFloat(value)
 		if err == nil {
 			err = db.Save(&party)
 		}
 		return
 
 	case "Gas2":
-		party.Concentration2, err = goutils.ParseFloat(value)
+		party.Concentration2, err = parseFloat(value)
 		if err == nil {
 			err = db.Save(&party)
 		}
 		return
 
 	case "Gas3":
-		party.Concentration3, err = goutils.ParseFloat(value)
+		party.Concentration3, err = parseFloat(value)
 		if err == nil {
 			err = db.Save(&party)
 		}
@@ -211,7 +210,7 @@ func SetPartyConfigValue(db *reform.DB, property, value string) (err error) {
 		}
 		if f, ok := fs[property]; ok {
 			if len(strings.TrimSpace(value)) > 0 {
-				if v.Float64, err = goutils.ParseFloat(value); err != nil {
+				if v.Float64, err = parseFloat(value); err != nil {
 					return err
 				}
 				v.Valid = true
@@ -221,4 +220,8 @@ func SetPartyConfigValue(db *reform.DB, property, value string) (err error) {
 		}
 	}
 	return errors.Errorf("%q: wrong party property", property)
+}
+
+func parseFloat(s string) (float64, error) {
+	return strconv.ParseFloat(strings.Replace(s, ",", ".", -1), 64)
 }

@@ -5,7 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"github.com/ansel1/merry"
-	"github.com/fpawel/goutils"
+	"github.com/fpawel/elco/pkg/serial-comm/modbus"
 	"math"
 	"strconv"
 	"time"
@@ -312,9 +312,9 @@ func (x Firmware) Bytes() (b FirmwareBytes) {
 		b[i] = 0xFF
 	}
 
-	goutils.PutBCD6(b[0x0701:], float64(x.Serial))
-	goutils.PutBCD6(b[0x0602:], x.ScaleBegin)
-	goutils.PutBCD6(b[0x0606:], x.ScaleEnd)
+	modbus.PutBCD6(b[0x0701:], float64(x.Serial))
+	modbus.PutBCD6(b[0x0602:], x.ScaleBegin)
+	modbus.PutBCD6(b[0x0606:], x.ScaleEnd)
 
 	b[0x070F] = byte(x.CreatedAt.Year() - 2000)
 	b[0x070E] = byte(x.CreatedAt.Month())
@@ -387,7 +387,7 @@ func formatFloat(v float64, precision int) string {
 }
 
 func formatBCD(b []byte, precision int) string {
-	if v, ok := goutils.ParseBCD6(b); ok {
+	if v, ok := modbus.ParseBCD6(b); ok {
 		return formatFloat(v, precision)
 	} else {
 		return fmt.Sprintf("% X", b)

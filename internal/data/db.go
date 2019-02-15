@@ -62,19 +62,22 @@ func GetLastParty(db *reform.DB) (Party, error) {
 	return party, err
 }
 
-func GetPartyProductsAndIsLast(db *reform.DB, party *Party) error {
+func GetPartyProducts(db *reform.DB, party *Party) error {
 	products, err := GetProductsInfoWithPartyID(db, party.PartyID)
 	if err != nil {
 		return err
 	}
 	party.Products = products
+	return nil
+}
+
+func GetPartyIsLast(db *reform.DB, party *Party) error {
 	lastPartyID, err := GetLastPartyID(db)
 	if err != nil {
 		return err
 	}
 	party.Last = party.PartyID == lastPartyID
 	return nil
-
 }
 
 func CreateNewParty(db *reform.DB) (int64, error) {

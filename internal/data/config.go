@@ -3,7 +3,7 @@ package data
 import (
 	"database/sql"
 	"github.com/fpawel/elco/internal/elco"
-	"github.com/fpawel/goutils/serial-comm/comm"
+	"github.com/fpawel/elco/pkg/serial-comm/comm"
 	"gopkg.in/reform.v1"
 	"sync"
 )
