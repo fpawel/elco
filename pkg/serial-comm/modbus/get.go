@@ -46,18 +46,15 @@ func Read3BCDValues(responseReader responseGetter, addr Addr, var3 Var, count in
 	for i := 0; i < count; i++ {
 		n := 3 + i*4
 		if v, ok := ParseBCD6(b[n:]); !ok {
-
-			err = multierror.Append(err, merry.Wrap(err).
-				WithValue("addr", addr).
-				WithValue("var3", var3).
-				WithValue("count", count).
-				WithValue("n", n).
-				WithValue("BCD", fmt.Sprintf("% X", b[n:n+4])).
-				WithMessage("не правильный код BCD"),
-			)
+			err = multierror.Append(err,
+				fmt.Errorf("не правильный код BCD: addr=%d var3=%d count=%d n=%d BCD=%X",
+					addr, var3, count, n, b[n:n+4]))
 		} else {
 			values = append(values, v)
 		}
+	}
+	if err != nil {
+		err = ProtocolError.Here().WithMessage(err.Error())
 	}
 	return
 }
