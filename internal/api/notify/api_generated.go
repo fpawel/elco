@@ -3,7 +3,7 @@ package notify
 import (
 	"github.com/fpawel/elco/internal/api"
 	"github.com/fpawel/elco/internal/data"
-	"github.com/fpawel/goutils/copydata"
+	"github.com/fpawel/elco/pkg/copydata"
 )
 
 type msg int

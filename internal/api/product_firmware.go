@@ -3,9 +3,9 @@ package api
 import (
 	"github.com/ansel1/merry"
 	"github.com/fpawel/elco/internal/data"
-	"github.com/fpawel/goutils"
 	"github.com/pkg/errors"
 	"gopkg.in/reform.v1"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -57,12 +57,13 @@ func (x *ProductFirmware) StoredFirmwareInfo(productID [1]int64, r *data.Firmwar
 		return err
 	}
 	*r = data.FirmwareBytes(p.Firmware).FirmwareInfo(units, gases)
+	r.Place = p.Place
 	return nil
 }
 
 func (x *ProductFirmware) CalculateFirmwareInfo(productID [1]int64, r *data.FirmwareInfo) (err error) {
 	var p data.ProductInfo
-	if err := x.db.SelectOneTo(&p, `WHERE product_id = ?`, productID); err != nil {
+	if err := x.db.SelectOneTo(&p, `WHERE product_id = ?`, productID[0]); err != nil {
 		return err
 	}
 	*r = p.FirmwareInfo()
@@ -124,12 +125,12 @@ func (x *ProductFirmware) RunWriteFirmware(v FirmwareInfo2, _ *struct{}) (err er
 		return merry.Errorf("код единиц измерения не задан: %q ", v.Units)
 	}
 
-	z.ScaleBegin, err = goutils.ParseFloat(v.ScaleBegin)
+	z.ScaleBegin, err = parseFloat(v.ScaleBegin)
 	if err != nil {
 		return merry.Appendf(err, "не верный формат значения начала шкалы: %s", v.ScaleBegin)
 	}
 
-	z.ScaleEnd, err = goutils.ParseFloat(v.ScaleEnd)
+	z.ScaleEnd, err = parseFloat(v.ScaleEnd)
 	if err != nil {
 		return merry.Appendf(err, "не верный формат значения конца шкалы: %s", v.ScaleEnd)
 	}
@@ -157,14 +158,14 @@ func tempPoints(values []string, fonM data.TableXY, sensM data.TableXY) error {
 			continue
 		}
 
-		t, err := goutils.ParseFloat(values[n])
+		t, err := parseFloat(values[n])
 		if err != nil {
 			return merry.Appendf(err, "строка %d", n)
 		}
 		strI := strings.TrimSpace(values[n+1])
 		if len(strI) > 0 {
 			var i float64
-			i, err = goutils.ParseFloat(strI)
+			i, err = parseFloat(strI)
 			if err != nil {
 				return merry.Appendf(err, "строка %d", n)
 			}
@@ -173,7 +174,7 @@ func tempPoints(values []string, fonM data.TableXY, sensM data.TableXY) error {
 		strS := strings.TrimSpace(values[n+2])
 		if len(strS) > 0 {
 			var k float64
-			k, err = goutils.ParseFloat(strS)
+			k, err = parseFloat(strS)
 			if err != nil {
 				return merry.Appendf(err, "строка %d", n)
 			}
@@ -182,4 +183,8 @@ func tempPoints(values []string, fonM data.TableXY, sensM data.TableXY) error {
 	}
 	// r = data.NewTempPoints(fonM, sensM)
 	return nil
+}
+
+func parseFloat(s string) (float64, error) {
+	return strconv.ParseFloat(strings.Replace(s, ",", ".", -1), 64)
 }

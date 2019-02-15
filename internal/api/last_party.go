@@ -19,7 +19,8 @@ func (x *LastParty) Party(_ struct{}, r *data.Party) (err error) {
 	if err != nil {
 		return err
 	}
-	return data.GetPartyProductsAndIsLast(x.db, r)
+	r.Last = true
+	return data.GetPartyProducts(x.db, r)
 }
 
 func (x *LastParty) SetProductSerialAtPlace(p [2]int, r *int64) (err error) {

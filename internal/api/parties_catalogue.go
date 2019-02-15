@@ -20,17 +20,18 @@ func (x *PartiesCatalogue) Years(_ struct{}, years *[]int) error {
 		return err
 	}
 	defer func() { _ = rows.Close() }()
-	for {
+	for rows.Next() {
 		var n int
 		err := rows.Scan(&n)
-		if err != sql.ErrNoRows {
-			return nil
-		}
 		if err != nil {
+			if err == sql.ErrNoRows {
+				return nil
+			}
 			return err
 		}
 		*years = append(*years, n)
 	}
+	return nil
 }
 
 func (x *PartiesCatalogue) Months(r struct{ Year int }, months *[]int) error {
@@ -40,17 +41,18 @@ SELECT DISTINCT month FROM party_info WHERE year = ? ORDER BY month ASC;`, r.Yea
 		return err
 	}
 	defer func() { _ = rows.Close() }()
-	for {
+	for rows.Next() {
 		var n int
 		err := rows.Scan(&n)
-		if err != sql.ErrNoRows {
-			return nil
-		}
 		if err != nil {
+			if err != sql.ErrNoRows {
+				return nil
+			}
 			return err
 		}
 		*months = append(*months, n)
 	}
+	return nil
 }
 
 func (x *PartiesCatalogue) Days(r struct{ Year, Month int }, days *[]int) error {
@@ -61,17 +63,18 @@ SELECT DISTINCT day FROM party_info WHERE year = ? AND month = ? ORDER BY day AS
 		return err
 	}
 	defer func() { _ = rows.Close() }()
-	for {
+	for rows.Next() {
 		var n int
 		err := rows.Scan(&n)
-		if err != sql.ErrNoRows {
-			return nil
-		}
 		if err != nil {
+			if err != sql.ErrNoRows {
+				return nil
+			}
 			return err
 		}
 		*days = append(*days, n)
 	}
+	return nil
 }
 
 func (x *PartiesCatalogue) Parties(r struct{ Year, Month, Day int }, parties *[]data.Party) error {
@@ -84,11 +87,13 @@ cast(strftime('%d', DATETIME(created_at, '+3 hours')) AS INTEGER) = ?`,
 		return err
 	}
 
+	lastPartyID, err := data.GetLastPartyID(x.db)
+	if err != nil {
+		return err
+	}
 	for _, y := range xs {
 		party := y.(*data.Party)
-		if err := data.GetPartyProductsAndIsLast(x.db, party); err != nil {
-			return err
-		}
+		party.Last = party.PartyID == lastPartyID
 		*parties = append(*parties, *party)
 	}
 
@@ -99,7 +104,10 @@ func (x *PartiesCatalogue) Party(a [1]int64, r *data.Party) error {
 	if err := x.db.FindByPrimaryKeyTo(r, a[0]); err != nil {
 		return err
 	}
-	return data.GetPartyProductsAndIsLast(x.db, r)
+	if err := data.GetPartyProducts(x.db, r); err != nil {
+		return err
+	}
+	return data.GetPartyIsLast(x.db, r)
 }
 
 func (x *PartiesCatalogue) NewParty(_ struct{}, r *data.Party) error {

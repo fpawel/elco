@@ -1,6 +1,6 @@
 package elco
 
-import "github.com/fpawel/goutils/winapp"
+import "github.com/fpawel/elco/pkg/winapp"
 
 const (
 	AppName               winapp.AnalitpriborAppName = "elco"
