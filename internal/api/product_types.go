@@ -1,29 +1,40 @@
 package api
 
-import "github.com/fpawel/elco/internal/crud"
+import (
+	"github.com/fpawel/elco/internal/data"
+	"gopkg.in/reform.v1"
+)
 
 type ProductTypes struct {
-	c crud.ProductTypes
+	db *reform.DB
 }
 
-func NewProductTypes(c crud.ProductTypes) *ProductTypes {
-	return &ProductTypes{c}
+func NewProductTypes(db *reform.DB) *ProductTypes {
+	return &ProductTypes{db}
 }
 
-func (x *ProductTypes) Names(_ struct{}, r *[]string) error {
-	*r = x.c.ListProductTypesNames()
+func (x *ProductTypes) Names(_ struct{}, r *[]string) (err error) {
+	*r, err = data.ListProductTypeNames(x.db)
 	return nil
 }
 
 func (x *ProductTypes) Gases(_ struct{}, r *[]string) error {
-	for _, g := range x.c.ListGases() {
+	gases, err := data.ListGases(x.db)
+	if err != nil {
+		return err
+	}
+	for _, g := range gases {
 		*r = append(*r, g.GasName)
 	}
 	return nil
 }
 
 func (x *ProductTypes) Units(_ struct{}, r *[]string) error {
-	for _, g := range x.c.ListUnits() {
+	units, err := data.ListUnits(x.db)
+	if err != nil {
+		return err
+	}
+	for _, g := range units {
 		*r = append(*r, g.UnitsName)
 	}
 	return nil

@@ -1,7 +1,5 @@
 package api
 
-import "github.com/fpawel/elco/internal/data"
-
 type TextMessage struct {
 	Text  string
 	Level Level
@@ -30,10 +28,4 @@ type ComportEntry struct {
 	Port  string
 	Error bool
 	Msg   string
-}
-
-type Party struct {
-	data.Party
-	IsLast   bool
-	Products []data.ProductInfo
 }

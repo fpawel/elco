@@ -33,6 +33,6 @@ type Party struct {
 
 	PointsMethod int64 `reform:"points_method"`
 
-	//Products []ProductInfo
-	//Last     bool
+	Products []ProductInfo
+	Last     bool
 }

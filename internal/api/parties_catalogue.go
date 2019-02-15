@@ -74,7 +74,7 @@ SELECT DISTINCT day FROM party_info WHERE year = ? AND month = ? ORDER BY day AS
 	}
 }
 
-func (x *PartiesCatalogue) Parties(r struct{ Year, Month, Day int }, parties *[]Party) error {
+func (x *PartiesCatalogue) Parties(r struct{ Year, Month, Day int }, parties *[]data.Party) error {
 	xs, err := x.db.SelectAllFrom(data.PartyTable, `WHERE 
 cast(strftime('%Y', DATETIME(created_at, '+3 hours')) AS INTEGER) = ? AND 
 cast(strftime('%m', DATETIME(created_at, '+3 hours')) AS INTEGER) = ? AND 
@@ -84,47 +84,30 @@ cast(strftime('%d', DATETIME(created_at, '+3 hours')) AS INTEGER) = ?`,
 		return err
 	}
 
-	lastPartyID, err := data.GetLastPartyID(x.db)
-	if err != nil {
-		return err
-	}
-
 	for _, y := range xs {
-		p := y.(*data.Party)
-		party, err := makeParty(x.db, *p, lastPartyID)
-		if err != nil {
+		party := y.(*data.Party)
+		if err := data.GetPartyProductsAndIsLast(x.db, party); err != nil {
 			return err
 		}
-		*parties = append(*parties, party)
+		*parties = append(*parties, *party)
 	}
 
 	return nil
 }
 
-func (x *PartiesCatalogue) Party(a [1]int64, r *Party) error {
-	var p data.Party
-	if err := x.db.FindByPrimaryKeyTo(&p, a[0]); err != nil {
+func (x *PartiesCatalogue) Party(a [1]int64, r *data.Party) error {
+	if err := x.db.FindByPrimaryKeyTo(r, a[0]); err != nil {
 		return err
 	}
-	lastPartyID, err := data.GetLastPartyID(x.db)
-	if err != nil {
-		return err
-	}
-	*r, err = makeParty(x.db, p, lastPartyID)
-	return err
+	return data.GetPartyProductsAndIsLast(x.db, r)
 }
 
-func (x *PartiesCatalogue) NewParty(_ struct{}, r *Party) error {
+func (x *PartiesCatalogue) NewParty(_ struct{}, r *data.Party) error {
 	newPartyID, err := data.CreateNewParty(x.db)
 	if err != nil {
 		return err
 	}
-	var p data.Party
-	if err := x.db.FindByPrimaryKeyTo(&p, newPartyID); err != nil {
-		return err
-	}
-	*r, err = makeParty(x.db, p, newPartyID)
-	return err
+	return x.db.FindByPrimaryKeyTo(r, newPartyID)
 }
 
 func (x *PartiesCatalogue) DeletePartyID(partyID [1]int64, _ *struct{}) error {
@@ -168,11 +151,4 @@ WHERE cast(strftime('%Y', DATETIME(created_at, '+3 hours')) AS INTEGER) = ?`, v[
 	}
 	_, err := data.GetLastPartyID(x.db)
 	return err
-}
-
-func makeParty(db *reform.DB, p data.Party, lastPartyID int64) (r Party, err error) {
-	r.Party = p
-	r.IsLast = r.PartyID == lastPartyID
-	r.Products, err = data.GetProductsInfoWithPartyID(db, r.PartyID)
-	return
 }

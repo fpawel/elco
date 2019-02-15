@@ -2,34 +2,14 @@ package data
 
 import (
 	"database/sql"
-	"github.com/fpawel/elco/internal/elco"
-	_ "github.com/mattn/go-sqlite3"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/reform.v1"
-	"gopkg.in/reform.v1/dialects/sqlite3"
 )
 
 //go:generate go run github.com/fpawel/goutils/dbutils/sqlstr/...
 
-func Open(logger reform.Logger) (*reform.DB, error) {
-	db, err := sql.Open("sqlite3", elco.DataFileName())
-	if err != nil {
-		return nil, err
-	}
-	dbr := reform.NewDB(db, sqlite3.Dialect, logger)
-	_, err = dbr.Exec(SQLCreate)
-	if err != nil {
-		return nil, err
-	}
-	err = DeleteEmptyRecords(dbr)
-	if err != nil {
-		return nil, err
-	}
-	return dbr, nil
-}
-
-func DeleteEmptyRecords(dbr *reform.DB) error {
-	_, err := dbr.Exec(`
+func DeleteEmptyRecords(db *reform.DB) error {
+	_, err := db.Exec(`
 DELETE
 FROM product
 WHERE party_id NOT IN (SELECT party_id FROM last_party)  AND
@@ -80,6 +60,21 @@ func GetLastParty(db *reform.DB) (Party, error) {
 		return party, err
 	}
 	return party, err
+}
+
+func GetPartyProductsAndIsLast(db *reform.DB, party *Party) error {
+	products, err := GetProductsInfoWithPartyID(db, party.PartyID)
+	if err != nil {
+		return err
+	}
+	party.Products = products
+	lastPartyID, err := GetLastPartyID(db)
+	if err != nil {
+		return err
+	}
+	party.Last = party.PartyID == lastPartyID
+	return nil
+
 }
 
 func CreateNewParty(db *reform.DB) (int64, error) {
@@ -147,49 +142,50 @@ func structToProductSlice(xs []reform.Struct) (products []Product) {
 	return
 }
 
+func GetProductWithID(db *reform.DB, productID int64) (r Product, err error) {
+	err = db.FindByPrimaryKeyTo(&r, productID)
+	return
+}
+
+func GetProductInfoWithID(db *reform.DB, productID int64) (r ProductInfo, err error) {
+	err = db.FindByPrimaryKeyTo(&r, productID)
+	return
+}
+
 func GetProductsInfoWithPartyID(db *reform.DB, partyID int64) ([]ProductInfo, error) {
-	var products []ProductInfo
-	rows, err := db.SelectRows(ProductInfoTable, "WHERE party_id = ? ORDER BY place", partyID)
+	xs, err := db.SelectAllFrom(ProductInfoTable, "WHERE party_id = ? ORDER BY place", partyID)
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		_ = rows.Close()
-	}()
-	for {
-		var product ProductInfo
-		err = db.NextRow(&product, rows)
-		if err == reform.ErrNoRows {
-			return products, nil
-		}
-		if err != reform.ErrNoRows {
-			return nil, err
-		}
-		products = append(products, product)
+	var productsInfo []ProductInfo
+	for _, x := range xs {
+		productsInfo = append(productsInfo, *x.(*ProductInfo))
 	}
+	return productsInfo, nil
 }
 
-func ListProductTypes(db *reform.DB) (prodTypes []ProductType) {
-
-	rows, err := db.SelectRows(ProductTypeTable, "")
+func ListProductTypes(db *reform.DB) ([]ProductType, error) {
+	xs, err := db.SelectAllFrom(ProductTypeTable, "")
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	defer func() {
-		_ = rows.Close()
-	}()
+	var r []ProductType
+	for _, x := range xs {
+		r = append(r, *x.(*ProductType))
+	}
+	return r, nil
+}
 
-	for {
-		var pt ProductType
-		if err = db.NextRow(&pt, rows); err != nil {
-			break
-		}
-		prodTypes = append(prodTypes, pt)
+func ListProductTypeNames(db *reform.DB) ([]string, error) {
+	xs, err := db.SelectAllFrom(ProductTypeTable, "")
+	if err != nil {
+		return nil, err
 	}
-	if err != reform.ErrNoRows {
-		panic(err)
+	var r []string
+	for _, x := range xs {
+		r = append(r, x.(*ProductType).ProductTypeName)
 	}
-	return
+	return r, nil
 }
 
 func ListUnits(db *reform.DB) ([]Units, error) {
@@ -218,12 +214,22 @@ func ListGases(db *reform.DB) ([]Gas, error) {
 	return gas, nil
 }
 
-func GetProductInfoAtPlace(db *reform.DB, place int) (ProductInfo, error) {
+func GetLastPartyProductInfoAtPlace(db *reform.DB, place int) (ProductInfo, error) {
 	party, err := GetLastParty(db)
 	if err != nil {
 		return ProductInfo{}, err
 	}
 	var p ProductInfo
+	err = db.SelectOneTo(&p, "WHERE party_id = ? AND place = ?", party.PartyID, place)
+	return p, err
+}
+
+func GetLastPartyProductAtPlace(db *reform.DB, place int) (Product, error) {
+	party, err := GetLastParty(db)
+	if err != nil {
+		return Product{}, err
+	}
+	var p Product
 	err = db.SelectOneTo(&p, "WHERE party_id = ? AND place = ?", party.PartyID, place)
 	return p, err
 }

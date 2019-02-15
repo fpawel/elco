@@ -2,6 +2,7 @@ package data
 
 import (
 	"database/sql"
+	"fmt"
 	"github.com/fpawel/goutils"
 	"github.com/pkg/errors"
 	"gopkg.in/reform.v1"
@@ -9,7 +10,126 @@ import (
 	"strings"
 )
 
-func SetConfigValue(db *reform.DB, property, value string) (err error) {
+func PartyConfigProperties(db *reform.DB) ([]ConfigProperty, error) {
+	party, err := GetLastParty(db)
+	if err != nil {
+		return nil, err
+	}
+
+	productTypesNames, err := ListProductTypeNames(db)
+
+	f := func(v sql.NullFloat64) string {
+		if v.Valid {
+			return fmt.Sprintf("%v", v.Float64)
+		}
+		return ""
+	}
+
+	return []ConfigProperty{
+		{
+			Hint:      "Исполнение",
+			Name:      "ProductType",
+			ValueType: VtString,
+			Value:     party.ProductTypeName,
+			List:      productTypesNames,
+		},
+		{
+			Hint:      "ПГС1",
+			Name:      "Gas1",
+			ValueType: VtFloat,
+			Value:     fmt.Sprintf("%v", party.Concentration1),
+		},
+		{
+			Hint:      "ПГС2",
+			Name:      "Gas2",
+			ValueType: VtFloat,
+			Value:     fmt.Sprintf("%v", party.Concentration2),
+		},
+		{
+			Hint:      "ПГС3",
+			Name:      "Gas3",
+			ValueType: VtFloat,
+			Value:     fmt.Sprintf("%v", party.Concentration3),
+		},
+		{
+			Hint:      "Примечание",
+			Name:      "Note",
+			ValueType: VtString,
+			Value:     fmt.Sprintf("%v", party.Note.String),
+		},
+
+		{
+			Hint:      "Кол-во точек для расчёта",
+			Name:      "PointsMethod",
+			ValueType: VtString,
+			Value:     strconv.Itoa(int(party.PointsMethod)),
+			List:      []string{"2", "3"},
+		},
+
+		{
+			Hint:      "Фон.мин, мкА",
+			Name:      "MinFon",
+			ValueType: VtNullFloat,
+			Value:     f(party.MinFon),
+		},
+		{
+			Hint:      "Фон.мax, мкА",
+			Name:      "MaxFon",
+			ValueType: VtNullFloat,
+			Value:     f(party.MaxFon),
+		},
+		{
+			Hint:      "D.фон.мax, мкА",
+			Name:      "MaxDFon",
+			ValueType: VtNullFloat,
+			Value:     f(party.MaxDFon),
+		},
+		{
+			Hint:      "Кч20.мин, мкА/мг/м3",
+			Name:      "MinKSens20",
+			ValueType: VtNullFloat,
+			Value:     f(party.MinKSens20),
+		},
+		{
+			Hint:      "Кч20.макс, мкА/мг/м3",
+			Name:      "MaxKSens20",
+			ValueType: VtNullFloat,
+			Value:     f(party.MaxKSens20),
+		},
+		{
+			Hint:      "Кч50.мин, мкА/мг/м3",
+			Name:      "MinKSens50",
+			ValueType: VtNullFloat,
+			Value:     f(party.MinKSens50),
+		},
+		{
+			Hint:      "Кч50.макс, мкА/мг/м3",
+			Name:      "MaxKSens50",
+			ValueType: VtNullFloat,
+			Value:     f(party.MaxKSens50),
+		},
+		{
+			Hint:      "Dt.мин, мкА",
+			Name:      "MinDTemp",
+			ValueType: VtNullFloat,
+			Value:     f(party.MinDTemp),
+		},
+		{
+			Hint:      "Dt.мин, мкА",
+			Name:      "MaxDTemp",
+			ValueType: VtNullFloat,
+			Value:     f(party.MaxDTemp),
+		},
+		{
+			Hint:      "Dn.макс, мкА",
+			Name:      "MaxDNotMeasured",
+			ValueType: VtNullFloat,
+			Value:     f(party.MaxDNotMeasured),
+		},
+	}, nil
+}
+
+func SetPartyConfigValue(db *reform.DB, property, value string) (err error) {
 
 	var party Party
 	party, err = GetLastParty(db)
@@ -100,5 +220,5 @@ func SetConfigValue(db *reform.DB, property, value string) (err error) {
 			return db.Save(&party)
 		}
 	}
-	return errors.Errorf("%q: wrong party property")
+	return errors.Errorf("%q: wrong party property", property)
 }

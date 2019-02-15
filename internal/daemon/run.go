@@ -25,7 +25,15 @@ func (x *D) RunReadFirmware(place int) {
 		if err != nil {
 			return err
 		}
-		notify.ReadFirmware(x.w, data.FirmwareBytes(b).FirmwareInfo(x.c.ListUnits(), x.c.ListGases()))
+		gases, err := data.ListGases(x.db)
+		if err != nil {
+			return err
+		}
+		units, err := data.ListUnits(x.db)
+		if err != nil {
+			return err
+		}
+		notify.ReadFirmware(x.w, data.FirmwareBytes(b).FirmwareInfo(units, gases))
 		return nil
 	})
 	return
@@ -38,7 +46,7 @@ func (x *D) RunWritePartyFirmware() {
 func (x *D) RunWriteProductFirmware(place int) {
 	what := fmt.Sprintf("Прошивка места %d.%d", place/8+1, place%8+1)
 	x.runHardware(what, func() error {
-		if p, err := x.c.LastParty().GetProductAtPlace(place); err != nil {
+		if p, err := data.GetLastPartyProductAtPlace(x.db, place); err != nil {
 			return err
 		} else {
 			return x.writeProductsFirmware([]*data.Product{&p})
@@ -103,8 +111,6 @@ func (x *D) runHardware(what string, work WorkFunc) {
 	x.hardware.WaitGroup = sync.WaitGroup{}
 	x.hardware.ctx, x.hardware.cancel = context.WithCancel(x.ctx)
 
-	cfg := x.sets.Config()
-
 	notify.HardwareStarted(x.w, what)
 	x.hardware.WaitGroup.Add(1)
 	x.hardware.logFields["work"] = what
@@ -125,7 +131,7 @@ func (x *D) runHardware(what string, work WorkFunc) {
 			}
 		}
 
-		if err := x.port.measurer.Open(cfg.Comport.Measurer, 115200, 0, x.hardware.ctx); err != nil {
+		if err := x.port.measurer.Open(x.cfg.User().ComportMeasurer, 115200, 0, x.hardware.ctx); err != nil {
 			notifyErr(err)
 			return
 		}

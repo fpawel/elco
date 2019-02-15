@@ -3,20 +3,22 @@ package daemon
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"fmt"
 	"github.com/Microsoft/go-winio"
 	"github.com/fpawel/elco/internal/api"
 	"github.com/fpawel/elco/internal/api/notify"
-	"github.com/fpawel/elco/internal/crud"
+	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/elco/internal/elco"
-	"github.com/fpawel/elco/internal/elco/config"
 	"github.com/fpawel/goutils/copydata"
 	"github.com/fpawel/goutils/serial-comm/comport"
 	"github.com/fpawel/goutils/winapp"
 	"github.com/lxn/walk"
 	"github.com/lxn/win"
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/powerman/rpc-codec/jsonrpc2"
 	"github.com/sirupsen/logrus"
+	"gopkg.in/reform.v1"
 	"log"
 	"net"
 	"net/rpc"
@@ -27,10 +29,10 @@ import (
 )
 
 type D struct {
-	c    crud.DBContext         // база данных sqlite
-	w    *copydata.NotifyWindow // окно для отправки сообщений WM_COPYDATA дельфи-приложению
-	sets *config.Sets
-	ctx  context.Context
+	db  *reform.DB
+	w   *copydata.NotifyWindow // окно для отправки сообщений WM_COPYDATA дельфи-приложению
+	cfg *data.Config
+	ctx context.Context
 
 	port struct {
 		measurer, gas *comport.Port
@@ -61,15 +63,25 @@ func (x logFields) Fire(entry *logrus.Entry) error {
 	return nil
 }
 
-func New() *D {
+func Run(skipRunUIApp bool) {
+
+	dbConn, err := sql.Open("sqlite3", elco.DataFileName())
+	if err != nil {
+		logrus.Fatalln("Не удалось открыть основной файл данных:", err, elco.DataFileName())
+	}
+	dbConn.SetMaxIdleConns(1)
+	dbConn.SetMaxOpenConns(1)
+	dbConn.SetConnMaxLifetime(0)
 
 	// reform.NewPrintfLogger(logrus.Debugf)
-	c := crud.NewDBContext(nil)
-	sets := config.OpenSets(c.LastParty())
+	db, err := data.Open(dbConn, nil)
+	if err != nil {
+		logrus.Fatalln("Не удалось открыть основной файл данных:", err, elco.DataFileName())
+	}
 	x := &D{
-		c:    c,
-		sets: sets,
-		w:    copydata.NewNotifyWindow(elco.ServerWindowClassName, elco.PeerWindowClassName),
+		db:  db,
+		cfg: data.OpenConfig(db),
+		w:   copydata.NewNotifyWindow(elco.ServerWindowClassName, elco.PeerWindowClassName),
 		hardware: hardware{
 			Continue:  func() {},
 			cancel:    func() {},
@@ -81,10 +93,6 @@ func New() *D {
 	x.port.measurer = comport.NewPortWithHook(x.onComport)
 	x.port.gas = comport.NewPortWithHook(x.onComport)
 	logrus.AddHook(&x.hardware.logFields)
-	return x
-}
-
-func (x *D) Run(skipRunUIApp bool) {
 
 	notifyIcon, err := walk.NewNotifyIcon()
 	if err != nil {
@@ -93,12 +101,12 @@ func (x *D) Run(skipRunUIApp bool) {
 	setupNotifyIcon(notifyIcon, x.w.CloseWindow)
 
 	for _, svcObj := range []interface{}{
-		api.NewPartiesCatalogue(x.c.PartiesCatalogue()),
-		api.NewLastParty(x.c.LastParty()),
-		api.NewProductTypes(x.c.ProductTypes()),
-		api.NewProductFirmware(x.c.ProductFirmware(), x),
-		api.NewSetsSvc(x.sets),
-		&api.RunnerSvc{x},
+		api.NewPartiesCatalogue(x.db),
+		api.NewLastParty(x.db),
+		api.NewProductTypes(x.db),
+		api.NewProductFirmware(x.db, x),
+		api.NewSetsSvc(x.cfg),
+		&api.RunnerSvc{Runner: x},
 	} {
 		if err := rpc.Register(svcObj); err != nil {
 			panic(err)
@@ -155,13 +163,12 @@ func (x *D) Run(skipRunUIApp bool) {
 			win.PostMessage(hWnd, win.WM_CLOSE, 0, 0)
 		}
 	})
-
-	logrus.Debugln("close sqlite data base on exit:", x.c.Close())
-	logrus.Debugln("save config on exit:", x.sets.Save())
+	logrus.Infoln("close sqlite data base on exit:", dbConn.Close())
+	logrus.Infoln("save config on exit:", x.cfg.Save())
 }
 
 func (x *D) onComport(w comport.LastWork) {
-	if x.sets.Config().Comport.LogComports {
+	if x.cfg.User().LogComports {
 		notify.ComportEntry(x.w, api.ComportEntry{
 			Port:  w.Port,
 			Error: w.Error != nil,

@@ -14,13 +14,12 @@ func NewLastParty(db *reform.DB) *LastParty {
 	return &LastParty{db}
 }
 
-func (x *LastParty) Party(_ struct{}, r *Party) error {
-	party, err := data.GetLastParty(x.db)
+func (x *LastParty) Party(_ struct{}, r *data.Party) (err error) {
+	*r, err = data.GetLastParty(x.db)
 	if err != nil {
 		return err
 	}
-	*r, err = makeParty(x.db, party, party.PartyID)
-	return err
+	return data.GetPartyProductsAndIsLast(x.db, r)
 }
 
 func (x *LastParty) SetProductSerialAtPlace(p [2]int, r *int64) (err error) {

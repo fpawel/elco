@@ -57,5 +57,5 @@ func main() {
 		}
 	}
 
-	daemon.New().Run(skipRunUIApp)
+	daemon.Run(skipRunUIApp)
 }

@@ -14,12 +14,15 @@ import (
 
 func (x *D) writePartyFirmware() error {
 
-	c := x.c.LastParty()
-	blockProducts := GroupProductsByBlocks(c.ProductsWithProduction())
+	products, err := data.GetLastPartyProducts(x.db, data.ProductsFilter{
+		WithProduction: true,
+	})
+	if err != nil {
+		return err
+	}
+	blockProducts := GroupProductsByBlocks(products)
 
-	logrus.WithFields(logrus.Fields{
-		"party_id": c.Party().PartyID,
-	}).Info("write party firmware")
+	logrus.Info("write party firmware")
 
 	for _, products := range blockProducts {
 		if err := x.writeProductsFirmware(products); err != nil {
@@ -63,11 +66,13 @@ func (x *D) writeProductsFirmware(products []*data.Product) error {
 	firmwareBytes := make(map[int]data.FirmwareBytes)
 
 	for _, p := range products {
-		pi := x.c.PartiesCatalogue().ProductInfo(p.ProductID)
-		firmware, err := pi.Firmware()
+		prodInfo, err := data.GetProductInfoWithID(x.db, p.ProductID)
 		if err != nil {
-			return merry.Appendf(err, "расчёт не удался для места %d.%d",
-				p.Place/8+1, p.Place%8+1)
+			return err
+		}
+		firmware, err := prodInfo.Firmware()
+		if err != nil {
+			return merry.Appendf(err, "расчёт не удался для места %d.%d", p.Place/8+1, p.Place%8+1)
 		}
 		firmwareBytes[p.Place%8] = firmware.Bytes()
 	}
@@ -108,7 +113,7 @@ func (x *D) readFirmware(place int) ([]byte, error) {
 
 	responseReader := comport.Comm{
 		Port:   x.port.measurer,
-		Config: x.sets.Config().MeasurerComm,
+		Config: x.cfg.Predefined().ComportMeasurer,
 	}
 
 	b := make([]byte, data.FirmwareSize)
@@ -123,7 +128,7 @@ func (x *D) readFirmware(place int) ([]byte, error) {
 			ProtoCmd: 0x44,
 			Data: []byte{
 				byte(placeInBlock + 1),
-				byte(x.sets.Config().UserConfig.Firmware.ChipType),
+				byte(x.cfg.User().ChipType),
 				byte(c.addr1 >> 8),
 				byte(c.addr1),
 				byte(count >> 8),
@@ -177,7 +182,7 @@ func (x *D) writeFirmware(place int, bytes []byte) error {
 
 func (x *D) waitFirmwareStatus(block int, placesMask byte) error {
 
-	t := time.Duration(x.sets.Config().Predefined.FirmwareWriter.StatusTimeoutSeconds) * time.Second
+	t := time.Duration(x.cfg.Predefined().StatusTimeoutSeconds) * time.Second
 	ctx, _ := context.WithTimeout(x.hardware.ctx, t)
 
 	for {
@@ -214,7 +219,7 @@ func (x *D) readFirmwareStatus(block int) ([]byte, error) {
 
 	responseReader := comport.Comm{
 		Port:   x.port.measurer,
-		Config: x.sets.Config().MeasurerComm,
+		Config: x.cfg.Predefined().ComportMeasurer,
 	}
 
 	resp, err := responseReader.GetResponse(req.Bytes())
@@ -241,7 +246,7 @@ func (x *D) writePreparedDataToFlash(block int, placesMask byte, addr uint16, co
 		ProtoCmd: 0x43,
 		Data: []byte{
 			placesMask,
-			byte(x.sets.Config().UserConfig.Firmware.ChipType),
+			byte(x.cfg.User().ChipType),
 			byte(addr >> 8),
 			byte(addr),
 			byte(count >> 8),
@@ -251,7 +256,7 @@ func (x *D) writePreparedDataToFlash(block int, placesMask byte, addr uint16, co
 
 	responseReader := comport.Comm{
 		Port:   x.port.measurer,
-		Config: x.sets.Config().MeasurerComm,
+		Config: x.cfg.Predefined().ComportMeasurer,
 	}
 	resp, err := responseReader.GetResponse(req.Bytes())
 	if err != nil {
@@ -301,7 +306,7 @@ func (x *D) sendDataToWriteFlash(block, placeInBlock int, b []byte) error {
 	}
 	responseReader := comport.Comm{
 		Port:   x.port.measurer,
-		Config: x.sets.Config().MeasurerComm,
+		Config: x.cfg.Predefined().ComportMeasurer,
 	}
 	resp, err := responseReader.GetResponse(req.Bytes())
 

@@ -45,9 +45,8 @@ func (x *D) switchGas(n int) error {
 }
 
 func (x *D) doSwitchGas(n int) error {
-	c := x.sets.Config()
 	if !x.port.gas.Opened() {
-		if err := x.port.gas.Open(c.Comport.Gas, 9600, 0, context.Background()); err != nil {
+		if err := x.port.gas.Open(x.cfg.User().ComportGas, 9600, 0, context.Background()); err != nil {
 			return err
 		}
 	}
@@ -76,7 +75,7 @@ func (x *D) doSwitchGas(n int) error {
 
 	responseReader := comport.Comm{
 		Port:   x.port.gas,
-		Config: x.sets.Config().PortGasComm,
+		Config: x.cfg.Predefined().ComportGas,
 	}
 
 	if _, err := responseReader.GetResponse(req.Bytes()); err != nil {
@@ -108,7 +107,7 @@ func (x *D) blowGas(nGas int) error {
 	if err := x.switchGas(nGas); err != nil {
 		return err
 	}
-	timeMinutes := x.sets.Config().Work.BlowGasMinutes
+	timeMinutes := x.cfg.Predefined().BlowGasMinutes
 	return x.delay(fmt.Sprintf("Продувка ПГС%d", nGas), time.Minute*time.Duration(timeMinutes))
 }
 
@@ -130,7 +129,10 @@ func (x *D) delay(what string, duration time.Duration) error {
 	}()
 	defer notify.Delay(x.w, api.DelayInfo{Run: false})
 	for {
-		productsWithSerials := x.c.LastParty().ProductsWithSerials()
+		productsWithSerials, err := data.GetLastPartyProducts(x.db, data.ProductsFilter{WithSerials: true})
+		if err != nil {
+			return err
+		}
 		if len(productsWithSerials) == 0 {
 			return merry.New("фоновый опрос: не задано ни одного серийного номера ЭХЯ в данной партии")
 		}
@@ -163,7 +165,7 @@ func (x *D) delay(what string, duration time.Duration) error {
 func (x *D) setupTemperature(temperature data.Temperature) error {
 	notify.Warningf(x.w, `Установите в термокамере температуру %v⁰C. 
 Нажмите \"Ok\" чтобы перейти к выдержке на температуре %v⁰C.`, temperature, temperature)
-	duration := time.Minute * time.Duration(x.sets.Config().Work.HoldTemperatureMinutes)
+	duration := time.Minute * time.Duration(x.cfg.Predefined().HoldTemperatureMinutes)
 	return x.delay(fmt.Sprintf("Выдержка термокамеры: %v⁰C", temperature), duration)
 }
 
@@ -251,9 +253,20 @@ func (x *D) determineProductsTemperatureCurrents(temperature data.Temperature, s
 }
 
 func (x *D) determineProductsCurrents(fields logrus.Fields, f func(*data.Product, float64)) error {
-	defer notify.LastPartyChanged(x.w, x.c.LastParty().Party())
+	defer func() {
+		party, err := data.GetLastParty(x.db)
+		if err != nil {
+			logrus.Errorln(err)
+		}
+		notify.LastPartyChanged(x.w, party)
+	}()
 
-	productsWithSerials := x.c.LastParty().ProductsWithSerials()
+	productsWithSerials, err := data.GetLastPartyProducts(x.db, data.ProductsFilter{
+		WithSerials: true,
+	})
+	if err != nil {
+		return err
+	}
 	if len(productsWithSerials) == 0 {
 		return merry.New("снятие: не задано ни одного серийного номера ЭХЯ в данной партии")
 	}
@@ -282,7 +295,9 @@ func (x *D) determineProductsCurrents(fields logrus.Fields, f func(*data.Product
 			fields["value"] = values[n]
 			logrus.WithFields(fields).Info("save product current")
 			f(p, values[n])
-			x.c.SaveProduct(p)
+			if err := x.db.Save(p); err != nil {
+				return err
+			}
 		}
 		return nil
 	}
@@ -311,7 +326,7 @@ func (x *D) readBlockMeasure(block int) ([]float64, error) {
 
 	values, err := modbus.Read3BCDValues(comport.Comm{
 		Port:   x.port.measurer,
-		Config: x.sets.Config().MeasurerComm,
+		Config: x.cfg.Predefined().ComportMeasurer,
 	}, modbus.Addr(block+101), 0, 8)
 
 	switch err {
