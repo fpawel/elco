@@ -4,7 +4,7 @@ import (
 	"flag"
 	"github.com/fpawel/elco/internal/daemon"
 	"github.com/fpawel/elco/internal/elco"
-	"github.com/fpawel/goutils/winapp"
+	"github.com/fpawel/elco/pkg/winapp"
 	"github.com/lxn/win"
 	"github.com/sirupsen/logrus"
 	"os"
