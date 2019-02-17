@@ -9,10 +9,13 @@ import (
 	"github.com/fpawel/elco/internal/api"
 	"github.com/fpawel/elco/internal/api/notify"
 	"github.com/fpawel/elco/internal/data"
+	"github.com/fpawel/elco/internal/data/journal"
 	"github.com/fpawel/elco/internal/elco"
 	"github.com/fpawel/elco/pkg/copydata"
 	"github.com/fpawel/elco/pkg/serial-comm/comport"
 	"github.com/fpawel/elco/pkg/winapp"
+	"github.com/go-logfmt/logfmt"
+	"github.com/jmoiron/sqlx"
 	"github.com/lxn/walk"
 	"github.com/lxn/win"
 	_ "github.com/mattn/go-sqlite3"
@@ -26,19 +29,21 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sync"
+	"time"
 )
 
 type D struct {
-	db  *reform.DB
-	w   *copydata.NotifyWindow // окно для отправки сообщений WM_COPYDATA дельфи-приложению
-	cfg *data.Config
-	ctx context.Context
-
-	port struct {
+	db, dbJournal   *reform.DB
+	dbx, dbxJournal *sqlx.DB
+	w               *copydata.NotifyWindow // окно для отправки сообщений WM_COPYDATA дельфи-приложению
+	cfg             *data.Config
+	ctx             context.Context
+	hardware        hardware
+	port            struct {
 		measurer, gas *comport.Port
 	}
-
-	hardware hardware
+	logFields   logrus.Fields
+	journalWork *journal.Work
 }
 
 type hardware struct {
@@ -46,21 +51,7 @@ type hardware struct {
 	Continue,
 	cancel,
 	skipDelay context.CancelFunc
-	ctx       context.Context
-	logFields logFields
-}
-
-type logFields logrus.Fields
-
-func (x logFields) Levels() []logrus.Level {
-	return logrus.AllLevels
-}
-
-func (x logFields) Fire(entry *logrus.Entry) error {
-	for k, v := range x {
-		entry.Data[k] = v
-	}
-	return nil
+	ctx context.Context
 }
 
 func Run(skipRunUIApp bool) {
@@ -73,26 +64,42 @@ func Run(skipRunUIApp bool) {
 	dbConn.SetMaxOpenConns(1)
 	dbConn.SetConnMaxLifetime(0)
 
+	dbJournalConn, err := sql.Open("sqlite3", elco.JournalFileName())
+	if err != nil {
+		logrus.Fatalln("Не удалось открыть журнал:", err, elco.JournalFileName())
+	}
+	dbJournalConn.SetMaxIdleConns(1)
+	dbJournalConn.SetMaxOpenConns(1)
+	dbJournalConn.SetConnMaxLifetime(0)
+
+	dbJournal, err := data.Open(dbJournalConn, nil)
+	if err != nil {
+		logrus.Fatalln("Не удалось открыть журнал:", err, elco.JournalFileName())
+	}
+
 	// reform.NewPrintfLogger(logrus.Debugf)
 	db, err := data.Open(dbConn, nil)
 	if err != nil {
 		logrus.Fatalln("Не удалось открыть основной файл данных:", err, elco.DataFileName())
 	}
 	x := &D{
-		db:  db,
-		cfg: data.OpenConfig(db),
-		w:   copydata.NewNotifyWindow(elco.ServerWindowClassName, elco.PeerWindowClassName),
+		db:         db,
+		dbx:        sqlx.NewDb(dbConn, "sqlite3"),
+		dbJournal:  dbJournal,
+		dbxJournal: sqlx.NewDb(dbJournalConn, "sqlite3"),
+		cfg:        data.OpenConfig(db),
+		w:          copydata.NewNotifyWindow(elco.ServerWindowClassName, elco.PeerWindowClassName),
 		hardware: hardware{
 			Continue:  func() {},
 			cancel:    func() {},
 			skipDelay: func() {},
 			ctx:       context.Background(),
-			logFields: make(logFields),
 		},
+		logFields: make(logrus.Fields),
 	}
-	x.port.measurer = comport.NewPortWithHook(x.onComport)
-	x.port.gas = comport.NewPortWithHook(x.onComport)
-	logrus.AddHook(&x.hardware.logFields)
+	x.port.measurer = comport.NewPort(logrus.Fields{"device": "стенд"}, x.onComport)
+	x.port.gas = comport.NewPort(logrus.Fields{"device": "пневмоблок"}, x.onComport)
+	logrus.AddHook(x)
 
 	notifyIcon, err := walk.NewNotifyIcon()
 	if err != nil {
@@ -101,11 +108,12 @@ func Run(skipRunUIApp bool) {
 	setupNotifyIcon(notifyIcon, x.w.CloseWindow)
 
 	for _, svcObj := range []interface{}{
-		api.NewPartiesCatalogue(x.db),
+		api.NewPartiesCatalogue(x.db, x.dbx),
 		api.NewLastParty(x.db),
 		api.NewProductTypes(x.db),
 		api.NewProductFirmware(x.db, x),
 		api.NewSetsSvc(x.cfg),
+		api.NewJournal(x.dbJournal, x.dbxJournal),
 		&api.RunnerSvc{Runner: x},
 	} {
 		if err := rpc.Register(svcObj); err != nil {
@@ -267,4 +275,66 @@ func setupNotifyIcon(notifyIcon *walk.NotifyIcon, exitFunc func()) {
 	if err := notifyIcon.SetVisible(true); err != nil {
 		logrus.Panic(err)
 	}
+}
+
+func (x *D) Levels() []logrus.Level {
+	return logrus.AllLevels
+}
+
+func (x *D) Fire(entry *logrus.Entry) error {
+
+	for k, v := range x.logFields {
+		if len(entry.Data) == 0 {
+			entry.Data = logrus.Fields{}
+		}
+		entry.Data[k] = v
+	}
+	if x.journalWork == nil {
+		return nil
+	}
+
+	sb := bytes.NewBuffer(nil)
+	d := logfmt.NewEncoder(sb)
+	excludeFields := map[string]struct{}{
+		"msg":     {},
+		"message": {},
+		"time":    {},
+		"level":   {},
+		"work":    {},
+		"stack":   {},
+	}
+
+	for k, v := range entry.Data {
+		if _, f := excludeFields[k]; !f {
+			_ = d.EncodeKeyval(k, v)
+		}
+	}
+	journalEntry := journal.Entry{
+		Message:   entry.Message,
+		Level:     entry.Level.String(),
+		WorkID:    x.journalWork.WorkID,
+		CreatedAt: time.Now(),
+	}
+	if sb.Len() > 0 {
+		if len(journalEntry.Message) > 0 {
+			journalEntry.Message += " "
+		}
+		journalEntry.Message += sb.String()
+	}
+
+	c := entry.Caller
+	journalEntry.Message += fmt.Sprintf(" %s:%d:%s", c.File, c.Line, c.Function)
+
+	err := x.dbJournal.Save(&journalEntry)
+	entry.Data["entry_id"] = journalEntry.EntryID
+
+	notify.NewJournalEntry(x.w, journal.EntryInfo{
+		CreatedAt: journalEntry.CreatedAt,
+		EntryID:   journalEntry.EntryID,
+		WorkID:    x.journalWork.WorkID,
+		WorkName:  x.journalWork.Name,
+		Message:   journalEntry.Message,
+		Level:     journalEntry.Level,
+	})
+	return err
 }

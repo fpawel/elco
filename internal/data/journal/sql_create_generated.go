@@ -1,3 +1,6 @@
+package journal
+
+const SQLCreate = `
 PRAGMA foreign_keys = ON;
 PRAGMA encoding = 'UTF-8';
 --E:\Program Data\Аналитприбор\elco\journal.sqlite
@@ -41,4 +44,4 @@ SELECT entry.created_at,
        CAST(STRFTIME('%m', DATETIME(entry.created_at, '+3 hours')) AS INTEGER) AS month,
        CAST(STRFTIME('%d', DATETIME(entry.created_at, '+3 hours')) AS INTEGER) AS day
 FROM entry
-       INNER JOIN work on entry.work_id = work.work_id;
+       INNER JOIN work on entry.work_id = work.work_id;`

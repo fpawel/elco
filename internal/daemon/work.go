@@ -343,7 +343,7 @@ func (x *D) readBlockMeasure(block int) ([]float64, error) {
 
 	default:
 		err = merry.Wrap(err).WithValue("block", block)
-		return nil, x.port.measurer.LastWork().WrapError(err)
+		return nil, x.port.measurer.WrapError(err)
 	}
 }
 
@@ -351,10 +351,12 @@ func init() {
 	merry.RegisterDetail("Запрос", "request")
 	merry.RegisterDetail("Ответ", "response")
 	merry.RegisterDetail("Длительность ожидания", "duration")
-	merry.RegisterDetail("COM порт", "comport")
+	merry.RegisterDetail("Порт", "port")
+	merry.RegisterDetail("Прибор", "device")
 	merry.RegisterDetail("Блок измерительный", "block")
 	merry.RegisterDetail("Длительность ожидания статуса", "status_timeout")
 	merry.RegisterDetail("Место", "place")
 	merry.RegisterDetail("Код статуса", "status")
+	merry.RegisterDetail("Адрес", "addr")
 
 }

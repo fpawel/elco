@@ -5,7 +5,7 @@
 package notify
 
 import (
-	"github.com/fpawel/goutils/copydata"
+	"github.com/fpawel/elco/pkg/copydata"
 	{% for imp := range x.goImports %}"{%s imp %}"
     {% endfor %}
 )

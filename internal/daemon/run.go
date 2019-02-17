@@ -6,11 +6,13 @@ import (
 	"github.com/ansel1/merry"
 	"github.com/fpawel/elco/internal/api/notify"
 	"github.com/fpawel/elco/internal/data"
+	"github.com/fpawel/elco/internal/data/journal"
 	"github.com/fpawel/elco/internal/elco"
 	"github.com/fpawel/goutils/intrng"
 	"github.com/hashicorp/go-multierror"
 	"github.com/sirupsen/logrus"
 	"sync"
+	"time"
 )
 
 func (x *D) RunWriteFirmware(place int, bytes []byte) {
@@ -104,16 +106,25 @@ func (x *D) RunReadCurrent(checkPlaces [12]bool) {
 
 type WorkFunc = func() error
 
-func (x *D) runHardware(what string, work WorkFunc) {
+func (x *D) runHardware(workName string, work WorkFunc) {
 
 	x.hardware.cancel()
 	x.hardware.WaitGroup.Wait()
 	x.hardware.WaitGroup = sync.WaitGroup{}
 	x.hardware.ctx, x.hardware.cancel = context.WithCancel(x.ctx)
 
-	notify.HardwareStarted(x.w, what)
+	notify.HardwareStarted(x.w, workName)
 	x.hardware.WaitGroup.Add(1)
-	x.hardware.logFields["work"] = what
+	x.logFields = logrus.Fields{
+		"work": workName,
+	}
+	x.journalWork = &journal.Work{
+		Name:      workName,
+		CreatedAt: time.Now(),
+	}
+	if err := x.dbJournal.Save(x.journalWork); err != nil {
+		logrus.Panicln(err)
+	}
 
 	go func() {
 
@@ -122,30 +133,36 @@ func (x *D) runHardware(what string, work WorkFunc) {
 		x.port.measurer.SetLogger(elco.Logger)
 		x.port.gas.SetLogger(elco.Logger)
 
-		notifyErr := func(err error) {
-			fields := logrus.Fields{}
-			merryValues(err, fields)
-			logrus.WithFields(fields).Error(err)
+		notifyErr := func(what string, err error) {
+			logrus.Errorln(what, merry.Details(err))
 			if !merry.Is(err, context.Canceled) {
-				notify.HardwareErrorf(x.w, "%s: %v", what, merry.Details(err))
+				notify.HardwareErrorf(x.w, "%s: %v", workName, merry.Details(err))
 			}
 		}
 
 		if err := x.port.measurer.Open(x.cfg.User().ComportMeasurer, 115200, 0, x.hardware.ctx); err != nil {
-			notifyErr(err)
+			notifyErr("не удалось открыть СОМ порт", err)
 			return
 		}
 
-		if err := work(); err != nil && err != context.Canceled {
-			notifyErr(err)
+		switch err := work(); err {
+		case nil:
+			logrus.Info("выполнено успешно")
+		case context.Canceled:
+			logrus.Warn("выполнение прервано")
+		default:
+			notifyErr("выполнено с ошибкой:", err)
 		}
 
 		if err := x.closeHardware(); err != nil {
-			notifyErr(err)
+			notifyErr("не удалось остановить работу оборудования по завершении настройки:", err)
 		}
 
-		notify.HardwareStoppedf(x.w, "выполнение окончено: %s", what)
-		delete(x.hardware.logFields, "work")
+		notify.HardwareStoppedf(x.w, "выполнение окончено: %s", workName)
+		for k := range x.logFields {
+			delete(x.logFields, k)
+		}
+		x.journalWork = nil
 		x.hardware.WaitGroup.Done()
 	}()
 }

@@ -6,7 +6,7 @@ import (
 	"gopkg.in/reform.v1"
 )
 
-//go:generate go run github.com/fpawel/goutils/dbutils/sqlstr/...
+//go:generate go run github.com/fpawel/elco/cmd/utils/sqlstr/...
 
 func DeleteEmptyRecords(db *reform.DB) error {
 	_, err := db.Exec(`

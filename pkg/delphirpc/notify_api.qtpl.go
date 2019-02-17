@@ -26,7 +26,7 @@ func (x *NotifyServicesSrc) StreamGoFile(qw422016 *qt422016.Writer) {
 package notify
 
 import (
-	"github.com/fpawel/goutils/copydata"
+	"github.com/fpawel/elco/pkg/copydata"
 	`)
 	//line notify_api.qtpl:9
 	for imp := range x.goImports {

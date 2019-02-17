@@ -1,80 +1,34 @@
 package api
 
 import (
-	"database/sql"
 	"github.com/fpawel/elco/internal/data"
+	"github.com/jmoiron/sqlx"
 	"gopkg.in/reform.v1"
 )
 
 type PartiesCatalogue struct {
-	db *reform.DB
+	db  *reform.DB
+	dbx *sqlx.DB
 }
 
-func NewPartiesCatalogue(db *reform.DB) *PartiesCatalogue {
-	return &PartiesCatalogue{db}
+func NewPartiesCatalogue(db *reform.DB, dbx *sqlx.DB) *PartiesCatalogue {
+	return &PartiesCatalogue{db, dbx}
 }
 
 func (x *PartiesCatalogue) Years(_ struct{}, years *[]int) error {
-	rows, err := x.db.Query(`SELECT DISTINCT year FROM party_info ORDER BY year ASC;`)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = rows.Close() }()
-	for rows.Next() {
-		var n int
-		err := rows.Scan(&n)
-		if err != nil {
-			if err == sql.ErrNoRows {
-				return nil
-			}
-			return err
-		}
-		*years = append(*years, n)
-	}
-	return nil
+	return x.dbx.Select(years, `SELECT DISTINCT year FROM party_info ORDER BY year ASC;`)
 }
 
 func (x *PartiesCatalogue) Months(r struct{ Year int }, months *[]int) error {
-	rows, err := x.db.Query(`
-SELECT DISTINCT month FROM party_info WHERE year = ? ORDER BY month ASC;`, r.Year)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = rows.Close() }()
-	for rows.Next() {
-		var n int
-		err := rows.Scan(&n)
-		if err != nil {
-			if err != sql.ErrNoRows {
-				return nil
-			}
-			return err
-		}
-		*months = append(*months, n)
-	}
-	return nil
+	return x.dbx.Select(months,
+		`SELECT DISTINCT month FROM party_info WHERE year = ? ORDER BY month ASC;`,
+		r.Year)
 }
 
 func (x *PartiesCatalogue) Days(r struct{ Year, Month int }, days *[]int) error {
-	rows, err := x.db.Query(`
-SELECT DISTINCT day FROM party_info WHERE year = ? AND month = ? ORDER BY day ASC;`,
+	return x.dbx.Select(days,
+		`SELECT DISTINCT day FROM party_info WHERE year = ? AND month = ? ORDER BY day ASC;`,
 		r.Year, r.Month)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = rows.Close() }()
-	for rows.Next() {
-		var n int
-		err := rows.Scan(&n)
-		if err != nil {
-			if err != sql.ErrNoRows {
-				return nil
-			}
-			return err
-		}
-		*days = append(*days, n)
-	}
-	return nil
 }
 
 func (x *PartiesCatalogue) Parties(r struct{ Year, Month, Day int }, parties *[]data.Party) error {

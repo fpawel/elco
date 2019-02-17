@@ -23,19 +23,40 @@ func (x Comm) GetResponse(request []byte) ([]byte, error) {
 }
 
 type Port struct {
-	config   serial.Config
-	port     *serial.Port
-	ctx      context.Context
-	lastWork LastWork
-	hook     Hook
-	logger   *logrus.Logger
+	config            serial.Config
+	port              *serial.Port
+	ctx               context.Context
+	hook              Hook
+	logger            *logrus.Logger
+	logFields         logrus.Fields
+	request, response []byte
+	duration          time.Duration
+	err               error
+}
+
+type LastWork struct {
+	Request, Response []byte
+	Duration          time.Duration
+	Port              string
+	Error             error
 }
 
 type Hook func(LastWork)
 
-func NewPortWithHook(h Hook) *Port {
+func NewPort(logFields logrus.Fields, h Hook) *Port {
 	return &Port{
-		hook: h,
+		hook:      h,
+		logFields: logFields,
+	}
+}
+
+func (x *Port) LastWork() LastWork {
+	return LastWork{
+		Error:    x.err,
+		Port:     x.config.Name,
+		Duration: x.duration,
+		Request:  x.request,
+		Response: x.response,
 	}
 }
 
@@ -156,56 +177,42 @@ func (x *Port) Close() error {
 func (x *Port) GetResponse(commConfig comm.Config, request []byte) ([]byte, error) {
 	//x.Port.GetResponse(request, x.Config)
 
+	x.request = request
 	t := time.Now()
-	response, err := comm.GetResponse(x.ctx, commConfig, x, request)
-
-	x.lastWork = LastWork{
-		Port:     x.config.Name,
-		Request:  request,
-		Response: response,
-		Duration: time.Since(t),
-		Error:    err,
+	x.response, x.err = comm.GetResponse(x.ctx, commConfig, x, request)
+	x.duration = time.Since(t)
+	if x.err != nil {
+		x.err = x.WrapError(x.err)
 	}
-
-	if err != nil {
-		err = x.lastWork.WrapError(err)
-	}
-	//notifyWindow.NotifyJson(0, struct {
-	//	Com   string
-	//	Error bool
-	//	Msg   string
-	//}{x.config.Name, err != nil, x.lastWork.String()})
-
 	if x.hook != nil {
-		x.hook(x.lastWork)
+		x.hook(x.LastWork())
 	}
 
 	logger := x.logger
-	if err != nil && logger == nil {
+	if x.err != nil && logger == nil {
 		logger = logrus.StandardLogger()
 	}
 	if logger != nil {
-		entry := logrus.WithFields(x.lastWork.Values())
-		entry.Logger = logger
-		level := logrus.InfoLevel
-		if err != nil {
-			level = logrus.ErrorLevel
+		entry := logrus.NewEntry(logger)
+		if x.err == nil {
+			entry.Data = x.logKeyValues()
+			entry.Infoln()
+		} else {
+			entry.Errorln(merry.Details(x.err))
 		}
-		entry.Log(level)
 	}
-
-	return response, err
+	return x.response, x.err
 }
 
-func (x LastWork) NewError(msg string) error {
+func (x *Port) NewError(msg string) error {
 	return x.WrapError(merry.New(msg))
 }
 
-func (x LastWork) Errorf(fmt string, a ...interface{}) error {
+func (x *Port) Errorf(fmt string, a ...interface{}) error {
 	return x.WrapError(merry.Errorf(fmt, a...))
 }
 
-func (x LastWork) WrapError(e error) error {
+func (x *Port) WrapError(e error) error {
 
 	var err merry.Error
 	switch e {
@@ -218,34 +225,23 @@ func (x LastWork) WrapError(e error) error {
 	default:
 		err = merry.Wrap(e)
 	}
-	for k, v := range x.Values() {
+	for k, v := range x.logKeyValues() {
 		err = err.WithValue(k, v)
 	}
 	return err
 }
 
-func (x *Port) LastWork() LastWork {
-	return x.lastWork
-}
-
-type LastWork struct {
-	Request, Response []byte
-	Duration          time.Duration
-	Port              string
-	Error             error
-}
-
-func (x LastWork) Values() logrus.Fields {
+func (x *Port) logKeyValues() logrus.Fields {
 	m := logrus.Fields{
-		"comport":  x.Port,
-		"request":  fmt.Sprintf("% X", x.Request),
-		"duration": durafmt.Parse(x.Duration),
+		"port":     x.config.Name,
+		"request":  fmt.Sprintf("% X", x.request),
+		"duration": durafmt.Parse(x.duration),
 	}
-	if len(x.Response) > 0 {
-		m["response"] = fmt.Sprintf("% X", x.Response)
+	if len(x.response) > 0 {
+		m["response"] = fmt.Sprintf("% X", x.response)
 	}
-	if x.Error != nil {
-		m["error"] = x.Error.Error()
+	for k, v := range x.logFields {
+		m[k] = v
 	}
 	return m
 }

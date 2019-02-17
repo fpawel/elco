@@ -46,13 +46,13 @@ func (x *TypesSrc) addType(t r.Type) {
 
 	typeName := delphiTypeName(x.typesNames, t)
 
-	fmt.Println(t.Name(), t, typeName)
-
 	for _, a := range x.types {
 		if a.name == typeName {
 			return
 		}
 	}
+
+	fmt.Println(t.Name(), t, typeName)
 
 	ti := typeInfo{
 		name: typeName,

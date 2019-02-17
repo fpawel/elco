@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/fpawel/elco/internal/api"
 	"github.com/fpawel/elco/internal/data"
+	"github.com/fpawel/elco/internal/data/journal"
 	"github.com/fpawel/elco/internal/elco"
 	"github.com/fpawel/elco/pkg/delphirpc"
 	"github.com/fpawel/elco/pkg/winapp"
@@ -20,9 +21,12 @@ func main() {
 		r.TypeOf((*api.ProductFirmware)(nil)),
 		r.TypeOf((*api.SettingsSvc)(nil)),
 		r.TypeOf((*api.RunnerSvc)(nil)),
+		r.TypeOf((*api.Journal)(nil)),
 	}
 	m := map[string]string{
 		"ProductInfo": "Product",
+		"WorkInfo":    "JournalWork",
+		"EntryInfo":   "JournalEntry",
 	}
 
 	dir := filepath.Join(os.Getenv("GOPATH"),
@@ -83,6 +87,10 @@ func main() {
 		{
 			"ReadFirmware",
 			r.TypeOf((*data.FirmwareInfo)(nil)).Elem(),
+		},
+		{
+			"NewJournalEntry",
+			r.TypeOf((*journal.EntryInfo)(nil)).Elem(),
 		},
 	})
 

@@ -12,3 +12,7 @@ const (
 func DataFileName() string {
 	return AppName.DataFileName("elco.sqlite")
 }
+
+func JournalFileName() string {
+	return AppName.DataFileName("journal.sqlite")
+}

@@ -45,10 +45,10 @@ func main() {
 		logrus.Fatal(err)
 	}
 	elco.Logger.SetLevel(logLevel)
-
 	logrus.SetLevel(logLevel)
 	logrus.SetFormatter(elco.Logger.Formatter)
 	logrus.SetOutput(elco.Logger.Out)
+	logrus.SetReportCaller(true)
 
 	if createNewDB {
 		logrus.Warn("delete data base file because create-new-db flag was set")

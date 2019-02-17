@@ -3,6 +3,7 @@ package notify
 import (
 	"github.com/fpawel/elco/internal/api"
 	"github.com/fpawel/elco/internal/data"
+	"github.com/fpawel/elco/internal/data/journal"
 	"github.com/fpawel/elco/pkg/copydata"
 )
 
@@ -22,6 +23,7 @@ const (
 	msgComportEntry
 	msgStartServerApplication
 	msgReadFirmware
+	msgNewJournalEntry
 )
 
 func ReadCurrent(w W, arg api.ReadCurrent) {
@@ -78,4 +80,8 @@ func StartServerApplicationf(w W, format string, a ...interface{}) {
 }
 func ReadFirmware(w W, arg data.FirmwareInfo) {
 	w.NotifyJson(uintptr(msgReadFirmware), arg)
+}
+
+func NewJournalEntry(w W, arg journal.EntryInfo) {
+	w.NotifyJson(uintptr(msgNewJournalEntry), arg)
 }

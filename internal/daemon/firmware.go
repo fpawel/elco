@@ -9,10 +9,16 @@ import (
 	"github.com/fpawel/elco/pkg/serial-comm/modbus"
 	"github.com/hako/durafmt"
 	"github.com/sirupsen/logrus"
+	"sort"
 	"time"
 )
 
 func (x *D) writePartyFirmware() error {
+
+	party, err := data.GetLastParty(x.db)
+	if err != nil {
+		return err
+	}
 
 	products, err := data.GetLastPartyProducts(x.db, data.ProductsFilter{
 		WithProduction: true,
@@ -20,10 +26,14 @@ func (x *D) writePartyFirmware() error {
 	if err != nil {
 		return err
 	}
+
+	var places []int
+	for _, p := range products {
+		places = append(places, p.Place)
+	}
+	sort.Ints(places)
+	logrus.Infof("Запись прошивки партии: %s, %v", party.String2(), places)
 	blockProducts := GroupProductsByBlocks(products)
-
-	logrus.Info("write party firmware")
-
 	for _, products := range blockProducts {
 		if err := x.writeProductsFirmware(products); err != nil {
 			return err
@@ -42,71 +52,77 @@ func (x *D) writeProductsFirmware(products []*data.Product) error {
 		placesMask |= 1 << place
 	}
 
-	strProducts := ""
-
-	for i, p := range products {
-		if i > 0 {
-			strProducts += ", "
-		}
-		strProducts += fmt.Sprintf("%d", p.Place%8)
+	var placesInBlock []int
+	for _, p := range products {
+		placesInBlock = append(placesInBlock, p.Place%8)
 	}
+	sort.Ints(placesInBlock)
 
-	x.hardware.logFields["write_firmware_block"] = block
-	x.hardware.logFields["write_firmware_products"] = strProducts
-	x.hardware.logFields["places_mask"] = fmt.Sprintf("%08b", placesMask)
+	x.logFields["block"] = block
+	x.logFields["places_in_block"] = fmt.Sprintf("%d", placesInBlock)
+	x.logFields["places_mask"] = fmt.Sprintf("%08b", placesMask)
 	defer func() {
-		delete(x.hardware.logFields, "write_firmware_block")
-		delete(x.hardware.logFields, "write_firmware_products")
-		delete(x.hardware.logFields, "places_mask")
+		delete(x.logFields, "block")
+		delete(x.logFields, "products")
+		delete(x.logFields, "places_mask")
 
 	}()
 
-	logrus.Info("write products firmware")
+	logrus.Infof("запись прошивки ячеек блока %d: %v", block, placesInBlock)
 
-	firmwareBytes := make(map[int]data.FirmwareBytes)
+	doAddresses := func(p *data.Product, b data.FirmwareBytes, addr1, addr2 uint16) error {
+		x.logFields["адрес_начала_куска"] = addr1
+		x.logFields["адрес_конца_куска"] = addr2
+		x.logFields["количество_байт_куска"] = addr2 + 1 - addr1
+		defer delete(x.logFields, "адрес_начала_куска")
+		defer delete(x.logFields, "адрес_конца_куска")
+		defer delete(x.logFields, "количество_байт_куска")
+
+		placeInBlock := p.Place % 8
+
+		if err := x.sendDataToWriteFlash(block, placeInBlock, b[addr1:addr2+1]); err != nil {
+			return err
+		}
+
+		if err := x.writePreparedDataToFlash(block, placesMask, addr1, int(addr2-addr1+1)); err != nil {
+			return err
+		}
+		if err := x.waitFirmwareStatus(block, placesMask); err != nil {
+			return err
+		}
+		return nil
+	}
 
 	for _, p := range products {
+
 		prodInfo, err := data.GetProductInfoWithID(x.db, p.ProductID)
 		if err != nil {
 			return err
 		}
+
+		logrus.Infoln("расчёт и запись прошивки ЭХЯ:", prodInfo.String2())
+
 		firmware, err := prodInfo.Firmware()
 		if err != nil {
-			return merry.Appendf(err, "расчёт не удался для места %d.%d", p.Place/8+1, p.Place%8+1)
+			return merry.Appendf(err, "расчёт прошивки ЭХЯ не удался %v", prodInfo)
 		}
-		firmwareBytes[p.Place%8] = firmware.Bytes()
-	}
-
-	for _, c := range firmwareAddresses {
-
-		logrus.WithFields(logrus.Fields{
-			"addr1": c.addr1,
-			"addr2": c.addr2,
-		}).Info("write batch")
-
-		for _, p := range products {
-			place := p.Place % 8
-			d := firmwareBytes[place]
-			if err := x.sendDataToWriteFlash(block, place, d[c.addr1:c.addr2+1]); err != nil {
+		b := firmware.Bytes()
+		logrus.Infoln("расчитана прошивка ЭХЯ:", firmware.String2())
+		for _, c := range firmwareAddresses {
+			if err := doAddresses(p, b, c.addr1, c.addr2); err != nil {
 				return err
 			}
 		}
-		if err := x.writePreparedDataToFlash(block, placesMask, c.addr1, int(c.addr2-c.addr1+1)); err != nil {
-			return err
-		}
-
-		if err := x.waitFirmwareStatus(block, placesMask); err != nil {
-			return err
-		}
 	}
+
 	return nil
 }
 
 func (x *D) readFirmware(place int) ([]byte, error) {
 
-	x.hardware.logFields["read_firmware_place"] = place
-	defer delete(x.hardware.logFields, "read_firmware_place")
-	logrus.Info("read firmware")
+	x.logFields["place"] = place
+	defer delete(x.logFields, "place")
+	logrus.Info("считывание прошивки ЭХЯ")
 
 	block := place / 8
 	placeInBlock := place % 8
@@ -139,59 +155,73 @@ func (x *D) readFirmware(place int) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		w := x.port.measurer.LastWork()
 		if err = req.CheckResponse(resp); err != nil {
-			return nil, w.WrapError(err)
+			return nil, x.port.measurer.WrapError(err)
 		}
 		if len(resp) != 10+int(count) {
-			return nil, w.Errorf("ожидалось %d байт ответа, получено %d",
+			return nil, x.port.measurer.Errorf("ожидалось %d байт ответа, получено %d",
 				10+int(count), len(resp))
 		}
 		copy(b[c.addr1:c.addr1+count], resp[8:8+count])
 	}
+	logrus.Infof("считана прошивка ЭХЯ: %d байт, % X", len(b), b)
 	return b, nil
 }
 
 func (x *D) writeFirmware(place int, bytes []byte) error {
-	x.hardware.logFields["write_firmware_place"] = place
-	defer delete(x.hardware.logFields, "write_firmware_place")
-	logrus.Infof("write firmware: % X", bytes)
+	x.logFields["place"] = place
+	defer delete(x.logFields, "place")
+	logrus.Infof("запись прошивки ЭХЯ: %d байт, % X", len(bytes), bytes)
 
 	block := place / 8
 	placeInBlock := place % 8
 	placesMask := byte(1) << byte(place)
 
-	for _, c := range firmwareAddresses {
-		logrus.Infof("write firmware batch: % X", bytes[c.addr1:c.addr2+1])
+	doAddresses := func(addr1, addr2 uint16) error {
+		x.logFields["адрес_начала_куска"] = addr1
+		x.logFields["адрес_конца_куска"] = addr2
+		x.logFields["количество_байт_куска"] = addr2 + 1 - addr1
+		defer delete(x.logFields, "адрес_начала_куска")
+		defer delete(x.logFields, "адрес_конца_куска")
+		defer delete(x.logFields, "количество_байт_куска")
 
-		if err := x.sendDataToWriteFlash(block, placeInBlock, bytes[c.addr1:c.addr2+1]); err != nil {
+		logrus.WithFields(logrus.Fields{}).Infof("запись куска прошивки ЭХЯ: %d...%d, %d байт", addr1, addr2, addr2+1-addr1)
+
+		if err := x.sendDataToWriteFlash(block, placeInBlock, bytes[addr1:addr2+1]); err != nil {
 			return err
 		}
 
-		if err := x.writePreparedDataToFlash(block, placesMask, c.addr1, int(c.addr2-c.addr1+1)); err != nil {
+		if err := x.writePreparedDataToFlash(block, placesMask, addr1, int(addr2-addr1+1)); err != nil {
 			return err
 		}
 
 		if err := x.waitFirmwareStatus(block, placesMask); err != nil {
 			return err
 		}
+		return nil
 	}
-	logrus.Info("write firmware: ok")
+
+	for _, c := range firmwareAddresses {
+		if err := doAddresses(c.addr1, c.addr2); err != nil {
+			return err
+		}
+	}
+	logrus.Info("запись прошивки ЭХЯ выполнена успешно")
 	return nil
 }
 
 func (x *D) waitFirmwareStatus(block int, placesMask byte) error {
 
 	t := time.Duration(x.cfg.Predefined().StatusTimeoutSeconds) * time.Second
+	logrus.Infof("прошивка блока %d: ожидание статуса завершения, таймаут %s", block, durafmt.Parse(t))
 	ctx, _ := context.WithTimeout(x.hardware.ctx, t)
-
 	for {
 
 		select {
 		case <-ctx.Done():
 			status, err := x.readFirmwareStatus(block)
 			if err != nil {
-				return x.port.measurer.LastWork().WrapError(err)
+				return x.port.measurer.WrapError(err)
 			}
 			if err = checkFirmwareStatus(status, placesMask); err != nil {
 				err = merry.Wrap(err).WithValue("status_timeout", durafmt.Parse(t))
@@ -202,7 +232,7 @@ func (x *D) waitFirmwareStatus(block int, placesMask byte) error {
 		default:
 			status, err := x.readFirmwareStatus(block)
 			if err != nil {
-				return x.port.measurer.LastWork().WrapError(err)
+				return x.port.measurer.WrapError(err)
 			}
 			if err = checkFirmwareStatus(status, placesMask); err == nil {
 				return nil
@@ -226,21 +256,17 @@ func (x *D) readFirmwareStatus(block int) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	w := x.port.measurer.LastWork()
 	if err = req.CheckResponse(resp); err != nil {
-		return nil, w.WrapError(err)
+		return nil, x.port.measurer.WrapError(err)
 	}
 	if len(resp) != 12 {
-		return nil, w.Errorf("ожидалось 12 байт ответа, получено %d", len(resp))
+		return nil, x.port.measurer.Errorf("ожидалось 12 байт ответа, получено %d", len(resp))
 	}
 	return resp[2:], nil
 }
 
 func (x *D) writePreparedDataToFlash(block int, placesMask byte, addr uint16, count int) error {
-	logrus.WithFields(logrus.Fields{
-		"addr":  addr,
-		"count": count,
-	}).Info("write prepared data to flash")
+	logrus.Info("отправка команды записи ранее переданного куска прошивки, %d байт, адрес % X", addr, count)
 	req := modbus.Req{
 		Addr:     modbus.Addr(block) + 101,
 		ProtoCmd: 0x43,
@@ -262,13 +288,12 @@ func (x *D) writePreparedDataToFlash(block int, placesMask byte, addr uint16, co
 	if err != nil {
 		return err
 	}
-	w := x.port.measurer.LastWork()
 	if err = req.CheckResponse(resp); err != nil {
-		return w.WrapError(err)
+		return x.port.measurer.WrapError(err)
 	}
 
 	if !compareBytes(resp, req.Bytes()) {
-		return w.Errorf("% X != % X", resp, req.Bytes())
+		return x.port.measurer.Errorf("% X != % X", resp, req.Bytes())
 	}
 
 	return nil
@@ -290,10 +315,7 @@ func checkFirmwareStatus(b []byte, placesMask byte) (err error) {
 }
 
 func (x *D) sendDataToWriteFlash(block, placeInBlock int, b []byte) error {
-	logrus.WithFields(logrus.Fields{
-		"data":     fmt.Sprintf("% X", b),
-		"data_len": len(b),
-	}).Info()
+	logrus.Infof("отправка куска прошивки для записи: %d байт, % X", len(b), b)
 
 	req := modbus.Req{
 		Addr:     modbus.Addr(block) + 101,
@@ -313,15 +335,14 @@ func (x *D) sendDataToWriteFlash(block, placeInBlock int, b []byte) error {
 	if err != nil {
 		return err
 	}
-	w := x.port.measurer.LastWork()
 	if err = req.CheckResponse(resp); err != nil {
-		return w.WrapError(err)
+		return x.port.measurer.WrapError(err)
 	}
 	if len(resp) != 7 {
-		return w.Errorf("длина ответа %d не равна 7", len(resp))
+		return x.port.measurer.Errorf("длина ответа %d не равна 7", len(resp))
 	}
 	if !compareBytes(resp[:5], req.Bytes()[:5]) {
-		return w.Errorf("% X != % X", resp[:5], req.Bytes()[:5])
+		return x.port.measurer.Errorf("% X != % X", resp[:5], req.Bytes()[:5])
 	}
 	return nil
 }
