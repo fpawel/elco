@@ -16,13 +16,13 @@ import (
 )
 
 func (x *D) RunWriteFirmware(place int, bytes []byte) {
-	x.runHardware(fmt.Sprintf("Запись места %d", place+1), func() error {
+	x.runHardware(true, fmt.Sprintf("Запись места %d", place+1), func() error {
 		return x.writeFirmware(place, bytes)
 	})
 }
 
 func (x *D) RunReadFirmware(place int) {
-	x.runHardware(fmt.Sprintf("Считывание места %d", place+1), func() error {
+	x.runHardware(true, fmt.Sprintf("Считывание места %d", place+1), func() error {
 		b, err := x.readFirmware(place)
 		if err != nil {
 			return err
@@ -35,19 +35,19 @@ func (x *D) RunReadFirmware(place int) {
 		if err != nil {
 			return err
 		}
-		notify.ReadFirmware(x.w, data.FirmwareBytes(b).FirmwareInfo(units, gases))
+		notify.ReadFirmware(x.w, data.FirmwareBytes(b).FirmwareInfo(place, units, gases))
 		return nil
 	})
 	return
 }
 
 func (x *D) RunWritePartyFirmware() {
-	x.runHardware("Прошивка партии", x.writePartyFirmware)
+	x.runHardware(true, "Прошивка партии", x.writePartyFirmware)
 }
 
 func (x *D) RunWriteProductFirmware(place int) {
 	what := fmt.Sprintf("Прошивка места %d.%d", place/8+1, place%8+1)
-	x.runHardware(what, func() error {
+	x.runHardware(true, what, func() error {
 		if p, err := data.GetLastPartyProductAtPlace(x.db, place); err != nil {
 			return err
 		} else {
@@ -57,11 +57,11 @@ func (x *D) RunWriteProductFirmware(place int) {
 }
 
 func (x *D) RunMainError() {
-	x.runHardware("Снятие основной погрешности", x.determineMainError)
+	x.runHardware(true, "Снятие основной погрешности", x.determineMainError)
 }
 
 func (x *D) RunTemperature(workCheck [3]bool) {
-	x.runHardware("Снятие термокомпенсации", func() error {
+	x.runHardware(true, "Снятие термокомпенсации", func() error {
 		for i, temperature := range []data.Temperature{20, -20, 50} {
 			if workCheck[i] {
 				notify.Statusf(x.w, "%v⁰C: снятие термокомпенсации", temperature)
@@ -92,8 +92,8 @@ func (x *D) RunReadCurrent(checkPlaces [12]bool) {
 			xs = append(xs, i+1)
 		}
 	}
-	x.runHardware("опрос блоков измерительных: "+intrng.Format(xs), func() error {
-		x.port.measurer.SetLogger(nil)
+	x.runHardware(true, "Опрос блоков измерительных: "+intrng.Format(xs), func() error {
+		x.portMeasurer.SetLogger(nil)
 		for {
 			for _, place := range places {
 				if _, err := x.readBlockMeasure(place); err != nil {
@@ -106,7 +106,7 @@ func (x *D) RunReadCurrent(checkPlaces [12]bool) {
 
 type WorkFunc = func() error
 
-func (x *D) runHardware(workName string, work WorkFunc) {
+func (x *D) runHardware(logWork bool, workName string, work WorkFunc) {
 
 	x.hardware.cancel()
 	x.hardware.WaitGroup.Wait()
@@ -115,24 +115,41 @@ func (x *D) runHardware(workName string, work WorkFunc) {
 
 	notify.HardwareStarted(x.w, workName)
 	x.hardware.WaitGroup.Add(1)
+
 	x.logFields = logrus.Fields{
 		"work": workName,
 	}
-	x.journalWork = &journal.Work{
-		Name:      workName,
-		CreatedAt: time.Now(),
+	var currentWork *journal.Work
+
+	if logWork {
+		currentWork = &journal.Work{
+			Name:      workName,
+			CreatedAt: time.Now(),
+		}
+		if err := x.dbJournal.Save(currentWork); err != nil {
+			logrus.Panicln(err)
+		}
 	}
-	if err := x.dbJournal.Save(x.journalWork); err != nil {
-		logrus.Panicln(err)
-	}
+	x.muCurrentWork.Lock()
+	x.currentWork = currentWork
+	x.muCurrentWork.Unlock()
 
 	go func() {
 
-		defer x.port.measurer.SetLogger(elco.Logger)
-		defer x.port.gas.SetLogger(elco.Logger)
-		x.port.measurer.SetLogger(elco.Logger)
-		x.port.gas.SetLogger(elco.Logger)
+		defer func() {
+			x.portGas.SetLogger(elco.Logger)
+			x.portMeasurer.SetLogger(elco.Logger)
+			notify.HardwareStoppedf(x.w, "выполнение окончено: %s", workName)
+			if logWork {
+				x.muCurrentWork.Lock()
+				x.currentWork = nil
+				x.muCurrentWork.Unlock()
+			}
+			x.hardware.WaitGroup.Done()
+		}()
 
+		x.portMeasurer.SetLogger(elco.Logger)
+		x.portGas.SetLogger(elco.Logger)
 		notifyErr := func(what string, err error) {
 			logrus.Errorln(what, merry.Details(err))
 			if !merry.Is(err, context.Canceled) {
@@ -140,7 +157,7 @@ func (x *D) runHardware(workName string, work WorkFunc) {
 			}
 		}
 
-		if err := x.port.measurer.Open(x.cfg.User().ComportMeasurer, 115200, 0, x.hardware.ctx); err != nil {
+		if err := x.portMeasurer.Open(x.cfg.User().ComportMeasurer, 115200, 0, x.hardware.ctx); err != nil {
 			notifyErr("не удалось открыть СОМ порт", err)
 			return
 		}
@@ -157,31 +174,27 @@ func (x *D) runHardware(workName string, work WorkFunc) {
 		if err := x.closeHardware(); err != nil {
 			notifyErr("не удалось остановить работу оборудования по завершении настройки:", err)
 		}
-
-		notify.HardwareStoppedf(x.w, "выполнение окончено: %s", workName)
 		for k := range x.logFields {
 			delete(x.logFields, k)
 		}
-		x.journalWork = nil
-		x.hardware.WaitGroup.Done()
 	}()
 }
 
 func (x *D) closeHardware() (mulErr error) {
 
-	if x.port.measurer.Opened() {
-		if err := x.port.measurer.Close(); err != nil {
+	if x.portMeasurer.Opened() {
+		if err := x.portMeasurer.Close(); err != nil {
 			mulErr = multierror.Append(mulErr, merry.WithMessagef(err,
 				"закрыть СОМ порт блоков измерения по завершении: %s", err.Error()))
 		}
 	}
-	if x.port.gas.Opened() {
+	if x.portGas.Opened() {
 
 		if err := x.switchGas(0); err != nil {
 			mulErr = multierror.Append(mulErr, merry.WithMessagef(err,
 				"отключение газового блока по завершении: %s", err.Error()))
 		}
-		if err := x.port.gas.Close(); err != nil {
+		if err := x.portGas.Close(); err != nil {
 			mulErr = multierror.Append(mulErr, merry.WithMessagef(err,
 				"закрыть СОМ порт газового блока по завершении: %s", err.Error()))
 		}

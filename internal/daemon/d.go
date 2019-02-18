@@ -39,11 +39,11 @@ type D struct {
 	cfg             *data.Config
 	ctx             context.Context
 	hardware        hardware
-	port            struct {
-		measurer, gas *comport.Port
-	}
-	logFields   logrus.Fields
-	journalWork *journal.Work
+	logFields       logrus.Fields
+	portMeasurer    *comport.Port
+	portGas         *comport.Port
+	muCurrentWork   sync.Mutex
+	currentWork     *journal.Work
 }
 
 type hardware struct {
@@ -72,7 +72,7 @@ func Run(skipRunUIApp bool) {
 	dbJournalConn.SetMaxOpenConns(1)
 	dbJournalConn.SetConnMaxLifetime(0)
 
-	dbJournal, err := data.Open(dbJournalConn, nil)
+	dbJournal, err := journal.Open(dbJournalConn, nil)
 	if err != nil {
 		logrus.Fatalln("Не удалось открыть журнал:", err, elco.JournalFileName())
 	}
@@ -97,8 +97,8 @@ func Run(skipRunUIApp bool) {
 		},
 		logFields: make(logrus.Fields),
 	}
-	x.port.measurer = comport.NewPort(logrus.Fields{"device": "стенд"}, x.onComport)
-	x.port.gas = comport.NewPort(logrus.Fields{"device": "пневмоблок"}, x.onComport)
+	x.portMeasurer = comport.NewPort(logrus.Fields{"device": "стенд"}, x.onComport)
+	x.portGas = comport.NewPort(logrus.Fields{"device": "пневмоблок"}, x.onComport)
 	logrus.AddHook(x)
 
 	notifyIcon, err := walk.NewNotifyIcon()
@@ -289,7 +289,11 @@ func (x *D) Fire(entry *logrus.Entry) error {
 		}
 		entry.Data[k] = v
 	}
-	if x.journalWork == nil {
+
+	x.muCurrentWork.Lock()
+	currentWork := x.currentWork
+	x.muCurrentWork.Unlock()
+	if currentWork == nil {
 		return nil
 	}
 
@@ -309,10 +313,11 @@ func (x *D) Fire(entry *logrus.Entry) error {
 			_ = d.EncodeKeyval(k, v)
 		}
 	}
+
 	journalEntry := journal.Entry{
 		Message:   entry.Message,
 		Level:     entry.Level.String(),
-		WorkID:    x.journalWork.WorkID,
+		WorkID:    currentWork.WorkID,
 		CreatedAt: time.Now(),
 	}
 	if sb.Len() > 0 {
@@ -331,8 +336,8 @@ func (x *D) Fire(entry *logrus.Entry) error {
 	notify.NewJournalEntry(x.w, journal.EntryInfo{
 		CreatedAt: journalEntry.CreatedAt,
 		EntryID:   journalEntry.EntryID,
-		WorkID:    x.journalWork.WorkID,
-		WorkName:  x.journalWork.Name,
+		WorkID:    currentWork.WorkID,
+		WorkName:  currentWork.Name,
 		Message:   journalEntry.Message,
 		Level:     journalEntry.Level,
 	})

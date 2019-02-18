@@ -56,8 +56,7 @@ func (x *ProductFirmware) StoredFirmwareInfo(productID [1]int64, r *data.Firmwar
 	if err != nil {
 		return err
 	}
-	*r = data.FirmwareBytes(p.Firmware).FirmwareInfo(units, gases)
-	r.Place = p.Place
+	*r = data.FirmwareBytes(p.Firmware).FirmwareInfo(p.Place, units, gases)
 	return nil
 }
 
@@ -141,7 +140,17 @@ func (x *ProductFirmware) RunWriteFirmware(v FirmwareInfo2, _ *struct{}) (err er
 		return merry.Append(err, "не удался расчёт температурных точек")
 	}
 
-	z.KSens20 = data.NewApproximationTable(z.Sens).F(20)
+	z.KSens20, err = parseFloat(v.Sensitivity)
+	if err != nil {
+		return merry.Appendf(err, "не верный формат значения коэффициента чувствиттельности: %s", v.Sensitivity)
+	}
+
+	z.ProductType = v.ProductType
+
+	z.Serial, err = parseFloat(v.Serial)
+	if err != nil {
+		return merry.Appendf(err, "не верный формат значения серийного номера: %s", v.Serial)
+	}
 
 	x.f.RunWriteFirmware(v.Place, z.Bytes())
 	return

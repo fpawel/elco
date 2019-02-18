@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/elco/internal/data"
@@ -9,6 +10,7 @@ import (
 	"github.com/fpawel/elco/pkg/serial-comm/modbus"
 	"github.com/hako/durafmt"
 	"github.com/sirupsen/logrus"
+	"gopkg.in/reform.v1"
 	"sort"
 	"time"
 )
@@ -108,9 +110,12 @@ func (x *D) writeProductsFirmware(products []*data.Product) error {
 		}
 		b := firmware.Bytes()
 		logrus.Infoln("расчитана прошивка ЭХЯ:", firmware.String2())
-		for _, c := range firmwareAddresses {
+		for i, c := range firmwareAddresses {
 			if err := doAddresses(p, b, c.addr1, c.addr2); err != nil {
 				return err
+			}
+			if i < len(firmwareAddresses)-1 {
+				time.Sleep(x.cfg.Predefined().ReadRangeDelayMillis * time.Millisecond)
 			}
 		}
 	}
@@ -128,7 +133,7 @@ func (x *D) readFirmware(place int) ([]byte, error) {
 	placeInBlock := place % 8
 
 	responseReader := comport.Comm{
-		Port:   x.port.measurer,
+		Port:   x.portMeasurer,
 		Config: x.cfg.Predefined().ComportMeasurer,
 	}
 
@@ -137,7 +142,7 @@ func (x *D) readFirmware(place int) ([]byte, error) {
 		b[i] = 0xff
 	}
 
-	for _, c := range firmwareAddresses {
+	for i, c := range firmwareAddresses {
 		count := c.addr2 - c.addr1 + 1
 		req := modbus.Req{
 			Addr:     modbus.Addr(block) + 101,
@@ -156,13 +161,16 @@ func (x *D) readFirmware(place int) ([]byte, error) {
 			return nil, err
 		}
 		if err = req.CheckResponse(resp); err != nil {
-			return nil, x.port.measurer.WrapError(err)
+			return nil, x.portMeasurer.WrapError(err)
 		}
 		if len(resp) != 10+int(count) {
-			return nil, x.port.measurer.Errorf("ожидалось %d байт ответа, получено %d",
+			return nil, x.portMeasurer.Errorf("ожидалось %d байт ответа, получено %d",
 				10+int(count), len(resp))
 		}
 		copy(b[c.addr1:c.addr1+count], resp[8:8+count])
+		if i < len(firmwareAddresses)-1 {
+			time.Sleep(x.cfg.Predefined().ReadRangeDelayMillis * time.Millisecond)
+		}
 	}
 	logrus.Infof("считана прошивка ЭХЯ: %d байт, % X", len(b), b)
 	return b, nil
@@ -207,12 +215,24 @@ func (x *D) writeFirmware(place int, bytes []byte) error {
 		}
 	}
 	logrus.Info("запись прошивки ЭХЯ выполнена успешно")
+
+	switch p, err := data.GetLastPartyProductAtPlace(x.db, place); err {
+	case nil:
+		p.Firmware = bytes
+		if err := x.db.Save(&p); err != nil {
+			return err
+		}
+	case reform.ErrNoRows, sql.ErrNoRows:
+		return nil
+	default:
+		return err
+	}
 	return nil
 }
 
 func (x *D) waitFirmwareStatus(block int, placesMask byte) error {
 
-	t := time.Duration(x.cfg.Predefined().StatusTimeoutSeconds) * time.Second
+	t := x.cfg.Predefined().StatusTimeoutSeconds * time.Second
 	logrus.Infof("прошивка блока %d: ожидание статуса завершения, таймаут %s", block, durafmt.Parse(t))
 	ctx, _ := context.WithTimeout(x.hardware.ctx, t)
 	for {
@@ -221,20 +241,35 @@ func (x *D) waitFirmwareStatus(block int, placesMask byte) error {
 		case <-ctx.Done():
 			status, err := x.readFirmwareStatus(block)
 			if err != nil {
-				return x.port.measurer.WrapError(err)
+				return x.portMeasurer.WrapError(err)
 			}
-			if err = checkFirmwareStatus(status, placesMask); err != nil {
-				err = merry.Wrap(err).WithValue("status_timeout", durafmt.Parse(t))
-				return err
+			for i, b := range status {
+				if (1<<byte(i))&placesMask != 0 && b != 0 {
+					return merry.Errorf("не удалось записать прошивку места %d: таймаут %s, статус[%d]=%X",
+						durafmt.Parse(t), block*8+i+1, i, b)
+				}
 			}
 			return nil
 
 		default:
 			status, err := x.readFirmwareStatus(block)
 			if err != nil {
-				return x.port.measurer.WrapError(err)
+				return x.portMeasurer.WrapError(err)
 			}
-			if err = checkFirmwareStatus(status, placesMask); err == nil {
+			statusOk := true
+			for i, b := range status {
+				if (1<<byte(i))&placesMask != 0 {
+					if b == 0 {
+						continue
+					}
+					statusOk = false
+					if b != 0xB2 {
+						return merry.Errorf("не удалось записать прошивку места %d: статус[%d]=%X",
+							block*8+i+1, i, b)
+					}
+				}
+			}
+			if statusOk {
 				return nil
 			}
 		}
@@ -248,7 +283,7 @@ func (x *D) readFirmwareStatus(block int) ([]byte, error) {
 	}
 
 	responseReader := comport.Comm{
-		Port:   x.port.measurer,
+		Port:   x.portMeasurer,
 		Config: x.cfg.Predefined().ComportMeasurer,
 	}
 
@@ -257,16 +292,16 @@ func (x *D) readFirmwareStatus(block int) ([]byte, error) {
 		return nil, err
 	}
 	if err = req.CheckResponse(resp); err != nil {
-		return nil, x.port.measurer.WrapError(err)
+		return nil, x.portMeasurer.WrapError(err)
 	}
 	if len(resp) != 12 {
-		return nil, x.port.measurer.Errorf("ожидалось 12 байт ответа, получено %d", len(resp))
+		return nil, x.portMeasurer.Errorf("ожидалось 12 байт ответа, получено %d", len(resp))
 	}
-	return resp[2:], nil
+	return resp[2:10], nil
 }
 
 func (x *D) writePreparedDataToFlash(block int, placesMask byte, addr uint16, count int) error {
-	logrus.Info("отправка команды записи ранее переданного куска прошивки, %d байт, адрес % X", addr, count)
+	logrus.Infof("отправка команды записи ранее переданного куска прошивки, %d байт, адрес % X", addr, count)
 	req := modbus.Req{
 		Addr:     modbus.Addr(block) + 101,
 		ProtoCmd: 0x43,
@@ -281,7 +316,7 @@ func (x *D) writePreparedDataToFlash(block int, placesMask byte, addr uint16, co
 	}
 
 	responseReader := comport.Comm{
-		Port:   x.port.measurer,
+		Port:   x.portMeasurer,
 		Config: x.cfg.Predefined().ComportMeasurer,
 	}
 	resp, err := responseReader.GetResponse(req.Bytes())
@@ -289,29 +324,14 @@ func (x *D) writePreparedDataToFlash(block int, placesMask byte, addr uint16, co
 		return err
 	}
 	if err = req.CheckResponse(resp); err != nil {
-		return x.port.measurer.WrapError(err)
+		return x.portMeasurer.WrapError(err)
 	}
 
 	if !compareBytes(resp, req.Bytes()) {
-		return x.port.measurer.Errorf("% X != % X", resp, req.Bytes())
+		return x.portMeasurer.Errorf("% X != % X", resp, req.Bytes())
 	}
 
 	return nil
-}
-
-func checkFirmwareStatus(b []byte, placesMask byte) (err error) {
-	for i := byte(0); i < 8; i++ {
-		if (1<<i)&placesMask != 0 && b[i] != 0 {
-			if err == nil {
-				err = merry.New("не верный код статуса")
-			}
-			err = merry.Appendf(err, "[%d]=%X", i, b[i])
-		}
-	}
-	if err != nil {
-		err = merry.Appendf(err, "status bytes: % X", b)
-	}
-	return err
 }
 
 func (x *D) sendDataToWriteFlash(block, placeInBlock int, b []byte) error {
@@ -327,7 +347,7 @@ func (x *D) sendDataToWriteFlash(block, placeInBlock int, b []byte) error {
 		}, b...),
 	}
 	responseReader := comport.Comm{
-		Port:   x.port.measurer,
+		Port:   x.portMeasurer,
 		Config: x.cfg.Predefined().ComportMeasurer,
 	}
 	resp, err := responseReader.GetResponse(req.Bytes())
@@ -336,13 +356,13 @@ func (x *D) sendDataToWriteFlash(block, placeInBlock int, b []byte) error {
 		return err
 	}
 	if err = req.CheckResponse(resp); err != nil {
-		return x.port.measurer.WrapError(err)
+		return x.portMeasurer.WrapError(err)
 	}
 	if len(resp) != 7 {
-		return x.port.measurer.Errorf("длина ответа %d не равна 7", len(resp))
+		return x.portMeasurer.Errorf("длина ответа %d не равна 7", len(resp))
 	}
 	if !compareBytes(resp[:5], req.Bytes()[:5]) {
-		return x.port.measurer.Errorf("% X != % X", resp[:5], req.Bytes()[:5])
+		return x.portMeasurer.Errorf("% X != % X", resp[:5], req.Bytes()[:5])
 	}
 	return nil
 }

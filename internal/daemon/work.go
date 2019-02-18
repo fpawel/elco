@@ -45,8 +45,8 @@ func (x *D) switchGas(n int) error {
 }
 
 func (x *D) doSwitchGas(n int) error {
-	if !x.port.gas.Opened() {
-		if err := x.port.gas.Open(x.cfg.User().ComportGas, 9600, 0, context.Background()); err != nil {
+	if !x.portGas.Opened() {
+		if err := x.portGas.Open(x.cfg.User().ComportGas, 9600, 0, context.Background()); err != nil {
 			return err
 		}
 	}
@@ -74,7 +74,7 @@ func (x *D) doSwitchGas(n int) error {
 	}
 
 	responseReader := comport.Comm{
-		Port:   x.port.gas,
+		Port:   x.portGas,
 		Config: x.cfg.Predefined().ComportGas,
 	}
 
@@ -123,9 +123,9 @@ func (x *D) delay(what string, duration time.Duration) error {
 		What:        what,
 		TimeSeconds: int(duration.Seconds()),
 	})
-	x.port.measurer.SetLogger(nil)
+	x.portMeasurer.SetLogger(nil)
 	defer func() {
-		x.port.measurer.SetLogger(elco.Logger)
+		x.portMeasurer.SetLogger(elco.Logger)
 	}()
 	defer notify.Delay(x.w, api.DelayInfo{Run: false})
 	for {
@@ -325,7 +325,7 @@ func GroupProductsByBlocks(ps []data.Product) (gs [][]*data.Product) {
 func (x *D) readBlockMeasure(block int) ([]float64, error) {
 
 	values, err := modbus.Read3BCDValues(comport.Comm{
-		Port:   x.port.measurer,
+		Port:   x.portMeasurer,
 		Config: x.cfg.Predefined().ComportMeasurer,
 	}, modbus.Addr(block+101), 0, 8)
 
@@ -343,7 +343,7 @@ func (x *D) readBlockMeasure(block int) ([]float64, error) {
 
 	default:
 		err = merry.Wrap(err).WithValue("block", block)
-		return nil, x.port.measurer.WrapError(err)
+		return nil, x.portMeasurer.WrapError(err)
 	}
 }
 

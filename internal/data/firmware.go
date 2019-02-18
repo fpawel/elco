@@ -239,8 +239,9 @@ func (x FirmwareBytes) ProductType() string {
 	return string(x[offset:n])
 }
 
-func (x FirmwareBytes) FirmwareInfo(units []Units, gases []Gas) FirmwareInfo {
+func (x FirmwareBytes) FirmwareInfo(place int, units []Units, gases []Gas) FirmwareInfo {
 	r := FirmwareInfo{
+		Place:       place,
 		TempPoints:  x.TempPoints(),
 		Time:        x.Time(),
 		ProductType: x.ProductType(),

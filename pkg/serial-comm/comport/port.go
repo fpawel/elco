@@ -27,11 +27,12 @@ type Port struct {
 	port              *serial.Port
 	ctx               context.Context
 	hook              Hook
-	logger            *logrus.Logger
-	logFields         logrus.Fields
 	request, response []byte
 	duration          time.Duration
 	err               error
+	muLogger          sync.Mutex
+	logger            *logrus.Logger
+	logFields         logrus.Fields
 }
 
 type LastWork struct {
@@ -69,7 +70,9 @@ func (x *Port) Config() serial.Config {
 }
 
 func (x *Port) SetLogger(logger *logrus.Logger) {
+	x.muLogger.Lock()
 	x.logger = logger
+	x.muLogger.Unlock()
 }
 
 func (x *Port) Open(serialPortName string, baud int, bounceTimeout time.Duration, ctx context.Context) (err error) {
@@ -188,7 +191,10 @@ func (x *Port) GetResponse(commConfig comm.Config, request []byte) ([]byte, erro
 		x.hook(x.LastWork())
 	}
 
+	x.muLogger.Lock()
 	logger := x.logger
+	x.muLogger.Unlock()
+
 	if x.err != nil && logger == nil {
 		logger = logrus.StandardLogger()
 	}
