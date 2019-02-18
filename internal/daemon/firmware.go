@@ -115,7 +115,7 @@ func (x *D) writeProductsFirmware(products []*data.Product) error {
 				return err
 			}
 			if i < len(firmwareAddresses)-1 {
-				time.Sleep(x.cfg.Predefined().ReadRangeDelayMillis * time.Millisecond)
+				time.Sleep( time.Duration(x.cfg.Predefined().ReadRangeDelayMillis) * time.Millisecond)
 			}
 		}
 	}
@@ -169,7 +169,7 @@ func (x *D) readFirmware(place int) ([]byte, error) {
 		}
 		copy(b[c.addr1:c.addr1+count], resp[8:8+count])
 		if i < len(firmwareAddresses)-1 {
-			time.Sleep(x.cfg.Predefined().ReadRangeDelayMillis * time.Millisecond)
+			time.Sleep(time.Duration(x.cfg.Predefined().ReadRangeDelayMillis) * time.Millisecond)
 		}
 	}
 	logrus.Infof("считана прошивка ЭХЯ: %d байт, % X", len(b), b)
@@ -232,7 +232,7 @@ func (x *D) writeFirmware(place int, bytes []byte) error {
 
 func (x *D) waitFirmwareStatus(block int, placesMask byte) error {
 
-	t := x.cfg.Predefined().StatusTimeoutSeconds * time.Second
+	t := time.Duration(x.cfg.Predefined().StatusTimeoutSeconds) * time.Second
 	logrus.Infof("прошивка блока %d: ожидание статуса завершения, таймаут %s", block, durafmt.Parse(t))
 	ctx, _ := context.WithTimeout(x.hardware.ctx, t)
 	for {

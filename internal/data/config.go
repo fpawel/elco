@@ -6,7 +6,6 @@ import (
 	"github.com/fpawel/elco/pkg/serial-comm/comm"
 	"gopkg.in/reform.v1"
 	"sync"
-	"time"
 )
 
 type ConfigProperty struct {
@@ -38,12 +37,12 @@ type Config struct {
 }
 
 type PredefinedConfig struct {
-	ComportMeasurer        comm.Config   `toml:"measurer" comment:"измерительный блок"`
-	ComportGas             comm.Config   `toml:"gas_block" comment:"газовый блок"`
-	BlowGasMinutes         int           `toml:"blow_gas_minutes" comment:"длительность продувки газа, мин."`
-	HoldTemperatureMinutes int           `toml:"hold_temperature_minutes" comment:"длительность выдержки термокамеры, мин."`
-	StatusTimeoutSeconds   time.Duration `toml:"status_timeout_seconds" comment:"таймаут статуса прошивки, с"`
-	ReadRangeDelayMillis   time.Duration `toml:"read_range_delay_millis" comment:"задержка при считывании диапазонов, мс"`
+	ComportMeasurer        comm.Config `toml:"measurer" comment:"измерительный блок"`
+	ComportGas             comm.Config `toml:"gas_block" comment:"газовый блок"`
+	BlowGasMinutes         int         `toml:"blow_gas_minutes" comment:"длительность продувки газа, мин."`
+	HoldTemperatureMinutes int         `toml:"hold_temperature_minutes" comment:"длительность выдержки термокамеры, мин."`
+	StatusTimeoutSeconds   int         `toml:"status_timeout_seconds" comment:"таймаут статуса прошивки, с"`
+	ReadRangeDelayMillis   int         `toml:"read_range_delay_millis" comment:"задержка при считывании диапазонов, мс"`
 }
 
 type ConfigSection struct {
