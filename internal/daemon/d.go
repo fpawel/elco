@@ -97,9 +97,10 @@ func Run(skipRunUIApp bool) {
 		},
 		logFields: make(logrus.Fields),
 	}
+	elco.Logger.AddHook(x)
+	logrus.AddHook(x)
 	x.portMeasurer = comport.NewPort(logrus.Fields{"device": "стенд"}, x.onComport)
 	x.portGas = comport.NewPort(logrus.Fields{"device": "пневмоблок"}, x.onComport)
-	logrus.AddHook(x)
 
 	notifyIcon, err := walk.NewNotifyIcon()
 	if err != nil {
@@ -328,7 +329,7 @@ func (x *D) Fire(entry *logrus.Entry) error {
 	}
 
 	c := entry.Caller
-	journalEntry.Message += fmt.Sprintf(" %s:%d:%s", c.File, c.Line, c.Function)
+	journalEntry.Message += fmt.Sprintf(" %s:%d", filepath.Base(c.File), c.Line)
 
 	err := x.dbJournal.Save(&journalEntry)
 	entry.Data["entry_id"] = journalEntry.EntryID

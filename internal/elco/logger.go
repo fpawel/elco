@@ -14,6 +14,7 @@ var Logger = &logrus.Logger{
 	Level:        logrus.InfoLevel,
 	Out:          colorStdOutWriter{},
 	ReportCaller: true,
+	Hooks:        logrus.LevelHooks{},
 }
 
 type colorStdOutWriter struct{}

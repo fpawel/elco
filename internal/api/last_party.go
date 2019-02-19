@@ -96,6 +96,23 @@ WHERE party_id IN (
 	return
 }
 
+func (x LastParty) SelectAll(checked [1]bool, _ *struct{}) (err error) {
+	_, err = x.db.Exec(`
+UPDATE product SET production = ? WHERE party_id = (SELECT last_party.party_id FROM last_party)`, checked[0])
+	return
+}
+
+func (x LastParty) SelectBlock(r struct {
+	Checked bool
+	Block   int
+}, _ *struct{}) (err error) {
+	_, err = x.db.Exec(`
+UPDATE product 
+SET production = ? 
+WHERE party_id = (SELECT last_party.party_id FROM last_party) AND place / 8 = ?`, r.Checked, r.Block)
+	return
+}
+
 func (x LastParty) Export(_ struct{}, _ *struct{}) error {
 	return data.ExportLastParty(x.db)
 }

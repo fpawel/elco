@@ -120,7 +120,7 @@ func GetLastPartyProducts(db *reform.DB, f ProductsFilter) ([]Product, error) {
 		tail += " AND (serial NOTNULL)"
 	}
 	if f.WithProduction {
-		tail += " AND (production NOTNULL)"
+		tail += " AND production"
 	}
 	xs, err := db.SelectAllFrom(ProductTable, tail)
 	if err != nil {
