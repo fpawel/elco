@@ -8,6 +8,7 @@ import (
 	"github.com/fpawel/elco/internal/api/notify"
 	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/elco/internal/elco"
+	"github.com/fpawel/elco/pkg/errfmt"
 	"github.com/fpawel/elco/pkg/serial-comm/comport"
 	"github.com/fpawel/elco/pkg/serial-comm/modbus"
 	"github.com/pkg/errors"
@@ -324,7 +325,7 @@ func GroupProductsByBlocks(ps []data.Product) (gs [][]*data.Product) {
 
 func (x *D) readBlockMeasure(block int) ([]float64, error) {
 
-	values, err := modbus.Read3BCDValues(comport.Comm{
+	r, err := modbus.Read3BCDValues(comport.Comm{
 		Port:   x.portMeasurer,
 		Config: x.cfg.Predefined().ComportMeasurer,
 	}, modbus.Addr(block+101), 0, 8)
@@ -334,16 +335,15 @@ func (x *D) readBlockMeasure(block int) ([]float64, error) {
 	case nil:
 		notify.ReadCurrent(x.w, api.ReadCurrent{
 			Block:  block,
-			Values: values,
+			Values: r.Values,
 		})
-		return values, nil
+		return r.Values, nil
 
 	case context.Canceled:
 		return nil, context.Canceled
 
 	default:
-		err = merry.Wrap(err).WithValue("block", block)
-		return nil, x.portMeasurer.WrapError(err)
+		return nil, errfmt.WithReqResp(err, r.Request, r.Response).WithValue("block", block)
 	}
 }
 

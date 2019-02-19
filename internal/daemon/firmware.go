@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/elco/internal/data"
+	"github.com/fpawel/elco/pkg/errfmt"
 	"github.com/fpawel/elco/pkg/serial-comm/comport"
 	"github.com/fpawel/elco/pkg/serial-comm/modbus"
 	"github.com/hako/durafmt"
@@ -174,11 +175,12 @@ func (x *D) readFirmware(place int) ([]byte, error) {
 			return nil, err
 		}
 		if err = req.CheckResponse(resp); err != nil {
-			return nil, x.portMeasurer.WrapError(err)
+			return nil, err
 		}
 		if len(resp) != 10+int(count) {
-			return nil, x.portMeasurer.Errorf("ожидалось %d байт ответа, получено %d",
+			return nil, errfmt.WithReqRespMsgf(req.Bytes(), resp, "ожидалось %d байт ответа, получено %d",
 				10+int(count), len(resp))
+
 		}
 		copy(b[c.addr1:c.addr1+count], resp[8:8+count])
 		if i < len(firmwareAddresses)-1 {
@@ -257,23 +259,27 @@ func (x *D) waitFirmwareStatus(block int, placesMask byte) error {
 
 		select {
 		case <-ctx.Done():
-			status, err := x.readFirmwareStatus(block)
+			request, response, err := x.readFirmwareStatus(block)
 			if err != nil {
-				return x.portMeasurer.WrapError(err)
+				return err
 			}
+			status := response[2:10]
+
 			for i, b := range status {
 				if (1<<byte(i))&placesMask != 0 && b != 0 {
-					return merry.Errorf("не удалось записать прошивку места %d: таймаут %s, статус[%d]=%X",
+					return errfmt.WithReqRespMsgf(request, response,
+						"не удалось записать прошивку места %d: таймаут %s, статус[%d]=%X",
 						durafmt.Parse(t), block*8+i+1, i, b)
 				}
 			}
 			return nil
 
 		default:
-			status, err := x.readFirmwareStatus(block)
+			request, response, err := x.readFirmwareStatus(block)
 			if err != nil {
-				return x.portMeasurer.WrapError(err)
+				return err
 			}
+			status := response[2:10]
 			statusOk := true
 			for i, b := range status {
 				if (1<<byte(i))&placesMask != 0 {
@@ -282,8 +288,9 @@ func (x *D) waitFirmwareStatus(block int, placesMask byte) error {
 					}
 					statusOk = false
 					if b != 0xB2 {
-						return merry.Errorf("не удалось записать прошивку места %d: статус[%d]=%X",
+						return errfmt.WithReqRespMsgf(request, response, "не удалось записать прошивку места %d: статус[%d]=%X",
 							block*8+i+1, i, b)
+
 					}
 				}
 			}
@@ -294,28 +301,30 @@ func (x *D) waitFirmwareStatus(block int, placesMask byte) error {
 	}
 }
 
-func (x *D) readFirmwareStatus(block int) ([]byte, error) {
+func (x *D) readFirmwareStatus(block int) (request []byte, response []byte, err error) {
 	req := modbus.Req{
 		Addr:     modbus.Addr(block) + 101,
 		ProtoCmd: 0x45,
 	}
+	request = req.Bytes()
 
 	responseReader := comport.Comm{
 		Port:   x.portMeasurer,
 		Config: x.cfg.Predefined().ComportMeasurer,
 	}
 
-	resp, err := responseReader.GetResponse(req.Bytes())
+	response, err = responseReader.GetResponse(req.Bytes())
 	if err != nil {
-		return nil, err
+		return
 	}
-	if err = req.CheckResponse(resp); err != nil {
-		return nil, x.portMeasurer.WrapError(err)
+	if err = req.CheckResponse(response); err != nil {
+		return
 	}
-	if len(resp) != 12 {
-		return nil, x.portMeasurer.Errorf("ожидалось 12 байт ответа, получено %d", len(resp))
+	if len(response) != 12 {
+		err = errfmt.WithReqRespMsgf(request, response, "ожидалось 12 байт ответа, получено %d", len(response))
+		return
 	}
-	return resp[2:10], nil
+	return
 }
 
 func (x *D) writePreparedDataToFlash(block int, placesMask byte, addr uint16, count int) error {
@@ -332,21 +341,22 @@ func (x *D) writePreparedDataToFlash(block int, placesMask byte, addr uint16, co
 			byte(count),
 		},
 	}
+	request := req.Bytes()
 
 	responseReader := comport.Comm{
 		Port:   x.portMeasurer,
 		Config: x.cfg.Predefined().ComportMeasurer,
 	}
-	resp, err := responseReader.GetResponse(req.Bytes())
+	response, err := responseReader.GetResponse(request)
 	if err != nil {
 		return err
 	}
-	if err = req.CheckResponse(resp); err != nil {
-		return x.portMeasurer.WrapError(err)
+	if err = req.CheckResponse(response); err != nil {
+		return err
 	}
 
-	if !compareBytes(resp, req.Bytes()) {
-		return x.portMeasurer.Errorf("% X != % X", resp, req.Bytes())
+	if !compareBytes(response, req.Bytes()) {
+		return errfmt.WithReqRespMsg(request, response, "запрос не равен ответу")
 	}
 
 	return nil
@@ -364,23 +374,24 @@ func (x *D) sendDataToWriteFlash(block, placeInBlock int, b []byte) error {
 			byte(len(b)),
 		}, b...),
 	}
+	request := req.Bytes()
 	responseReader := comport.Comm{
 		Port:   x.portMeasurer,
 		Config: x.cfg.Predefined().ComportMeasurer,
 	}
-	resp, err := responseReader.GetResponse(req.Bytes())
+	response, err := responseReader.GetResponse(request)
 
 	if err != nil {
 		return err
 	}
-	if err = req.CheckResponse(resp); err != nil {
-		return x.portMeasurer.WrapError(err)
+	if err = req.CheckResponse(response); err != nil {
+		return err
 	}
-	if len(resp) != 7 {
-		return x.portMeasurer.Errorf("длина ответа %d не равна 7", len(resp))
+	if len(response) != 7 {
+		return errfmt.WithReqRespMsgf(request, response, "длина ответа %d не равна 7", len(response))
 	}
-	if !compareBytes(resp[:5], req.Bytes()[:5]) {
-		return x.portMeasurer.Errorf("% X != % X", resp[:5], req.Bytes()[:5])
+	if !compareBytes(response[:5], req.Bytes()[:5]) {
+		return errfmt.WithReqRespMsgf(request, response, "% X != % X", response[:5], request[:5])
 	}
 
 	return nil

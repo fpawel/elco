@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/ansel1/merry"
+	"github.com/fpawel/elco/pkg/errfmt"
 	"github.com/fpawel/elco/pkg/serial-comm/comm"
 	"github.com/hako/durafmt"
 	"github.com/sirupsen/logrus"
@@ -23,16 +24,13 @@ func (x Comm) GetResponse(request []byte) ([]byte, error) {
 }
 
 type Port struct {
-	config            serial.Config
-	port              *serial.Port
-	ctx               context.Context
-	hook              Hook
-	request, response []byte
-	duration          time.Duration
-	err               error
-	muLogger          sync.Mutex
-	logger            *logrus.Logger
-	logFields         logrus.Fields
+	config   serial.Config
+	port     *serial.Port
+	ctx      context.Context
+	hook     Hook
+	muLogger sync.Mutex
+	logger   *logrus.Logger
+	device   string
 }
 
 type LastWork struct {
@@ -44,20 +42,10 @@ type LastWork struct {
 
 type Hook func(LastWork)
 
-func NewPort(logFields logrus.Fields, h Hook) *Port {
+func NewPort(device string, h Hook) *Port {
 	return &Port{
-		hook:      h,
-		logFields: logFields,
-	}
-}
-
-func (x *Port) LastWork() LastWork {
-	return LastWork{
-		Error:    x.err,
-		Port:     x.config.Name,
-		Duration: x.duration,
-		Request:  x.request,
-		Response: x.response,
+		hook:   h,
+		device: device,
 	}
 }
 
@@ -180,76 +168,56 @@ func (x *Port) Close() error {
 func (x *Port) GetResponse(commConfig comm.Config, request []byte) ([]byte, error) {
 	//x.Port.GetResponse(request, x.Config)
 
-	x.request = request
 	t := time.Now()
-	x.response, x.err = comm.GetResponse(x.ctx, commConfig, x, request)
-	x.duration = time.Since(t)
-	if x.err != nil {
-		x.err = x.WrapError(x.err)
+	response, err := comm.GetResponse(x.ctx, commConfig, x, request)
+	duration := time.Since(t)
+
+	if err == context.DeadlineExceeded {
+		err = merry.WithMessage(context.DeadlineExceeded, "не отвечает")
 	}
+
+	if err != nil {
+		err = errfmt.WithReqResp(err, request, response).
+			WithValue("port", x.config.Name).
+			WithValue("device", x.device).
+			WithValue("duration", durafmt.Parse(duration))
+	}
+
 	if x.hook != nil {
-		x.hook(x.LastWork())
+		x.hook(LastWork{
+			Request:  request,
+			Response: response,
+			Duration: duration,
+			Port:     x.config.Name,
+			Error:    err,
+		})
 	}
 
 	x.muLogger.Lock()
 	logger := x.logger
 	x.muLogger.Unlock()
 
-	if x.err != nil && logger == nil {
+	if err != nil && logger == nil {
 		logger = logrus.StandardLogger()
 	}
 	if logger != nil {
 		entry := logrus.NewEntry(logger)
-		if x.err == nil {
-			entry.Data = x.logKeyValues()
-			entry.Infoln()
+		entry.Data = logrus.Fields{
+			"port":     x.config.Name,
+			"device":   x.device,
+			"request":  fmt.Sprintf("% X", request),
+			"duration": durafmt.Parse(duration),
+		}
+		if len(response) > 0 {
+			entry.Data["response"] = fmt.Sprintf("% X", response)
+		}
+		if err == nil {
+			entry.Info("ответ")
 		} else {
-			entry.Errorln(merry.Details(x.err))
+			errfmt.LogDetails(err, entry)
 		}
 	}
-	return x.response, x.err
-}
-
-func (x *Port) NewError(msg string) error {
-	return x.WrapError(merry.New(msg))
-}
-
-func (x *Port) Errorf(fmt string, a ...interface{}) error {
-	return x.WrapError(merry.Errorf(fmt, a...))
-}
-
-func (x *Port) WrapError(e error) error {
-
-	var err merry.Error
-	switch e {
-	case nil:
-		return nil
-	case context.Canceled:
-		return context.Canceled
-	case context.DeadlineExceeded:
-		err = merry.WithMessage(context.DeadlineExceeded, "не отвечает")
-	default:
-		err = merry.Wrap(e)
-	}
-	for k, v := range x.logKeyValues() {
-		err = err.WithValue(k, v)
-	}
-	return err
-}
-
-func (x *Port) logKeyValues() logrus.Fields {
-	m := logrus.Fields{
-		"port":     x.config.Name,
-		"request":  fmt.Sprintf("% X", x.request),
-		"duration": durafmt.Parse(x.duration),
-	}
-	if len(x.response) > 0 {
-		m["response"] = fmt.Sprintf("% X", x.response)
-	}
-	for k, v := range x.logFields {
-		m[k] = v
-	}
-	return m
+	return response, err
 }
 
 func (x LastWork) String() string {

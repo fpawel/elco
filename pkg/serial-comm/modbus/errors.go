@@ -2,43 +2,49 @@ package modbus
 
 import (
 	"github.com/ansel1/merry"
+	"github.com/fpawel/elco/pkg/errfmt"
 )
 
 var ProtocolError = merry.New("modbus")
 
-func (x Req) CheckResponse(b []byte) error {
+func (x Req) CheckResponse(response []byte) error {
+	return errfmt.WithReqResp(x.checkResponse(response), x.Bytes(), response)
+}
 
-	if len(b) < 4 {
+func (x Req) checkResponse(response []byte) error {
+
+	if len(response) < 4 {
 		return ProtocolError.Here().WithMessage("длина ответа меньше 4")
 	}
 
-	if h, l := CRC16(b); h != 0 || l != 0 {
+	if h, l := CRC16(response); h != 0 || l != 0 {
 		return ProtocolError.Here().WithMessage("CRC16 не ноль")
 	}
-	if b[0] != byte(x.Addr) {
+	if response[0] != byte(x.Addr) {
 		return ProtocolError.Here().WithMessagef("несовпадение адресов запроса [%d] и ответа [%d]",
-			x.Addr, b[0])
+			x.Addr, response[0])
 	}
 
-	if len(b) == 5 && byte(x.ProtoCmd)|0x80 == b[1] {
-		return ProtocolError.Here().WithMessagef("прибор вернул код ошибки %d", b[2])
+	if len(response) == 5 && byte(x.ProtoCmd)|0x80 == response[1] {
+		return ProtocolError.Here().WithMessagef("прибор вернул код ошибки %d", response[2])
 	}
-	if b[1] != byte(x.ProtoCmd) {
+	if response[1] != byte(x.ProtoCmd) {
 		return ProtocolError.Here().WithMessagef("несовпадение кодов команд запроса [%d] и ответа [%d]",
-			x.ProtoCmd, b[1])
+			x.ProtoCmd, response[1])
 	}
 
 	return nil
 }
 
-func (x Req) CheckResponse16(b []byte) error {
-	if err := x.CheckResponse(b); err != nil {
+func (x Req) CheckResponse16(response []byte) error {
+	if err := x.CheckResponse(response); err != nil {
 		return err
 	}
-	a := x.Bytes()
+	request := x.Bytes()
 	for i := 2; i < 6; i++ {
-		if a[i] != b[i] {
-			return ProtocolError.Here().WithMessagef("ошибка формата ответа: [% X] != [% X]", a[2:6], b[2:6])
+		if request[i] != response[i] {
+			return errfmt.WithReqResp(ProtocolError.Here(), request, response).
+				WithMessagef("ошибка формата ответа: [% X] != [% X]", request[2:6], response[2:6])
 		}
 	}
 	return nil

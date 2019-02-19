@@ -99,8 +99,8 @@ func Run(skipRunUIApp bool) {
 	}
 	elco.Logger.AddHook(x)
 	logrus.AddHook(x)
-	x.portMeasurer = comport.NewPort(logrus.Fields{"device": "стенд"}, x.onComport)
-	x.portGas = comport.NewPort(logrus.Fields{"device": "пневмоблок"}, x.onComport)
+	x.portMeasurer = comport.NewPort("стенд", x.onComport)
+	x.portGas = comport.NewPort("пневмоблок", x.onComport)
 
 	notifyIcon, err := walk.NewNotifyIcon()
 	if err != nil {
