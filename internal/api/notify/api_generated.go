@@ -13,9 +13,10 @@ type W = *copydata.NotifyWindow
 
 const (
 	msgReadCurrent msg = iota
-	msgHardwareError
-	msgHardwareStarted
-	msgHardwareStopped
+	msgErrorOccurred
+	msgWorkComplete
+	msgWorkStarted
+	msgWorkStopped
 	msgStatus
 	msgWarning
 	msgDelay
@@ -30,23 +31,29 @@ func ReadCurrent(w W, arg api.ReadCurrent) {
 	w.NotifyJson(uintptr(msgReadCurrent), arg)
 }
 
-func HardwareError(w W, arg string) {
-	w.NotifyStr(uintptr(msgHardwareError), arg)
+func ErrorOccurred(w W, arg string) {
+	w.NotifyStr(uintptr(msgErrorOccurred), arg)
 }
-func HardwareErrorf(w W, format string, a ...interface{}) {
-	w.Notifyf(uintptr(msgHardwareError), format, a...)
+func ErrorOccurredf(w W, format string, a ...interface{}) {
+	w.Notifyf(uintptr(msgErrorOccurred), format, a...)
 }
-func HardwareStarted(w W, arg string) {
-	w.NotifyStr(uintptr(msgHardwareStarted), arg)
+func WorkComplete(w W, arg string) {
+	w.NotifyStr(uintptr(msgWorkComplete), arg)
 }
-func HardwareStartedf(w W, format string, a ...interface{}) {
-	w.Notifyf(uintptr(msgHardwareStarted), format, a...)
+func WorkCompletef(w W, format string, a ...interface{}) {
+	w.Notifyf(uintptr(msgWorkComplete), format, a...)
 }
-func HardwareStopped(w W, arg string) {
-	w.NotifyStr(uintptr(msgHardwareStopped), arg)
+func WorkStarted(w W, arg string) {
+	w.NotifyStr(uintptr(msgWorkStarted), arg)
 }
-func HardwareStoppedf(w W, format string, a ...interface{}) {
-	w.Notifyf(uintptr(msgHardwareStopped), format, a...)
+func WorkStartedf(w W, format string, a ...interface{}) {
+	w.Notifyf(uintptr(msgWorkStarted), format, a...)
+}
+func WorkStopped(w W, arg string) {
+	w.NotifyStr(uintptr(msgWorkStopped), arg)
+}
+func WorkStoppedf(w W, format string, a ...interface{}) {
+	w.Notifyf(uintptr(msgWorkStopped), format, a...)
 }
 func Status(w W, arg string) {
 	w.NotifyStr(uintptr(msgStatus), arg)

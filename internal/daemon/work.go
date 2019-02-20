@@ -7,7 +7,6 @@ import (
 	"github.com/fpawel/elco/internal/api"
 	"github.com/fpawel/elco/internal/api/notify"
 	"github.com/fpawel/elco/internal/data"
-	"github.com/fpawel/elco/internal/elco"
 	"github.com/fpawel/elco/pkg/errfmt"
 	"github.com/fpawel/elco/pkg/serial-comm/comport"
 	"github.com/fpawel/elco/pkg/serial-comm/modbus"
@@ -124,10 +123,7 @@ func (x *D) delay(what string, duration time.Duration) error {
 		What:        what,
 		TimeSeconds: int(duration.Seconds()),
 	})
-	x.portMeasurer.SetLogger(nil)
-	defer func() {
-		x.portMeasurer.SetLogger(elco.Logger)
-	}()
+
 	defer notify.Delay(x.w, api.DelayInfo{Run: false})
 	for {
 		productsWithSerials, err := data.GetLastPartyProducts(x.db, data.ProductsFilter{WithSerials: true})

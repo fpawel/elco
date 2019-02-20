@@ -21,3 +21,7 @@ func (s PartyInfo) String2() string {
 func (s Party) String2() string {
 	return fmt.Sprintf(`party_id=%d`, s.PartyID)
 }
+
+func FormatPlace(place int) string {
+	return fmt.Sprintf("%d.%d", place/8+1, place%8+1)
+}

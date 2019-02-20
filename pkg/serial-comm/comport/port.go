@@ -7,7 +7,6 @@ import (
 	"github.com/fpawel/elco/pkg/errfmt"
 	"github.com/fpawel/elco/pkg/serial-comm/comm"
 	"github.com/hako/durafmt"
-	"github.com/sirupsen/logrus"
 	"github.com/tarm/serial"
 	"strings"
 	"sync"
@@ -24,23 +23,23 @@ func (x Comm) GetResponse(request []byte) ([]byte, error) {
 }
 
 type Port struct {
-	config   serial.Config
-	port     *serial.Port
-	ctx      context.Context
-	hook     Hook
-	muLogger sync.Mutex
-	logger   *logrus.Logger
-	device   string
+	config serial.Config
+	port   *serial.Port
+	ctx    context.Context
+	hook   Hook
+	device string
 }
 
-type LastWork struct {
-	Request, Response []byte
-	Duration          time.Duration
-	Port              string
-	Error             error
+type Entry struct {
+	Request  []byte
+	Response []byte
+	Duration time.Duration
+	Port     string
+	Device   string
+	Error    error
 }
 
-type Hook func(LastWork)
+type Hook func(Entry)
 
 func NewPort(device string, h Hook) *Port {
 	return &Port{
@@ -55,12 +54,6 @@ func (x *Port) SetHook(hook Hook) {
 
 func (x *Port) Config() serial.Config {
 	return x.config
-}
-
-func (x *Port) SetLogger(logger *logrus.Logger) {
-	x.muLogger.Lock()
-	x.logger = logger
-	x.muLogger.Unlock()
 }
 
 func (x *Port) Open(serialPortName string, baud int, bounceTimeout time.Duration, ctx context.Context) (err error) {
@@ -184,49 +177,26 @@ func (x *Port) GetResponse(commConfig comm.Config, request []byte) ([]byte, erro
 	}
 
 	if x.hook != nil {
-		x.hook(LastWork{
+		x.hook(Entry{
 			Request:  request,
 			Response: response,
 			Duration: duration,
 			Port:     x.config.Name,
 			Error:    err,
+			Device:   x.device,
 		})
-	}
-
-	x.muLogger.Lock()
-	logger := x.logger
-	x.muLogger.Unlock()
-
-	if err != nil && logger == nil {
-		logger = logrus.StandardLogger()
-	}
-	if logger != nil {
-		entry := logrus.NewEntry(logger)
-		entry.Data = logrus.Fields{
-			"port":     x.config.Name,
-			"device":   x.device,
-			"request":  fmt.Sprintf("% X", request),
-			"duration": durafmt.Parse(duration),
-		}
-		if len(response) > 0 {
-			entry.Data["response"] = fmt.Sprintf("% X", response)
-		}
-		if err == nil {
-			entry.Info("ответ")
-		} else {
-			errfmt.LogDetails(err, entry)
-		}
 	}
 	return response, err
 }
 
-func (x LastWork) String() string {
-	var strErr, strResponse string
-	if x.Error != nil {
-		strErr = " : " + x.Error.Error()
-	}
+func (x Entry) String() string {
+	s := fmt.Sprintf("%s: %s: % X", x.Device, x.Port, x.Request)
 	if len(x.Response) > 0 {
-		strResponse = fmt.Sprintf(": % X ", x.Response)
+		s += fmt.Sprintf("-> % X", x.Response)
 	}
-	return fmt.Sprintf("% X %s : %s%s", x.Request, strResponse, durafmt.Parse(x.Duration), strErr)
+	if x.Error != nil {
+		s += ": " + x.Error.Error()
+	}
+	s += ": " + durafmt.Parse(x.Duration).String()
+	return s
 }

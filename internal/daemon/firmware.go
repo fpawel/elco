@@ -13,6 +13,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"gopkg.in/reform.v1"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -32,23 +33,26 @@ func (x *D) writePartyFirmware() error {
 		return err
 	}
 
-	var places []int
+	var places []string
 	for _, p := range products {
-		places = append(places, p.Place)
+		places = append(places, data.FormatPlace(p.Place))
 	}
-	sort.Ints(places)
-	logrus.Infof("Запись прошивки партии: %s, %v", party.String2(), places)
+	sort.Strings(places)
+
+	m := logrus.Fields{
+		"party_id": party.PartyID,
+		"places":   strings.Join(places, ", "),
+	}
+
+	//logrus.WithFields(m).Info("Начало записи прошивки партии", )
 	blockProducts := GroupProductsByBlocks(products)
 	for _, products := range blockProducts {
 		if err := x.writeProductsFirmware(products); err != nil {
 			return err
 		}
 	}
-
-	logrus.Infof("Запись прошивки партии завершена: %s, %s, %v",
-		durafmt.Parse(time.Since(startTime)),
-		party.String2(), places)
-
+	m["продолжительность"] = durafmt.Parse(time.Since(startTime))
+	logrus.WithFields(m).Info("Запись прошивки партии завершена")
 	return nil
 }
 
@@ -78,7 +82,7 @@ func (x *D) writeProductsFirmware(products []*data.Product) error {
 
 	}()
 
-	//logrus.Infof("запись прошивки ячеек блока %d: %v", block, placesInBlock)
+	//logrus.Info("прошивка блока", )
 
 	placeBytes := map[int][]byte{}
 
@@ -96,14 +100,18 @@ func (x *D) writeProductsFirmware(products []*data.Product) error {
 	}
 
 	doAddresses := func(p *data.Product, b data.FirmwareBytes, addr1, addr2 uint16) error {
+
+		placeInBlock := p.Place % 8
+
 		x.logFields["адрес_начала_куска"] = addr1
 		x.logFields["адрес_конца_куска"] = addr2
+		x.logFields["количество_байт_куска"] = addr2 + 1 - addr1
 		x.logFields["количество_байт_куска"] = addr2 + 1 - addr1
 		defer delete(x.logFields, "адрес_начала_куска")
 		defer delete(x.logFields, "адрес_конца_куска")
 		defer delete(x.logFields, "количество_байт_куска")
 
-		placeInBlock := p.Place % 8
+		//logrus.Infof("место %s: прошивка куска % X...% X", data.FormatPlace(p.Place), addr1, addr2)
 
 		if err := x.sendDataToWriteFlash(block, placeInBlock, b[addr1:addr2+1]); err != nil {
 			return err
@@ -113,11 +121,6 @@ func (x *D) writeProductsFirmware(products []*data.Product) error {
 
 	for i, c := range firmwareAddresses {
 		for _, p := range products {
-			//prodInfo, err := data.GetProductInfoWithID(x.db, p.ProductID)
-			//if err != nil {
-			//	return err
-			//}
-			//logrus.Infof("запись прошивки ЭХЯ %X..%X: %s", c.addr1, c.addr2, prodInfo.String2())
 			if err := doAddresses(p, placeBytes[p.Place], c.addr1, c.addr2); err != nil {
 				return err
 			}
@@ -134,6 +137,12 @@ func (x *D) writeProductsFirmware(products []*data.Product) error {
 		}
 	}
 
+	for _, p := range products {
+		p.Firmware = placeBytes[p.Place]
+		if err := x.db.Save(p); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -217,6 +226,7 @@ func (x *D) writeFirmware(place int, bytes []byte) error {
 		if err := x.writePreparedDataToFlash(block, placesMask, addr1, int(addr2-addr1+1)); err != nil {
 			return err
 		}
+		time.Sleep(time.Second)
 
 		if err := x.waitFirmwareStatus(block, placesMask); err != nil {
 			return err
@@ -229,7 +239,7 @@ func (x *D) writeFirmware(place int, bytes []byte) error {
 			return err
 		}
 	}
-	logrus.Info("запись прошивки ЭХЯ выполнена успешно")
+	//logrus.Info("запись прошивки ЭХЯ выполнена успешно")
 
 	switch p, err := data.GetLastPartyProductAtPlace(x.db, place); err {
 	case nil:
@@ -246,11 +256,11 @@ func (x *D) writeFirmware(place int, bytes []byte) error {
 }
 
 func (x *D) waitFirmwareStatus(block int, placesMask byte) error {
-	startTime := time.Now()
-	defer func() {
-		logrus.Infof("ожидание статуса: блок %d, %08b: %s",
-			block, placesMask, durafmt.Parse(time.Since(startTime)))
-	}()
+	//startTime := time.Now()
+	//defer func() {
+	//	logrus.Infof("ожидание статуса: блок %d, %08b: %s",
+	//		block, placesMask, durafmt.Parse(time.Since(startTime)))
+	//}()
 
 	t := time.Duration(x.cfg.Predefined().StatusTimeoutSeconds) * time.Second
 	//logrus.Infof("прошивка блока %d: ожидание статуса завершения, таймаут %s", block, durafmt.Parse(t))
@@ -363,8 +373,6 @@ func (x *D) writePreparedDataToFlash(block int, placesMask byte, addr uint16, co
 }
 
 func (x *D) sendDataToWriteFlash(block, placeInBlock int, b []byte) error {
-	//logrus.Infof("отправка куска прошивки для записи: %d байт, % X", len(b), b)
-
 	req := modbus.Req{
 		Addr:     modbus.Addr(block) + 101,
 		ProtoCmd: 0x42,
@@ -406,18 +414,10 @@ func compareBytes(x, y []byte) bool {
 	return true
 }
 
-//var firmwareAddresses = []struct{ addr1, addr2 uint16 }{
-//	{0, 512},
-//	{1024, 1535},
-//	{1536, 1600},
-//	{1792, 1810},
-//	{1824, 1831},
-//}
-
 var firmwareAddresses = []struct{ addr1, addr2 uint16 }{
 	{0, 512},
-	{1023, 1535},
-	{1535, 1600},
-	{1791, 1810},
-	{1823, 1831},
+	{1024, 1535},
+	{1536, 1600},
+	{1792, 1810},
+	{1824, 1831},
 }

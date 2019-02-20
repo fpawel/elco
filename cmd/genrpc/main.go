@@ -29,8 +29,8 @@ func main() {
 		"EntryInfo":   "JournalEntry",
 	}
 
-	dir := filepath.Join(os.Getenv("GOPATH"),
-		"src", "github.com", "fpawel", "elco", "ui", "api")
+	dir := filepath.Join(os.Getenv("DELPHIPATH"),
+		"src", "github.com", "fpawel", "elco-gui", "api")
 	winapp.MustDir(dir)
 
 	openFile := func(fileName string) *os.File {
@@ -49,15 +49,19 @@ func main() {
 			r.TypeOf((*api.ReadCurrent)(nil)).Elem(),
 		},
 		{
-			"HardwareError",
+			"ErrorOccurred",
 			r.TypeOf((*string)(nil)).Elem(),
 		},
 		{
-			"HardwareStarted",
+			"WorkComplete",
 			r.TypeOf((*string)(nil)).Elem(),
 		},
 		{
-			"HardwareStopped",
+			"WorkStarted",
+			r.TypeOf((*string)(nil)).Elem(),
+		},
+		{
+			"WorkStopped",
 			r.TypeOf((*string)(nil)).Elem(),
 		},
 		{

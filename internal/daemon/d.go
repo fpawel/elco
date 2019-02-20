@@ -176,7 +176,7 @@ func Run(skipRunUIApp bool) {
 	logrus.Infoln("save config on exit:", x.cfg.Save())
 }
 
-func (x *D) onComport(w comport.LastWork) {
+func (x *D) onComport(w comport.Entry) {
 	if x.cfg.User().LogComports {
 		notify.ComportEntry(x.w, api.ComportEntry{
 			Port:  w.Port,
@@ -290,36 +290,33 @@ func (x *D) Fire(entry *logrus.Entry) error {
 		}
 		entry.Data[k] = v
 	}
-
 	x.muCurrentWork.Lock()
 	currentWork := x.currentWork
 	x.muCurrentWork.Unlock()
 	if currentWork == nil {
 		return nil
 	}
-
-	sb := bytes.NewBuffer(nil)
-	d := logfmt.NewEncoder(sb)
-	excludeFields := map[string]struct{}{
-		"msg":     {},
-		"message": {},
-		"time":    {},
-		"level":   {},
-		"work":    {},
-		"stack":   {},
-	}
-
-	for k, v := range entry.Data {
-		if _, f := excludeFields[k]; !f {
-			_ = d.EncodeKeyval(k, v)
-		}
-	}
+	c := entry.Caller
 
 	journalEntry := journal.Entry{
 		Message:   entry.Message,
 		Level:     entry.Level.String(),
 		WorkID:    currentWork.WorkID,
 		CreatedAt: time.Now(),
+		Line:      int64(c.Line),
+		File:      filepath.Base(c.File),
+	}
+
+	sb := bytes.NewBuffer(nil)
+	d := logfmt.NewEncoder(sb)
+	for k, v := range entry.Data {
+		switch k {
+		case "stack":
+			journalEntry.Stack = fmt.Sprintf("%v", v)
+		case "msg", "message", "time", "level", "work":
+		default:
+			_ = d.EncodeKeyval(k, v)
+		}
 	}
 	if sb.Len() > 0 {
 		if len(journalEntry.Message) > 0 {
@@ -327,20 +324,8 @@ func (x *D) Fire(entry *logrus.Entry) error {
 		}
 		journalEntry.Message += sb.String()
 	}
-
-	c := entry.Caller
-	journalEntry.Message += fmt.Sprintf(" %s:%d", filepath.Base(c.File), c.Line)
-
 	err := x.dbJournal.Save(&journalEntry)
 	entry.Data["entry_id"] = journalEntry.EntryID
-
-	notify.NewJournalEntry(x.w, journal.EntryInfo{
-		CreatedAt: journalEntry.CreatedAt,
-		EntryID:   journalEntry.EntryID,
-		WorkID:    currentWork.WorkID,
-		WorkName:  currentWork.Name,
-		Message:   journalEntry.Message,
-		Level:     journalEntry.Level,
-	})
+	notify.NewJournalEntry(x.w, journalEntry.EntryInfo(x.currentWork.Name))
 	return err
 }

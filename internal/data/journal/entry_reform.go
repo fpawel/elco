@@ -27,7 +27,7 @@ func (v *entryTableType) Name() string {
 
 // Columns returns a new slice of column names for that view or table in SQL database.
 func (v *entryTableType) Columns() []string {
-	return []string{"entry_id", "created_at", "message", "level", "work_id"}
+	return []string{"entry_id", "work_id", "created_at", "level", "message", "file", "line", "stack"}
 }
 
 // NewStruct makes a new struct for that view or table.
@@ -47,18 +47,21 @@ func (v *entryTableType) PKColumnIndex() uint {
 
 // EntryTable represents entry view or table in SQL database.
 var EntryTable = &entryTableType{
-	s: parse.StructInfo{Type: "Entry", SQLSchema: "", SQLName: "entry", Fields: []parse.FieldInfo{{Name: "EntryID", Type: "int64", Column: "entry_id"}, {Name: "CreatedAt", Type: "time.Time", Column: "created_at"}, {Name: "Message", Type: "string", Column: "message"}, {Name: "Level", Type: "string", Column: "level"}, {Name: "WorkID", Type: "int64", Column: "work_id"}}, PKFieldIndex: 0},
+	s: parse.StructInfo{Type: "Entry", SQLSchema: "", SQLName: "entry", Fields: []parse.FieldInfo{{Name: "EntryID", Type: "int64", Column: "entry_id"}, {Name: "WorkID", Type: "int64", Column: "work_id"}, {Name: "CreatedAt", Type: "time.Time", Column: "created_at"}, {Name: "Level", Type: "string", Column: "level"}, {Name: "Message", Type: "string", Column: "message"}, {Name: "File", Type: "string", Column: "file"}, {Name: "Line", Type: "int64", Column: "line"}, {Name: "Stack", Type: "string", Column: "stack"}}, PKFieldIndex: 0},
 	z: new(Entry).Values(),
 }
 
 // String returns a string representation of this struct or record.
 func (s Entry) String() string {
-	res := make([]string, 5)
+	res := make([]string, 8)
 	res[0] = "EntryID: " + reform.Inspect(s.EntryID, true)
-	res[1] = "CreatedAt: " + reform.Inspect(s.CreatedAt, true)
-	res[2] = "Message: " + reform.Inspect(s.Message, true)
+	res[1] = "WorkID: " + reform.Inspect(s.WorkID, true)
+	res[2] = "CreatedAt: " + reform.Inspect(s.CreatedAt, true)
 	res[3] = "Level: " + reform.Inspect(s.Level, true)
-	res[4] = "WorkID: " + reform.Inspect(s.WorkID, true)
+	res[4] = "Message: " + reform.Inspect(s.Message, true)
+	res[5] = "File: " + reform.Inspect(s.File, true)
+	res[6] = "Line: " + reform.Inspect(s.Line, true)
+	res[7] = "Stack: " + reform.Inspect(s.Stack, true)
 	return strings.Join(res, ", ")
 }
 
@@ -67,10 +70,13 @@ func (s Entry) String() string {
 func (s *Entry) Values() []interface{} {
 	return []interface{}{
 		s.EntryID,
-		s.CreatedAt,
-		s.Message,
-		s.Level,
 		s.WorkID,
+		s.CreatedAt,
+		s.Level,
+		s.Message,
+		s.File,
+		s.Line,
+		s.Stack,
 	}
 }
 
@@ -79,10 +85,13 @@ func (s *Entry) Values() []interface{} {
 func (s *Entry) Pointers() []interface{} {
 	return []interface{}{
 		&s.EntryID,
-		&s.CreatedAt,
-		&s.Message,
-		&s.Level,
 		&s.WorkID,
+		&s.CreatedAt,
+		&s.Level,
+		&s.Message,
+		&s.File,
+		&s.Line,
+		&s.Stack,
 	}
 }
 
@@ -148,7 +157,7 @@ func (v *entryInfoTableType) Name() string {
 
 // Columns returns a new slice of column names for that view or table in SQL database.
 func (v *entryInfoTableType) Columns() []string {
-	return []string{"entry_id", "created_at", "message", "level", "work_id", "work_name"}
+	return []string{"entry_id", "work_id", "created_at", "level", "message", "file", "line", "stack", "work_name"}
 }
 
 // NewStruct makes a new struct for that view or table.
@@ -168,19 +177,22 @@ func (v *entryInfoTableType) PKColumnIndex() uint {
 
 // EntryInfoTable represents entry_info view or table in SQL database.
 var EntryInfoTable = &entryInfoTableType{
-	s: parse.StructInfo{Type: "EntryInfo", SQLSchema: "", SQLName: "entry_info", Fields: []parse.FieldInfo{{Name: "EntryID", Type: "int64", Column: "entry_id"}, {Name: "CreatedAt", Type: "time.Time", Column: "created_at"}, {Name: "Message", Type: "string", Column: "message"}, {Name: "Level", Type: "string", Column: "level"}, {Name: "WorkID", Type: "int64", Column: "work_id"}, {Name: "WorkName", Type: "string", Column: "work_name"}}, PKFieldIndex: 0},
+	s: parse.StructInfo{Type: "EntryInfo", SQLSchema: "", SQLName: "entry_info", Fields: []parse.FieldInfo{{Name: "EntryID", Type: "int64", Column: "entry_id"}, {Name: "WorkID", Type: "int64", Column: "work_id"}, {Name: "CreatedAt", Type: "time.Time", Column: "created_at"}, {Name: "Level", Type: "string", Column: "level"}, {Name: "Message", Type: "string", Column: "message"}, {Name: "File", Type: "string", Column: "file"}, {Name: "Line", Type: "int64", Column: "line"}, {Name: "Stack", Type: "string", Column: "stack"}, {Name: "WorkName", Type: "string", Column: "work_name"}}, PKFieldIndex: 0},
 	z: new(EntryInfo).Values(),
 }
 
 // String returns a string representation of this struct or record.
 func (s EntryInfo) String() string {
-	res := make([]string, 6)
+	res := make([]string, 9)
 	res[0] = "EntryID: " + reform.Inspect(s.EntryID, true)
-	res[1] = "CreatedAt: " + reform.Inspect(s.CreatedAt, true)
-	res[2] = "Message: " + reform.Inspect(s.Message, true)
+	res[1] = "WorkID: " + reform.Inspect(s.WorkID, true)
+	res[2] = "CreatedAt: " + reform.Inspect(s.CreatedAt, true)
 	res[3] = "Level: " + reform.Inspect(s.Level, true)
-	res[4] = "WorkID: " + reform.Inspect(s.WorkID, true)
-	res[5] = "WorkName: " + reform.Inspect(s.WorkName, true)
+	res[4] = "Message: " + reform.Inspect(s.Message, true)
+	res[5] = "File: " + reform.Inspect(s.File, true)
+	res[6] = "Line: " + reform.Inspect(s.Line, true)
+	res[7] = "Stack: " + reform.Inspect(s.Stack, true)
+	res[8] = "WorkName: " + reform.Inspect(s.WorkName, true)
 	return strings.Join(res, ", ")
 }
 
@@ -189,10 +201,13 @@ func (s EntryInfo) String() string {
 func (s *EntryInfo) Values() []interface{} {
 	return []interface{}{
 		s.EntryID,
-		s.CreatedAt,
-		s.Message,
-		s.Level,
 		s.WorkID,
+		s.CreatedAt,
+		s.Level,
+		s.Message,
+		s.File,
+		s.Line,
+		s.Stack,
 		s.WorkName,
 	}
 }
@@ -202,10 +217,13 @@ func (s *EntryInfo) Values() []interface{} {
 func (s *EntryInfo) Pointers() []interface{} {
 	return []interface{}{
 		&s.EntryID,
-		&s.CreatedAt,
-		&s.Message,
-		&s.Level,
 		&s.WorkID,
+		&s.CreatedAt,
+		&s.Level,
+		&s.Message,
+		&s.File,
+		&s.Line,
+		&s.Stack,
 		&s.WorkName,
 	}
 }

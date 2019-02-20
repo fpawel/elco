@@ -16,19 +16,27 @@ CREATE TABLE IF NOT EXISTS entry
 (
   entry_id   INTEGER   NOT NULL PRIMARY KEY,
   created_at TIMESTAMP NOT NULL UNIQUE DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')),
-  message    TEXT      NOT NULL,
   level      TEXT      NOT NULL,
+  file       TEXT      NOT NULL,
+  line       INTEGER   NOT NULL,
+  message    TEXT      NOT NULL,
+  stack      TEXT      NOT NULL,
   work_id    INTEGER   NOT NULL,
   FOREIGN KEY (work_id) REFERENCES work (work_id) ON DELETE CASCADE
 );
 
+
+
 CREATE VIEW IF NOT EXISTS work_info AS
 SELECT *,
        EXISTS(
-           SELECT level IN ('panic', 'error', 'fatal') FROM entry WHERE entry.work_id = work.work_id) AS error_occurred,
-       CAST(STRFTIME('%Y', DATETIME(created_at, '+3 hours')) AS INTEGER)                              AS year,
-       CAST(STRFTIME('%m', DATETIME(created_at, '+3 hours')) AS INTEGER)                              AS month,
-       CAST(STRFTIME('%d', DATETIME(created_at, '+3 hours')) AS INTEGER)                              AS day
+           SELECT *
+           FROM entry
+           WHERE entry.work_id = work.work_id
+             AND level IN ('panic', 'error', 'fatal'))                   AS error_occurred,
+       CAST(STRFTIME('%Y', DATETIME(created_at, '+3 hours')) AS INTEGER) AS year,
+       CAST(STRFTIME('%m', DATETIME(created_at, '+3 hours')) AS INTEGER) AS month,
+       CAST(STRFTIME('%d', DATETIME(created_at, '+3 hours')) AS INTEGER) AS day
 FROM work;
 
 
@@ -38,6 +46,9 @@ SELECT entry.created_at,
        entry.level,
        entry.message,
        entry.work_id,
+       entry.file,
+       entry.line,
+       entry.stack,
        work.name                                                               AS work_name,
        work.created_at                                                         AS work_created_at,
        CAST(STRFTIME('%Y', DATETIME(entry.created_at, '+3 hours')) AS INTEGER) AS year,

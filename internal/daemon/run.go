@@ -7,7 +7,7 @@ import (
 	"github.com/fpawel/elco/internal/api/notify"
 	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/elco/internal/data/journal"
-	"github.com/fpawel/elco/internal/elco"
+	"github.com/fpawel/elco/pkg/errfmt"
 	"github.com/fpawel/goutils/intrng"
 	"github.com/hashicorp/go-multierror"
 	"github.com/sirupsen/logrus"
@@ -16,13 +16,13 @@ import (
 )
 
 func (x *D) RunWriteFirmware(place int, bytes []byte) {
-	x.runHardware(true, fmt.Sprintf("Запись места %d", place+1), func() error {
+	x.runHardware(false, fmt.Sprintf("Запись места %d", place+1), func() error {
 		return x.writeFirmware(place, bytes)
 	})
 }
 
 func (x *D) RunReadFirmware(place int) {
-	x.runHardware(true, fmt.Sprintf("Считывание места %d", place+1), func() error {
+	x.runHardware(false, fmt.Sprintf("Считывание места %d", place+1), func() error {
 		b, err := x.readFirmware(place)
 		if err != nil {
 			return err
@@ -42,12 +42,12 @@ func (x *D) RunReadFirmware(place int) {
 }
 
 func (x *D) RunWritePartyFirmware() {
-	x.runHardware(true, "Прошивка партии", x.writePartyFirmware)
+	x.runHardware(false, "Прошивка партии", x.writePartyFirmware)
 }
 
 func (x *D) RunWriteProductFirmware(place int) {
 	what := fmt.Sprintf("Прошивка места %d.%d", place/8+1, place%8+1)
-	x.runHardware(true, what, func() error {
+	x.runHardware(false, what, func() error {
 		if p, err := data.GetLastPartyProductAtPlace(x.db, place); err != nil {
 			return err
 		} else {
@@ -92,8 +92,7 @@ func (x *D) RunReadCurrent(checkPlaces [12]bool) {
 			xs = append(xs, i+1)
 		}
 	}
-	x.runHardware(true, "Опрос блоков измерительных: "+intrng.Format(xs), func() error {
-		x.portMeasurer.SetLogger(nil)
+	x.runHardware(false, "Опрос блоков измерительных: "+intrng.Format(xs), func() error {
 		for {
 			for _, place := range places {
 				if _, err := x.readBlockMeasure(place); err != nil {
@@ -113,7 +112,7 @@ func (x *D) runHardware(logWork bool, workName string, work WorkFunc) {
 	x.hardware.WaitGroup = sync.WaitGroup{}
 	x.hardware.ctx, x.hardware.cancel = context.WithCancel(x.ctx)
 
-	notify.HardwareStarted(x.w, workName)
+	notify.WorkStarted(x.w, workName)
 	x.hardware.WaitGroup.Add(1)
 
 	x.logFields = logrus.Fields{
@@ -137,9 +136,7 @@ func (x *D) runHardware(logWork bool, workName string, work WorkFunc) {
 	go func() {
 
 		defer func() {
-			x.portGas.SetLogger(elco.Logger)
-			x.portMeasurer.SetLogger(elco.Logger)
-			notify.HardwareStoppedf(x.w, "выполнение окончено: %s", workName)
+			notify.WorkStoppedf(x.w, "выполнение окончено: %s", workName)
 			if logWork {
 				x.muCurrentWork.Lock()
 				x.currentWork = nil
@@ -148,12 +145,10 @@ func (x *D) runHardware(logWork bool, workName string, work WorkFunc) {
 			x.hardware.WaitGroup.Done()
 		}()
 
-		x.portMeasurer.SetLogger(elco.Logger)
-		x.portGas.SetLogger(elco.Logger)
 		notifyErr := func(what string, err error) {
-			logrus.Errorln(what, merry.Details(err))
+			logrus.WithFields(errfmt.Values(err)).Errorln(err.Error())
 			if !merry.Is(err, context.Canceled) {
-				notify.HardwareErrorf(x.w, "%s: %v", workName, merry.Details(err))
+				notify.ErrorOccurredf(x.w, "%s: %v", workName, merry.Details(err))
 			}
 		}
 
@@ -165,8 +160,10 @@ func (x *D) runHardware(logWork bool, workName string, work WorkFunc) {
 		switch err := work(); err {
 		case nil:
 			logrus.Info("выполнено успешно")
+			notify.WorkCompletef(x.w, "%s: выполнено успешно", workName)
 		case context.Canceled:
 			logrus.Warn("выполнение прервано")
+			notify.WorkCompletef(x.w, "%s: выполнение прервано", workName)
 		default:
 			notifyErr("выполнено с ошибкой:", err)
 		}
@@ -199,22 +196,5 @@ func (x *D) closeHardware() (mulErr error) {
 				"закрыть СОМ порт газового блока по завершении: %s", err.Error()))
 		}
 	}
-	return
-}
-
-func merryValues(err error, m logrus.Fields) {
-	for k, v := range merry.Values(err) {
-		var s string
-		switch k := k.(type) {
-		case string:
-			s = k
-		default:
-			s = fmt.Sprintf("%+v", k)
-		}
-		if _, f := m[s]; !f {
-			m[s] = v
-		}
-	}
-	m["stack"] = merry.Stacktrace(err)
 	return
 }
