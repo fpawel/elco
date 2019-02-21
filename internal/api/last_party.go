@@ -14,9 +14,8 @@ func NewLastParty(db *reform.DB) *LastParty {
 	return &LastParty{db}
 }
 
-func (x *LastParty) Party(_ struct{}, r *data.Party) (err error) {
-	*r, err = data.GetLastParty(x.db)
-	if err != nil {
+func (x *LastParty) Party(_ struct{}, r *data.Party) error {
+	if err := data.GetLastParty(x.db, r); err != nil {
 		return err
 	}
 	r.Last = true

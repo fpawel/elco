@@ -10,14 +10,14 @@ import (
 	"time"
 )
 
-type ProductFirmware struct {
+type PlaceFirmware struct {
 	db *reform.DB
 	f  FirmwareRunner
 }
 
 type FirmwareRunner interface {
-	RunWriteFirmware(place int, bytes []byte)
-	RunReadFirmware(place int)
+	RunWritePlaceFirmware(place int, bytes []byte)
+	RunReadPlaceFirmware(place int)
 }
 
 type FirmwareInfo2 struct {
@@ -32,11 +32,11 @@ type TempValues struct {
 	Values []string
 }
 
-func NewProductFirmware(db *reform.DB, f FirmwareRunner) *ProductFirmware {
-	return &ProductFirmware{db, f}
+func NewProductFirmware(db *reform.DB, f FirmwareRunner) *PlaceFirmware {
+	return &PlaceFirmware{db, f}
 }
 
-func (x *ProductFirmware) StoredFirmwareInfo(productID [1]int64, r *data.FirmwareInfo) error {
+func (x *PlaceFirmware) StoredFirmwareInfo(productID [1]int64, r *data.FirmwareInfo) error {
 
 	var p data.Product
 	if err := x.db.SelectOneTo(&p, `WHERE product_id = ?`, productID[0]); err != nil {
@@ -60,7 +60,7 @@ func (x *ProductFirmware) StoredFirmwareInfo(productID [1]int64, r *data.Firmwar
 	return nil
 }
 
-func (x *ProductFirmware) CalculateFirmwareInfo(productID [1]int64, r *data.FirmwareInfo) (err error) {
+func (x *PlaceFirmware) CalculateFirmwareInfo(productID [1]int64, r *data.FirmwareInfo) (err error) {
 	var p data.ProductInfo
 	if err := x.db.SelectOneTo(&p, `WHERE product_id = ?`, productID[0]); err != nil {
 		return err
@@ -69,7 +69,7 @@ func (x *ProductFirmware) CalculateFirmwareInfo(productID [1]int64, r *data.Firm
 	return nil
 }
 
-func (x *ProductFirmware) TempPoints(v TempValues, r *data.TempPoints) error {
+func (x *PlaceFirmware) TempPoints(v TempValues, r *data.TempPoints) error {
 	fonM, sensM := data.TableXY{}, data.TableXY{}
 	if err := tempPoints(v.Values, fonM, sensM); err != nil {
 		return err
@@ -78,12 +78,12 @@ func (x *ProductFirmware) TempPoints(v TempValues, r *data.TempPoints) error {
 	return nil
 }
 
-func (x *ProductFirmware) RunReadFirmware(place [1]int, _ *struct{}) error {
-	x.f.RunReadFirmware(place[0])
+func (x *PlaceFirmware) RunReadPlaceFirmware(place [1]int, _ *struct{}) error {
+	x.f.RunReadPlaceFirmware(place[0])
 	return nil
 }
 
-func (x *ProductFirmware) RunWriteFirmware(v FirmwareInfo2, _ *struct{}) (err error) {
+func (x *PlaceFirmware) RunWritePlaceFirmware(v FirmwareInfo2, _ *struct{}) (err error) {
 
 	z := data.Firmware{
 		CreatedAt: time.Date(v.Year, time.Month(v.Month), v.Day, v.Hour, v.Minute, v.Second, 0, time.Local),
@@ -152,7 +152,7 @@ func (x *ProductFirmware) RunWriteFirmware(v FirmwareInfo2, _ *struct{}) (err er
 		return merry.Appendf(err, "не верный формат значения серийного номера: %s", v.Serial)
 	}
 
-	x.f.RunWriteFirmware(v.Place, z.Bytes())
+	x.f.RunWritePlaceFirmware(v.Place, z.Bytes())
 	return
 }
 

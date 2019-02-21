@@ -15,23 +15,31 @@ import (
 	"time"
 )
 
-func (x *D) RunWriteFirmware(place int, bytes []byte) {
-	x.runHardware(false, fmt.Sprintf("Запись места %d", place+1), func() error {
-		return x.writeFirmware(place, bytes)
+func (x *D) RunWritePlaceFirmware(place int, bytes []byte) {
+	x.runHardware(false, fmt.Sprintf("Запись прошивки места %s", data.FormatPlace(place)), func() error {
+		err := x.writeFirmware(place, bytes)
+		if err != nil {
+			return err
+		}
+		m := map[int][]byte{place: bytes}
+		if err := x.verifyProductsFirmware([]int{place}, m); err != nil {
+			return err
+		}
+		return nil
 	})
 }
 
-func (x *D) RunReadFirmware(place int) {
+func (x *D) RunReadPlaceFirmware(place int) {
 	x.runHardware(false, fmt.Sprintf("Считывание места %d", place+1), func() error {
 		b, err := x.readFirmware(place)
 		if err != nil {
 			return err
 		}
-		gases, err := data.ListGases(x.db)
+		gases, err := data.ListGases(x.dbProducts)
 		if err != nil {
 			return err
 		}
-		units, err := data.ListUnits(x.db)
+		units, err := data.ListUnits(x.dbProducts)
 		if err != nil {
 			return err
 		}
@@ -43,17 +51,6 @@ func (x *D) RunReadFirmware(place int) {
 
 func (x *D) RunWritePartyFirmware() {
 	x.runHardware(false, "Прошивка партии", x.writePartyFirmware)
-}
-
-func (x *D) RunWriteProductFirmware(place int) {
-	what := fmt.Sprintf("Прошивка места %d.%d", place/8+1, place%8+1)
-	x.runHardware(false, what, func() error {
-		if p, err := data.GetLastPartyProductAtPlace(x.db, place); err != nil {
-			return err
-		} else {
-			return x.writeProductsFirmware([]*data.Product{&p})
-		}
-	})
 }
 
 func (x *D) RunMainError() {
@@ -147,9 +144,10 @@ func (x *D) runHardware(logWork bool, workName string, work WorkFunc) {
 
 		notifyErr := func(what string, err error) {
 			logrus.WithFields(errfmt.Values(err)).Errorln(err.Error())
-			if !merry.Is(err, context.Canceled) {
-				notify.ErrorOccurredf(x.w, "%s: %v", workName, merry.Details(err))
+			if merry.Is(err, context.Canceled) {
+				return
 			}
+			notify.ErrorOccurredf(x.w, "%s: %v", workName, errfmt.Format(err))
 		}
 
 		if err := x.portMeasurer.Open(x.cfg.User().ComportMeasurer, 115200, 0, x.hardware.ctx); err != nil {

@@ -17,6 +17,24 @@ func Values(err error) (m logrus.Fields) {
 	return
 }
 
+func Format(err error) string {
+	if err == nil {
+		return ""
+	}
+	s := err.Error()
+	for k, v := range merry.Values(err) {
+		k := fmt.Sprintf("%v", k)
+		switch k {
+		case "stack", "msg", "message", "time", "level", "work":
+			continue
+		default:
+			s += "\n" + fmt.Sprintf("%s: %v", k, v)
+		}
+	}
+	s += "\n" + merry.Stacktrace(err)
+	return s
+}
+
 func WithReqResp(err error, request, response []byte) merry.Error {
 	if err == nil {
 		return nil

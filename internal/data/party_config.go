@@ -10,12 +10,15 @@ import (
 )
 
 func PartyConfigProperties(db *reform.DB) ([]ConfigProperty, error) {
-	party, err := GetLastParty(db)
-	if err != nil {
+	var party Party
+	if err := GetLastParty(db, &party); err != nil {
 		return nil, err
 	}
 
 	productTypesNames, err := ListProductTypeNames(db)
+	if err != nil {
+		return nil, err
+	}
 
 	f := func(v sql.NullFloat64) string {
 		if v.Valid {
@@ -131,7 +134,9 @@ func PartyConfigProperties(db *reform.DB) ([]ConfigProperty, error) {
 func SetPartyConfigValue(db *reform.DB, property, value string) (err error) {
 
 	var party Party
-	party, err = GetLastParty(db)
+	if err := GetLastParty(db, &party); err != nil {
+		return err
+	}
 
 	switch property {
 

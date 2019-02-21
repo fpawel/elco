@@ -2,7 +2,6 @@ package data
 
 import (
 	"database/sql"
-	"github.com/fpawel/elco/internal/elco"
 	"github.com/fpawel/elco/pkg/serial-comm/comm"
 	"gopkg.in/reform.v1"
 	"sync"
@@ -116,10 +115,6 @@ func (x *Config) SetValue(section, property, value string) error {
 	return x.u.setValue(section, property, value)
 }
 
-func configFileName() string {
-	return elco.AppName.FileName("config.json")
-}
-
 func DefaultPredefinedConfig() PredefinedConfig {
 	return defaultPredefinedConfig
 }
@@ -130,6 +125,7 @@ var defaultPredefinedConfig = PredefinedConfig{
 	ComportGas: comm.Config{
 		ReadByteTimeoutMillis: 50,
 		ReadTimeoutMillis:     1000,
+		MaxAttemptsRead:       3,
 	},
 	ComportMeasurer: comm.Config{
 		ReadByteTimeoutMillis: 50,

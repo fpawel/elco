@@ -2,8 +2,10 @@ package data
 
 import (
 	"encoding/json"
+	"github.com/fpawel/elco/internal/elco"
 	"github.com/fpawel/elco/pkg/serial-comm/comport"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"io/ioutil"
 	"strconv"
 )
@@ -122,16 +124,29 @@ func (x *UserConfig) setValue(section, property, value string) error {
 	return errors.Errorf("%q: %q: invalid section/property", section, property)
 }
 
-func openUserConfig() *UserConfig {
-	x := &UserConfig{
+func defaultUserConfig() *UserConfig {
+	return &UserConfig{
 		ChipType:        16,
 		ComportMeasurer: "COM1",
 		ComportGas:      "COM2",
 		LogComports:     false,
 	}
-	b, err := ioutil.ReadFile(configFileName())
+}
+
+func openUserConfig() *UserConfig {
+	configFileName, err := elco.ConfigFileName()
+	if err != nil {
+		logrus.Errorln(err, configFileName)
+		return defaultUserConfig()
+	}
+	b, err := ioutil.ReadFile(configFileName)
+	x := new(UserConfig)
 	if err == nil {
 		err = json.Unmarshal(b, x)
+	}
+	if err != nil {
+		logrus.Errorln(err, configFileName)
+		return defaultUserConfig()
 	}
 	return x
 }
@@ -141,5 +156,9 @@ func (x *UserConfig) save() error {
 	if err != nil {
 		return err
 	}
-	return ioutil.WriteFile(configFileName(), b, 0666)
+	configFileName, err := elco.ConfigFileName()
+	if err != nil {
+		return err
+	}
+	return ioutil.WriteFile(configFileName, b, 0666)
 }

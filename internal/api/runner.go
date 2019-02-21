@@ -8,7 +8,6 @@ type Runner interface {
 	SkipDelay()
 	RunTemperature([3]bool)
 	RunWritePartyFirmware()
-	RunWriteProductFirmware(place int)
 	RunMainError()
 }
 
@@ -18,11 +17,6 @@ type RunnerSvc struct {
 
 func (x *RunnerSvc) RunWritePartyFirmware(_ struct{}, _ *struct{}) error {
 	x.Runner.RunWritePartyFirmware()
-	return nil
-}
-
-func (x *RunnerSvc) RunWriteProductFirmware(place [1]int, _ *struct{}) error {
-	x.Runner.RunWriteProductFirmware(place[0])
 	return nil
 }
 

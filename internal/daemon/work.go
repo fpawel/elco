@@ -126,7 +126,7 @@ func (x *D) delay(what string, duration time.Duration) error {
 
 	defer notify.Delay(x.w, api.DelayInfo{Run: false})
 	for {
-		productsWithSerials, err := data.GetLastPartyProducts(x.db, data.ProductsFilter{WithSerials: true})
+		productsWithSerials, err := data.GetLastPartyProducts(x.dbProducts, data.ProductsFilter{WithSerials: true})
 		if err != nil {
 			return err
 		}
@@ -250,15 +250,8 @@ func (x *D) determineProductsTemperatureCurrents(temperature data.Temperature, s
 }
 
 func (x *D) determineProductsCurrents(fields logrus.Fields, f func(*data.Product, float64)) error {
-	defer func() {
-		party, err := data.GetLastParty(x.db)
-		if err != nil {
-			logrus.Errorln(err)
-		}
-		notify.LastPartyChanged(x.w, party)
-	}()
 
-	productsWithSerials, err := data.GetLastPartyProducts(x.db, data.ProductsFilter{
+	productsWithSerials, err := data.GetLastPartyProducts(x.dbProducts, data.ProductsFilter{
 		WithSerials: true,
 	})
 	if err != nil {
@@ -292,12 +285,22 @@ func (x *D) determineProductsCurrents(fields logrus.Fields, f func(*data.Product
 			fields["value"] = values[n]
 			logrus.WithFields(fields).Info("save product current")
 			f(p, values[n])
-			if err := x.db.Save(p); err != nil {
+			if err := x.dbProducts.Save(p); err != nil {
 				return err
 			}
 		}
 		return nil
 	}
+
+	var party data.Party
+	if err := data.GetLastParty(x.dbProducts, &party); err != nil {
+		return err
+	}
+	if err := data.GetPartyProducts(x.dbProducts, &party); err != nil {
+		return err
+	}
+	notify.LastPartyChanged(x.w, party)
+
 	return nil
 
 }

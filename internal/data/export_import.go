@@ -3,16 +3,16 @@ package data
 import (
 	"encoding/json"
 	"github.com/ansel1/merry"
-	"github.com/fpawel/elco/internal/elco"
+	"github.com/fpawel/elco/pkg/winapp"
 	"gopkg.in/reform.v1"
 	"io/ioutil"
+	"path/filepath"
 	"time"
 )
 
 func ExportLastParty(db *reform.DB) error {
-
-	party, err := GetLastParty(db)
-	if err != nil {
+	var party Party
+	if err := GetLastParty(db, &party); err != nil {
 		return err
 	}
 	products, err := GetLastPartyProducts(db, ProductsFilter{})
@@ -24,13 +24,21 @@ func ExportLastParty(db *reform.DB) error {
 	if err != nil {
 		return err
 	}
-	return ioutil.WriteFile(importFileName(), b, 0666)
+	importFileName, err := importFileName()
+	if err != nil {
+		return err
+	}
+	return ioutil.WriteFile(importFileName, b, 0666)
 
 }
 
 func ImportLastParty(db *reform.DB) error {
 
-	b, err := ioutil.ReadFile(importFileName())
+	importFileName, err := importFileName()
+	if err != nil {
+		return err
+	}
+	b, err := ioutil.ReadFile(importFileName)
 	if err != nil {
 		return err
 	}
@@ -62,6 +70,10 @@ func ImportLastParty(db *reform.DB) error {
 	return nil
 }
 
-func importFileName() string {
-	return elco.AppName.DataFileName("export-party.json")
+func importFileName() (string, error) {
+	appDataFolderPath, err := winapp.AppDataFolderPath()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(appDataFolderPath, "elco", "export-party.json"), nil
 }

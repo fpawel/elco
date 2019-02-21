@@ -21,3 +21,4 @@ IF EXIST %PANIC_HTML_FILE% (
     start %PANIC_HTML_FILE%
     msg * "elco.exe: a error occured!"
 )
+PAUSE

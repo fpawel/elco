@@ -7,7 +7,6 @@ import (
 	"github.com/fpawel/elco/pkg/winapp"
 	"github.com/lxn/win"
 	"github.com/sirupsen/logrus"
-	"os"
 )
 
 func main() {
@@ -49,13 +48,7 @@ func main() {
 	logrus.SetFormatter(elco.Logger.Formatter)
 	logrus.SetOutput(elco.Logger.Out)
 	logrus.SetReportCaller(true)
-
-	if createNewDB {
-		logrus.Warn("delete data base file because create-new-db flag was set")
-		if err := os.Remove(elco.DataFileName()); err != nil { // delete data base file
-			logrus.WithField("file", elco.DataFileName()).Error(err)
-		}
+	if err := daemon.Run(skipRunUIApp, createNewDB); err != nil {
+		logrus.Panic(err)
 	}
-
-	daemon.Run(skipRunUIApp)
 }

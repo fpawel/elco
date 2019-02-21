@@ -18,7 +18,7 @@ func main() {
 		r.TypeOf((*api.PartiesCatalogue)(nil)),
 		r.TypeOf((*api.LastParty)(nil)),
 		r.TypeOf((*api.ProductTypes)(nil)),
-		r.TypeOf((*api.ProductFirmware)(nil)),
+		r.TypeOf((*api.PlaceFirmware)(nil)),
 		r.TypeOf((*api.SettingsSvc)(nil)),
 		r.TypeOf((*api.RunnerSvc)(nil)),
 		r.TypeOf((*api.Journal)(nil)),

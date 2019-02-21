@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/ansel1/merry"
+	"github.com/fpawel/elco/internal/api/notify"
 	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/elco/pkg/errfmt"
 	"github.com/fpawel/elco/pkg/serial-comm/comport"
@@ -20,43 +21,83 @@ import (
 func (x *D) writePartyFirmware() error {
 
 	startTime := time.Now()
-
-	party, err := data.GetLastParty(x.db)
-	if err != nil {
+	var party data.Party
+	if err := data.GetLastParty(x.dbProducts, &party); err != nil {
 		return err
 	}
 
-	products, err := data.GetLastPartyProducts(x.db, data.ProductsFilter{
+	products, err := data.GetLastPartyProducts(x.dbProducts, data.ProductsFilter{
 		WithProduction: true,
 	})
 	if err != nil {
 		return err
 	}
 
-	var places []string
+	var placesStr []string
 	for _, p := range products {
-		places = append(places, data.FormatPlace(p.Place))
+		placesStr = append(placesStr, data.FormatPlace(p.Place))
 	}
-	sort.Strings(places)
-
+	sort.Strings(placesStr)
 	m := logrus.Fields{
 		"party_id": party.PartyID,
-		"places":   strings.Join(places, ", "),
+		"places":   strings.Join(placesStr, ", "),
 	}
 
 	//logrus.WithFields(m).Info("Начало записи прошивки партии", )
+
+	placeBytes := map[int][]byte{}
+
 	blockProducts := GroupProductsByBlocks(products)
 	for _, products := range blockProducts {
-		if err := x.writeProductsFirmware(products); err != nil {
+		if err := x.writeProductsFirmware(products, placeBytes); err != nil {
 			return err
 		}
 	}
-	m["продолжительность"] = durafmt.Parse(time.Since(startTime))
+	m["продолжительность_записи"] = durafmt.Parse(time.Since(startTime))
+
+	for _, products := range blockProducts {
+		var places []int
+		for _, p := range products {
+			places = append(places, p.Place)
+		}
+		sort.Ints(places)
+		if err := x.verifyProductsFirmware(places, placeBytes); err != nil {
+			return err
+		}
+	}
+
+	if err = data.GetPartyProducts(x.dbProducts, &party); err != nil {
+		return err
+	}
+	notify.LastPartyChanged(x.w, party)
+
 	logrus.WithFields(m).Info("Запись прошивки партии завершена")
+
 	return nil
 }
 
-func (x *D) writeProductsFirmware(products []*data.Product) error {
+func (x *D) verifyProductsFirmware(places []int, placeBytes map[int][]byte) error {
+	for _, place := range places {
+		b, err := x.readFirmware(place)
+		if err != nil {
+			return err
+		}
+		for _, c := range firmwareAddresses {
+			read := b[c.addr1 : c.addr2+1]
+			calc := placeBytes[place][c.addr1 : c.addr2+1]
+			if !compareBytes(read, calc) {
+				return merry.Errorf(
+					"место %s: не совпадают данные по адресам %X...%X",
+					data.FormatPlace(place), c.addr1, c.addr2).
+					WithValue("расчитано", fmt.Sprintf("% X", read)).
+					WithValue("записано", fmt.Sprintf("% X", calc))
+			}
+		}
+	}
+	return nil
+}
+
+func (x *D) writeProductsFirmware(products []*data.Product, placeBytes map[int][]byte) error {
 
 	block := products[0].Place / 8
 
@@ -84,12 +125,9 @@ func (x *D) writeProductsFirmware(products []*data.Product) error {
 
 	//logrus.Info("прошивка блока", )
 
-	placeBytes := map[int][]byte{}
-
 	for _, p := range products {
-
-		prodInfo, err := data.GetProductInfoWithID(x.db, p.ProductID)
-		if err != nil {
+		prodInfo := new(data.ProductInfo)
+		if err := x.dbProducts.FindByPrimaryKeyTo(prodInfo, p.ProductID); err != nil {
 			return err
 		}
 		firmware, err := prodInfo.Firmware()
@@ -139,10 +177,11 @@ func (x *D) writeProductsFirmware(products []*data.Product) error {
 
 	for _, p := range products {
 		p.Firmware = placeBytes[p.Place]
-		if err := x.db.Save(p); err != nil {
+		if err := x.dbProducts.Save(p); err != nil {
 			return err
 		}
 	}
+
 	return nil
 }
 
@@ -207,7 +246,7 @@ func (x *D) writeFirmware(place int, bytes []byte) error {
 
 	block := place / 8
 	placeInBlock := place % 8
-	placesMask := byte(1) << byte(place)
+	placesMask := byte(1) << byte(placeInBlock)
 
 	doAddresses := func(addr1, addr2 uint16) error {
 		x.logFields["адрес_начала_куска"] = addr1
@@ -241,10 +280,11 @@ func (x *D) writeFirmware(place int, bytes []byte) error {
 	}
 	//logrus.Info("запись прошивки ЭХЯ выполнена успешно")
 
-	switch p, err := data.GetLastPartyProductAtPlace(x.db, place); err {
+	var p data.Product
+	switch err := data.GetLastPartyProductAtPlace(x.dbProducts, place, &p); err {
 	case nil:
 		p.Firmware = bytes
-		if err := x.db.Save(&p); err != nil {
+		if err := x.dbProducts.Save(&p); err != nil {
 			return err
 		}
 	case reform.ErrNoRows, sql.ErrNoRows:

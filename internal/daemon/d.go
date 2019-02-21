@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/Microsoft/go-winio"
+	"github.com/ansel1/merry"
 	"github.com/fpawel/elco/internal/api"
 	"github.com/fpawel/elco/internal/api/notify"
 	"github.com/fpawel/elco/internal/data"
@@ -22,7 +23,7 @@ import (
 	"github.com/powerman/rpc-codec/jsonrpc2"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/reform.v1"
-	"log"
+	"gopkg.in/reform.v1/dialects/sqlite3"
 	"net"
 	"net/rpc"
 	"os"
@@ -33,17 +34,19 @@ import (
 )
 
 type D struct {
-	db, dbJournal   *reform.DB
-	dbx, dbxJournal *sqlx.DB
-	w               *copydata.NotifyWindow // окно для отправки сообщений WM_COPYDATA дельфи-приложению
-	cfg             *data.Config
-	ctx             context.Context
-	hardware        hardware
-	logFields       logrus.Fields
-	portMeasurer    *comport.Port
-	portGas         *comport.Port
-	muCurrentWork   sync.Mutex
-	currentWork     *journal.Work
+	dbProducts    *reform.DB
+	dbJournal     *reform.DB
+	dbxProducts   *sqlx.DB
+	dbxJournal    *sqlx.DB
+	w             *copydata.NotifyWindow // окно для отправки сообщений WM_COPYDATA дельфи-приложению
+	cfg           *data.Config
+	ctx           context.Context
+	hardware      hardware
+	logFields     logrus.Fields
+	portMeasurer  *comport.Port
+	portGas       *comport.Port
+	muCurrentWork sync.Mutex
+	currentWork   *journal.Work
 }
 
 type hardware struct {
@@ -54,41 +57,49 @@ type hardware struct {
 	ctx context.Context
 }
 
-func Run(skipRunUIApp bool) {
+func Run(skipRunUIApp, createNewDB bool) error {
 
-	dbConn, err := sql.Open("sqlite3", elco.DataFileName())
+	dataFolderPath, err := elco.DataFolderPath()
 	if err != nil {
-		logrus.Fatalln("Не удалось открыть основной файл данных:", err, elco.DataFileName())
+		return merry.Wrap(err)
 	}
-	dbConn.SetMaxIdleConns(1)
-	dbConn.SetMaxOpenConns(1)
-	dbConn.SetConnMaxLifetime(0)
+	productsDataFileName := filepath.Join(dataFolderPath, "elco.sqlite")
+	journalDataFileName := filepath.Join(dataFolderPath, "journal.sqlite")
 
-	dbJournalConn, err := sql.Open("sqlite3", elco.JournalFileName())
+	logrus.Infoln(productsDataFileName)
+	logrus.Infoln(journalDataFileName)
+
+	if createNewDB {
+		logrus.Warn("delete data base file because new-db flag was set")
+		for _, fileName := range []string{productsDataFileName, journalDataFileName} {
+			if err := os.Remove(fileName); err != nil {
+				logrus.Errorf("unable to delete file: %s: %v", fileName, err)
+			}
+		}
+	}
+
+	dbProductsConn, err := sql.Open("sqlite3", productsDataFileName)
 	if err != nil {
-		logrus.Fatalln("Не удалось открыть журнал:", err, elco.JournalFileName())
+		return merry.WithMessagef(err, "не удалось открыть файл данных: %s", productsDataFileName)
+	}
+	dbProductsConn.SetMaxIdleConns(1)
+	dbProductsConn.SetMaxOpenConns(1)
+	dbProductsConn.SetConnMaxLifetime(0)
+
+	dbJournalConn, err := sql.Open("sqlite3", journalDataFileName)
+	if err != nil {
+		return merry.WithMessagef(err, "не удалось открыть журнал: %s", journalDataFileName)
 	}
 	dbJournalConn.SetMaxIdleConns(1)
 	dbJournalConn.SetMaxOpenConns(1)
 	dbJournalConn.SetConnMaxLifetime(0)
 
-	dbJournal, err := journal.Open(dbJournalConn, nil)
-	if err != nil {
-		logrus.Fatalln("Не удалось открыть журнал:", err, elco.JournalFileName())
-	}
-
-	// reform.NewPrintfLogger(logrus.Debugf)
-	db, err := data.Open(dbConn, nil)
-	if err != nil {
-		logrus.Fatalln("Не удалось открыть основной файл данных:", err, elco.DataFileName())
-	}
 	x := &D{
-		db:         db,
-		dbx:        sqlx.NewDb(dbConn, "sqlite3"),
-		dbJournal:  dbJournal,
-		dbxJournal: sqlx.NewDb(dbJournalConn, "sqlite3"),
-		cfg:        data.OpenConfig(db),
-		w:          copydata.NewNotifyWindow(elco.ServerWindowClassName, elco.PeerWindowClassName),
+		dbProducts:  reform.NewDB(dbProductsConn, sqlite3.Dialect, nil),
+		dbJournal:   reform.NewDB(dbJournalConn, sqlite3.Dialect, nil),
+		dbxProducts: sqlx.NewDb(dbProductsConn, "sqlite3"),
+		dbxJournal:  sqlx.NewDb(dbJournalConn, "sqlite3"),
+		w:           copydata.NewNotifyWindow(elco.ServerWindowClassName, elco.PeerWindowClassName),
 		hardware: hardware{
 			Continue:  func() {},
 			cancel:    func() {},
@@ -97,6 +108,13 @@ func Run(skipRunUIApp bool) {
 		},
 		logFields: make(logrus.Fields),
 	}
+	if err := data.Init(x.dbProducts); err != nil {
+		return merry.Wrap(err)
+	}
+	x.cfg = data.OpenConfig(x.dbProducts)
+	if err := journal.Init(x.dbJournal); err != nil {
+		return merry.Wrap(err)
+	}
 	elco.Logger.AddHook(x)
 	logrus.AddHook(x)
 	x.portMeasurer = comport.NewPort("стенд", x.onComport)
@@ -104,15 +122,18 @@ func Run(skipRunUIApp bool) {
 
 	notifyIcon, err := walk.NewNotifyIcon()
 	if err != nil {
-		logrus.Panicln("unable to create the notify icon:", err)
+		return merry.WithMessage(err, "unable to create the notify icon")
 	}
-	setupNotifyIcon(notifyIcon, x.w.CloseWindow)
+
+	if err := setupNotifyIcon(notifyIcon, x.w.CloseWindow); err != nil {
+		return merry.WithMessage(err, "unable to create the notify icon")
+	}
 
 	for _, svcObj := range []interface{}{
-		api.NewPartiesCatalogue(x.db, x.dbx),
-		api.NewLastParty(x.db),
-		api.NewProductTypes(x.db),
-		api.NewProductFirmware(x.db, x),
+		api.NewPartiesCatalogue(x.dbProducts, x.dbxProducts),
+		api.NewLastParty(x.dbProducts),
+		api.NewProductTypes(x.dbProducts),
+		api.NewProductFirmware(x.dbProducts, x),
 		api.NewSetsSvc(x.cfg),
 		api.NewJournal(x.dbJournal, x.dbxJournal),
 		&api.RunnerSvc{Runner: x},
@@ -139,7 +160,7 @@ func Run(skipRunUIApp bool) {
 
 	if !skipRunUIApp {
 		if err := runUIApp(); err != nil {
-			logrus.Panicln(err)
+			return merry.WithMessage(err, "unable to execute gui application")
 		}
 	} else {
 		logrus.Warn("skip running ui flag set")
@@ -172,8 +193,9 @@ func Run(skipRunUIApp bool) {
 			win.PostMessage(hWnd, win.WM_CLOSE, 0, 0)
 		}
 	})
-	logrus.Infoln("close sqlite data base on exit:", dbConn.Close())
+	logrus.Infoln("close sqlite data base on exit:", dbProductsConn.Close())
 	logrus.Infoln("save config on exit:", x.cfg.Save())
+	return nil
 }
 
 func (x *D) onComport(w comport.Entry) {
@@ -210,41 +232,32 @@ func mustPipeListener() net.Listener {
 }
 
 func runUIApp() error {
-	const (
-		peerAppExe = "elcoui.exe"
-	)
-	dir := filepath.Dir(os.Args[0])
-
-	if _, err := os.Stat(filepath.Join(dir, peerAppExe)); os.IsNotExist(err) {
-		dir = elco.AppName.Dir()
+	fileName, err := elco.CurrentDirOrProfileFileName("elcoui.exe")
+	if err != nil {
+		return merry.Wrap(err)
 	}
-
-	cmd := exec.Command(filepath.Join(dir, peerAppExe))
-	cmd.Stdout = os.Stdout
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	return cmd.Start()
+	return exec.Command(fileName).Start()
 }
 
-func setupNotifyIcon(notifyIcon *walk.NotifyIcon, exitFunc func()) {
+func setupNotifyIcon(notifyIcon *walk.NotifyIcon, exitFunc func()) error {
 	iconBytes, err := FSByte(false, "/img/appicon.ico")
 	if err != nil {
-		logrus.Panicf("unable to restore elco icon bytes: %v", err)
+		return merry.WithMessagef(err, "unable to restore elco icon bytes")
 	}
 
 	//We load our icon from a temp file.
 	appIcon, err := winapp.IconFromBytes(iconBytes)
 	if err != nil {
-		log.Panicln(err)
+		return merry.Wrap(err)
 	}
 
 	// Set the icon and a tool tip text.
 	if err := notifyIcon.SetIcon(appIcon); err != nil {
-		log.Panicln(err)
+		return merry.Wrap(err)
 	}
 
 	if err := notifyIcon.SetToolTip("Производство ЭХЯ CO"); err != nil {
-		logrus.Panic(err)
+		return merry.Wrap(err)
 	}
 
 	// When the left mouse button is pressed, bring up our balloon.
@@ -254,14 +267,14 @@ func setupNotifyIcon(notifyIcon *walk.NotifyIcon, exitFunc func()) {
 		}
 		logrus.Debugln("sys tray: clicked")
 		if err := runUIApp(); err != nil {
-			logrus.Panicln("unable to run ui elco: ", err)
+			logrus.Panicln("unable to run gui aplication elcoui.exe:", err)
 		}
 	})
 
 	// We put an exit action into the context menu.
 	exitAction := walk.NewAction()
 	if err := exitAction.SetText("Выход"); err != nil {
-		logrus.Panic(err)
+		return merry.Wrap(err)
 	}
 	exitAction.Triggered().Attach(func() {
 		logrus.Debugln("sys tray: \"Выход\" clicked")
@@ -269,13 +282,14 @@ func setupNotifyIcon(notifyIcon *walk.NotifyIcon, exitFunc func()) {
 	})
 
 	if err := notifyIcon.ContextMenu().Actions().Add(exitAction); err != nil {
-		logrus.Panic(err)
+		return merry.Wrap(err)
 	}
 
 	// The notify icon is hidden initially, so we have to make it visible.
 	if err := notifyIcon.SetVisible(true); err != nil {
-		logrus.Panic(err)
+		return merry.Wrap(err)
 	}
+	return nil
 }
 
 func (x *D) Levels() []logrus.Level {

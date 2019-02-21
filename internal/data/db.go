@@ -2,14 +2,19 @@ package data
 
 import (
 	"database/sql"
+	"github.com/ansel1/merry"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/reform.v1"
 )
 
 //go:generate go run github.com/fpawel/elco/cmd/utils/sqlstr/...
 
-func DeleteEmptyRecords(db *reform.DB) error {
-	_, err := db.Exec(`
+func Init(db *reform.DB) error {
+	_, err := db.Exec(SQLCreate)
+	if err != nil {
+		return merry.Wrap(err)
+	}
+	_, err = db.Exec(`
 DELETE
 FROM product
 WHERE party_id NOT IN (SELECT party_id FROM last_party)  AND
@@ -35,7 +40,10 @@ DELETE
 FROM party
 WHERE NOT EXISTS(SELECT product_id FROM product WHERE party.party_id = product.party_id);
 `)
-	return err
+	if err != nil {
+		return merry.Wrap(err)
+	}
+	return nil
 }
 
 func EnsureProductTypeName(db *reform.DB, productTypeName string) error {
@@ -43,29 +51,29 @@ func EnsureProductTypeName(db *reform.DB, productTypeName string) error {
 INSERT OR IGNORE INTO product_type 
   (product_type_name, gas_name, units_name, scale, noble_metal_content, lifetime_months)
 VALUES (?, 'CO', 'мг/м3', 200, 0.1626, 18)`, productTypeName)
-	return err
+	return merry.Wrap(err)
 }
 
-func GetLastParty(db *reform.DB) (Party, error) {
-	var party Party
-	err := db.SelectOneTo(&party, `ORDER BY created_at DESC LIMIT 1;`)
+func GetLastParty(db *reform.DB, party *Party) error {
+	err := db.SelectOneTo(party, `ORDER BY created_at DESC LIMIT 1;`)
 	if err == reform.ErrNoRows {
 		partyID, err := CreateNewParty(db)
-		if err == nil {
-			err = db.FindByPrimaryKeyTo(&party, partyID)
+		if err != nil {
+			return merry.Wrap(err)
 		}
-		return party, err
+		err = db.FindByPrimaryKeyTo(party, partyID)
 	}
 	if err != nil {
-		return party, err
+		return merry.Wrap(err)
 	}
-	return party, err
+	party.Last = true
+	return nil
 }
 
 func GetPartyProducts(db *reform.DB, party *Party) error {
 	products, err := GetProductsInfoWithPartyID(db, party.PartyID)
 	if err != nil {
-		return err
+		return merry.Wrap(err)
 	}
 	party.Products = products
 	return nil
@@ -74,7 +82,7 @@ func GetPartyProducts(db *reform.DB, party *Party) error {
 func GetPartyIsLast(db *reform.DB, party *Party) error {
 	lastPartyID, err := GetLastPartyID(db)
 	if err != nil {
-		return err
+		return merry.Wrap(err)
 	}
 	party.Last = party.PartyID == lastPartyID
 	return nil
@@ -83,14 +91,14 @@ func GetPartyIsLast(db *reform.DB, party *Party) error {
 func CreateNewParty(db *reform.DB) (int64, error) {
 	r, err := db.Exec(`INSERT INTO party DEFAULT VALUES`)
 	if err != nil {
-		return 0, err
+		return 0, merry.Wrap(err)
 	}
 	partyID, err := r.LastInsertId()
 	if err != nil {
-		return 0, err
+		return 0, merry.Wrap(err)
 	}
 	if r, err = db.Exec(`INSERT INTO product(party_id, serial, place) VALUES (?, 1, 0)`, partyID); err != nil {
-		return 0, err
+		return 0, merry.Wrap(err)
 	}
 	logrus.Warnf("new party created: %d", partyID)
 	return partyID, nil
@@ -102,12 +110,7 @@ func GetLastPartyID(db *reform.DB) (partyID int64, err error) {
 	if err == sql.ErrNoRows {
 		return CreateNewParty(db)
 	}
-	return partyID, err
-}
-
-func DeletePartyID(db *reform.DB, partyID int64) error {
-	_, err := db.Exec(`DELETE FROM party WHERE party_id = ?;`, &partyID)
-	return err
+	return partyID, merry.Wrap(err)
 }
 
 type ProductsFilter struct {
@@ -124,15 +127,7 @@ func GetLastPartyProducts(db *reform.DB, f ProductsFilter) ([]Product, error) {
 	}
 	xs, err := db.SelectAllFrom(ProductTable, tail)
 	if err != nil {
-		return nil, err
-	}
-	return structToProductSlice(xs), nil
-}
-
-func GetProductsWithPartyID(db *reform.DB, partyID int64) ([]Product, error) {
-	xs, err := db.SelectAllFrom(ProductTable, "WHERE party_id = ?", partyID)
-	if err != nil {
-		return nil, err
+		return nil, merry.Wrap(err)
 	}
 	return structToProductSlice(xs), nil
 }
@@ -142,16 +137,6 @@ func structToProductSlice(xs []reform.Struct) (products []Product) {
 		p := x.(*Product)
 		products = append(products, *p)
 	}
-	return
-}
-
-func GetProductWithID(db *reform.DB, productID int64) (r Product, err error) {
-	err = db.FindByPrimaryKeyTo(&r, productID)
-	return
-}
-
-func GetProductInfoWithID(db *reform.DB, productID int64) (r ProductInfo, err error) {
-	err = db.FindByPrimaryKeyTo(&r, productID)
 	return
 }
 
@@ -165,18 +150,6 @@ func GetProductsInfoWithPartyID(db *reform.DB, partyID int64) ([]ProductInfo, er
 		productsInfo = append(productsInfo, *x.(*ProductInfo))
 	}
 	return productsInfo, nil
-}
-
-func ListProductTypes(db *reform.DB) ([]ProductType, error) {
-	xs, err := db.SelectAllFrom(ProductTypeTable, "")
-	if err != nil {
-		return nil, err
-	}
-	var r []ProductType
-	for _, x := range xs {
-		r = append(r, *x.(*ProductType))
-	}
-	return r, nil
 }
 
 func ListProductTypeNames(db *reform.DB) ([]string, error) {
@@ -217,24 +190,8 @@ func ListGases(db *reform.DB) ([]Gas, error) {
 	return gas, nil
 }
 
-func GetLastPartyProductInfoAtPlace(db *reform.DB, place int) (ProductInfo, error) {
-	party, err := GetLastParty(db)
-	if err != nil {
-		return ProductInfo{}, err
-	}
-	var p ProductInfo
-	err = db.SelectOneTo(&p, "WHERE party_id = ? AND place = ?", party.PartyID, place)
-	return p, err
-}
-
-func GetLastPartyProductAtPlace(db *reform.DB, place int) (Product, error) {
-	party, err := GetLastParty(db)
-	if err != nil {
-		return Product{}, err
-	}
-	var p Product
-	err = db.SelectOneTo(&p, "WHERE party_id = ? AND place = ?", party.PartyID, place)
-	return p, err
+func GetLastPartyProductAtPlace(db *reform.DB, place int, product *Product) error {
+	return db.SelectOneTo(product, "WHERE party_id = (SELECT party_id FROM last_party) AND place = ?", place)
 }
 
 func UpdateProductAtPlace(db *reform.DB, place int, f func(p *Product) error) (int64, error) {
