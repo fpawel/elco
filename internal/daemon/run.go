@@ -17,6 +17,7 @@ import (
 
 func (x *D) RunWritePlaceFirmware(place int, bytes []byte) {
 	x.runHardware(false, fmt.Sprintf("Запись прошивки места %s", data.FormatPlace(place)), func() error {
+		panic("ups!")
 		err := x.writeFirmware(place, bytes)
 		if err != nil {
 			return err

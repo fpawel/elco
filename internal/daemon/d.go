@@ -193,7 +193,8 @@ func Run(skipRunUIApp, createNewDB bool) error {
 			win.PostMessage(hWnd, win.WM_CLOSE, 0, 0)
 		}
 	})
-	logrus.Infoln("close sqlite data base on exit:", dbProductsConn.Close())
+	logrus.Infoln("close products data base on exit:", dbProductsConn.Close())
+	logrus.Infoln("close journal data base on exit:", dbJournalConn.Close())
 	logrus.Infoln("save config on exit:", x.cfg.Save())
 	return nil
 }
@@ -232,7 +233,7 @@ func mustPipeListener() net.Listener {
 }
 
 func runUIApp() error {
-	fileName, err := elco.CurrentDirOrProfileFileName("elcoui.exe")
+	fileName, err := winapp.CurrentDirOrProfileFileName(".elco", "elcoui.exe")
 	if err != nil {
 		return merry.Wrap(err)
 	}

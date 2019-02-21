@@ -2,8 +2,8 @@ package data
 
 import (
 	"encoding/json"
-	"github.com/fpawel/elco/internal/elco"
 	"github.com/fpawel/elco/pkg/serial-comm/comport"
+	"github.com/fpawel/elco/pkg/winapp"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"io/ioutil"
@@ -134,7 +134,7 @@ func defaultUserConfig() *UserConfig {
 }
 
 func openUserConfig() *UserConfig {
-	configFileName, err := elco.ConfigFileName()
+	configFileName, err := winapp.ProfileFileName(".elco", "config.json")
 	if err != nil {
 		logrus.Errorln(err, configFileName)
 		return defaultUserConfig()
@@ -156,7 +156,7 @@ func (x *UserConfig) save() error {
 	if err != nil {
 		return err
 	}
-	configFileName, err := elco.ConfigFileName()
+	configFileName, err := winapp.ProfileFileName(".elco", "config.json")
 	if err != nil {
 		return err
 	}

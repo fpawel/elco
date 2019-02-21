@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"github.com/fpawel/elco/internal/daemon"
 	"github.com/fpawel/elco/internal/elco"
 	"github.com/fpawel/elco/pkg/winapp"
@@ -17,6 +18,7 @@ func main() {
 		hWnd := winapp.FindWindow(elco.PeerWindowClassName)
 		win.ShowWindow(hWnd, win.SW_RESTORE)
 		win.SetForegroundWindow(hWnd)
+		fmt.Println("elco.exe already executing")
 		return
 	}
 

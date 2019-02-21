@@ -5,6 +5,8 @@ import (
 	"github.com/lxn/win"
 	"os"
 	"os/exec"
+	"os/user"
+	"path/filepath"
 	"syscall"
 )
 
@@ -30,4 +32,47 @@ func AppDataFolderPath() (string, error) {
 
 func ShowDirInExporer(dir string) error {
 	return exec.Command("Explorer.exe", dir).Start()
+}
+
+func ProfileFolderPath(elements ...string) (string, error) {
+
+	usr, err := user.Current()
+	if err != nil {
+		return "", merry.WithMessage(err, "unable to locate user home catalogue")
+	}
+	if len(elements) == 0 {
+		return usr.HomeDir, nil
+	}
+	elements = append([]string{usr.HomeDir}, elements...)
+	folderPath := filepath.Join(elements...)
+	if err = EnsuredDirectory(folderPath); err != nil {
+		return "", merry.Wrap(err)
+	}
+	return folderPath, nil
+}
+
+func ProfileFileName(elements ...string) (string, error) {
+	if len(elements) < 1 {
+		return "", merry.New("file name must be set")
+	}
+	profileFolderPath, err := ProfileFolderPath(elements[:len(elements)-1]...)
+	if err != nil {
+		return "", merry.Wrap(err)
+	}
+	return filepath.Join(profileFolderPath, elements[len(elements)-1]), nil
+}
+
+func CurrentDirOrProfileFileName(elements ...string) (string, error) {
+	if len(elements) < 1 {
+		return "", merry.New("file name must be set")
+	}
+	baseFileName := elements[len(elements)-1]
+	fileName := filepath.Join(filepath.Dir(os.Args[0]), baseFileName)
+	if _, err := os.Stat(fileName); os.IsNotExist(err) {
+		fileName, err = ProfileFileName(elements...)
+		if err != nil {
+			return "", merry.Wrap(err)
+		}
+	}
+	return fileName, nil
 }

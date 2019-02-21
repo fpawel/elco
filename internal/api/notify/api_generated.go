@@ -25,6 +25,7 @@ const (
 	msgStartServerApplication
 	msgReadFirmware
 	msgNewJournalEntry
+	msgHostApplicationPanic
 )
 
 func ReadCurrent(w W, arg api.ReadCurrent) {
@@ -91,4 +92,11 @@ func ReadFirmware(w W, arg data.FirmwareInfo) {
 
 func NewJournalEntry(w W, arg journal.EntryInfo) {
 	w.NotifyJson(uintptr(msgNewJournalEntry), arg)
+}
+
+func HostApplicationPanic(w W, arg string) {
+	w.NotifyStr(uintptr(msgHostApplicationPanic), arg)
+}
+func HostApplicationPanicf(w W, format string, a ...interface{}) {
+	w.Notifyf(uintptr(msgHostApplicationPanic), format, a...)
 }

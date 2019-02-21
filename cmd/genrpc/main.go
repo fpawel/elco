@@ -31,7 +31,7 @@ func main() {
 
 	dir := filepath.Join(os.Getenv("DELPHIPATH"),
 		"src", "github.com", "fpawel", "elco-gui", "api")
-	winapp.MustDir(dir)
+	winapp.EnsuredDirectory(dir)
 
 	openFile := func(fileName string) *os.File {
 		file, err := os.Create(filepath.Join(dir, fileName))
@@ -95,6 +95,10 @@ func main() {
 		{
 			"NewJournalEntry",
 			r.TypeOf((*journal.EntryInfo)(nil)).Elem(),
+		},
+		{
+			"HostApplicationPanic",
+			r.TypeOf((*string)(nil)).Elem(),
 		},
 	})
 
