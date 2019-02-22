@@ -6,8 +6,8 @@ import (
 	"github.com/ansel1/merry"
 	"github.com/fpawel/elco/pkg/errfmt"
 	"github.com/fpawel/elco/pkg/serial-comm/comm"
+	"github.com/fpawel/serial"
 	"github.com/hako/durafmt"
-	"github.com/tarm/serial"
 	"strings"
 	"sync"
 	"time"
@@ -156,6 +156,17 @@ func (x *Port) Close() error {
 	err := x.port.Close()
 	x.port = nil
 	return err
+}
+
+func (x *Port) GetAvailableBytesCount() (int, error) {
+	var (
+		errors   uint32
+		commStat serial.CommStat
+	)
+	if err := x.port.ClearCommError(&errors, &commStat); err != nil {
+		return 0, merry.WithMessage(err, "unable to get bytes to read count")
+	}
+	return int(commStat.InQue), nil
 }
 
 func (x *Port) GetResponse(commConfig comm.Config, request []byte) ([]byte, error) {
