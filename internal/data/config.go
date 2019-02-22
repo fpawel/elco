@@ -128,10 +128,10 @@ var defaultPredefinedConfig = PredefinedConfig{
 		MaxAttemptsRead:       3,
 	},
 	ComportMeasurer: comm.Config{
-		ReadByteTimeoutMillis: 50,
-		ReadTimeoutMillis:     1000,
-		MaxAttemptsRead:       0,
+		ReadByteTimeoutMillis: 20,
+		ReadTimeoutMillis:     500,
+		MaxAttemptsRead:       30,
 	},
 	StatusTimeoutSeconds: 3,
-	ReadRangeDelayMillis: 200,
+	ReadRangeDelayMillis: 10,
 }

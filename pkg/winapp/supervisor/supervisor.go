@@ -16,14 +16,11 @@ import (
 )
 
 func ExecuteProcess(exeFileName string, args ...string) (string, error) {
-	exeFileName, err := winapp.CurrentDirOrProfileFileName(".elco", "elco.exe")
-	if err != nil {
-		return "", merry.Wrap(err)
-	}
 	exeDir := filepath.Dir(exeFileName)
 	t := time.Now()
 	logDir := filepath.Join(exeDir, "logs")
-	if err := winapp.EnsuredDirectory(logDir); err != nil {
+	err := winapp.EnsuredDirectory(logDir)
+	if err != nil {
 		return "", merry.Wrap(err)
 	}
 	logFileName := filepath.Join(logDir, fmt.Sprintf("%s.log", t.Format("2006-01-02")))
@@ -43,7 +40,6 @@ func ExecuteProcess(exeFileName string, args ...string) (string, error) {
 	if err := cmd.Start(); err != nil {
 		return "", merry.Wrap(err)
 	}
-
 	if err := cmd.Wait(); err != nil {
 		panicStr := panicBuffer.String()
 		panicParsed := bytes.NewBuffer(nil)

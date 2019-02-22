@@ -17,8 +17,7 @@ import (
 
 func (x *D) RunWritePlaceFirmware(place int, bytes []byte) {
 	x.runHardware(false, fmt.Sprintf("Запись прошивки места %s", data.FormatPlace(place)), func() error {
-		panic("ups!")
-		err := x.writeFirmware(place, bytes)
+		err := x.writePlaceFirmware(place, bytes)
 		if err != nil {
 			return err
 		}
@@ -32,7 +31,7 @@ func (x *D) RunWritePlaceFirmware(place int, bytes []byte) {
 
 func (x *D) RunReadPlaceFirmware(place int) {
 	x.runHardware(false, fmt.Sprintf("Считывание места %d", place+1), func() error {
-		b, err := x.readFirmware(place)
+		b, err := x.readPlaceFirmware(place)
 		if err != nil {
 			return err
 		}
@@ -51,7 +50,7 @@ func (x *D) RunReadPlaceFirmware(place int) {
 }
 
 func (x *D) RunWritePartyFirmware() {
-	x.runHardware(false, "Прошивка партии", x.writePartyFirmware)
+	x.runHardware(true, "Прошивка партии", x.writePartyFirmware)
 }
 
 func (x *D) RunMainError() {

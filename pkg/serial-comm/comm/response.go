@@ -34,13 +34,6 @@ func (x Config) ReadByteTimeout() time.Duration {
 	return time.Duration(x.ReadByteTimeoutMillis) * time.Millisecond
 }
 
-func DefaultConfig() Config {
-	return Config{
-		ReadTimeoutMillis:     1000,
-		ReadByteTimeoutMillis: 50,
-	}
-}
-
 type responseReader struct {
 	request    []byte
 	readWriter io.ReadWriter
