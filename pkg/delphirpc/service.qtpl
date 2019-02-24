@@ -72,7 +72,7 @@ end;
 
 {% func (x method) genSetParam(p param) %}{% collapsespace %}
     {%if x.namedParams %} 
-        {%s= genSetField(p.name) %}
+        {%s= p.setFieldInstruction() %}
     {% else %}
         req.AsArray.Add({%s p.name %})
     {% endif %}    
@@ -87,25 +87,21 @@ end;
 		function 
 	{% endif %} 
     {%s headPart %}{%s x.methodName %}
-    (
     {%if len(x.params) > 0 %}
+        (
         {% for i, p := range x.params %}
-            {%s p.name %} : 
-                {%if p.isArray %} 
-                    TArray< {%s p.typeName %} > 
-                {% else %} 
-                    {%s p.typeName %} 
-                {% endif %}                 
+            {%s p.name %} : {%s= p.String() %}
             {%if i < len(x.params) - 1 %} ; {% endif %} 
         {% endfor %}
-	{% endif %}  
-    )
-    {%if !x.procedure %}        
-        :  
-        {%if x.retArray %} 
+	    )
+    {% endif %}
+
+    {%if !x.procedure %}
+        :
+        {%if x.retArray %}
             {%s= "TArray<" %} {%s= x.retDelphiType %} {%s= ">" %}
-        {% else %}  
+        {% else %}
             {%s= x.retDelphiType %}
-        {% endif %}  
+        {% endif %}
     {% endif %}
 {% endcollapsespace %}{% endfunc %}

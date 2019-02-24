@@ -21,7 +21,7 @@ type FirmwareRunner interface {
 }
 
 type FirmwareInfo2 struct {
-	Place,
+	Place                                  int
 	Year, Month, Day, Hour, Minute, Second int
 	Sensitivity, Serial, ProductType,
 	Gas, Units, ScaleBegin, ScaleEnd string

@@ -32,6 +32,23 @@ type method struct {
 type param struct {
 	name, typeName string
 	isArray        bool
+	isStructure    bool
+}
+
+func (x param) String() string {
+	if x.isArray {
+		return "TArray<" + x.typeName + ">"
+	}
+	return x.typeName
+}
+
+func (x param) setFieldInstruction() string {
+	if x.isStructure {
+		return fmt.Sprintf("req['%s'] := SO(TJson.ObjectToJsonString(%s)); %s.Free", x.name, x.name, x.name)
+	}
+
+	return fmt.Sprintf("SuperObject_SetField(req, '%s', %s)",
+		x.name, x.name)
 }
 
 func NewServicesSrc(pipe, unitName, dataUnitName string, types []r.Type, ta typesNames) *ServicesSrc {
@@ -98,6 +115,7 @@ func (x *ServicesSrc) method(met r.Method) (m method) {
 			case r.Struct:
 				x.DataTypes.addType(f.Type)
 				p.typeName = delphiTypeName(x.DataTypes.typesNames, f.Type)
+				p.isStructure = true
 			default:
 				p.typeName = delphiPlainOldTypeName(f.Type)
 			}
@@ -128,11 +146,6 @@ func (x *ServicesSrc) method(met r.Method) (m method) {
 		m.retPODType = true
 	}
 	return
-}
-
-func genSetField(paramName string) string {
-	return fmt.Sprintf("SuperObject_SetField(req, '%s', %s)",
-		paramName, paramName)
 }
 
 func (x method) remoteMethod(serviceName string) string {

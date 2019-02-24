@@ -314,7 +314,7 @@ func (x method) streamgenSetParam(qw422016 *qt422016.Writer, p param) {
 	//line service.qtpl:74
 	if x.namedParams {
 		//line service.qtpl:75
-		qw422016.N().S(genSetField(p.name))
+		qw422016.N().S(p.setFieldInstruction())
 		//line service.qtpl:76
 	} else {
 		//line service.qtpl:76
@@ -372,87 +372,75 @@ func (x method) streamsignature(qw422016 *qt422016.Writer, headPart string) {
 	qw422016.E().S(headPart)
 	//line service.qtpl:89
 	qw422016.E().S(x.methodName)
-	//line service.qtpl:89
-	qw422016.N().S(`( `)
-	//line service.qtpl:91
+	//line service.qtpl:90
 	if len(x.params) > 0 {
+		//line service.qtpl:90
+		qw422016.N().S(`( `)
 		//line service.qtpl:92
 		for i, p := range x.params {
 			//line service.qtpl:93
 			qw422016.E().S(p.name)
 			//line service.qtpl:93
 			qw422016.N().S(`: `)
+			//line service.qtpl:93
+			qw422016.N().S(p.String())
 			//line service.qtpl:94
-			if p.isArray {
-				//line service.qtpl:94
-				qw422016.N().S(`TArray< `)
-				//line service.qtpl:95
-				qw422016.E().S(p.typeName)
-				//line service.qtpl:95
-				qw422016.N().S(`> `)
-				//line service.qtpl:96
-			} else {
-				//line service.qtpl:97
-				qw422016.E().S(p.typeName)
-				//line service.qtpl:98
-			}
-			//line service.qtpl:99
 			if i < len(x.params)-1 {
-				//line service.qtpl:99
+				//line service.qtpl:94
 				qw422016.N().S(`; `)
-				//line service.qtpl:99
+				//line service.qtpl:94
 			}
-			//line service.qtpl:100
+			//line service.qtpl:95
 		}
-		//line service.qtpl:101
+		//line service.qtpl:95
+		qw422016.N().S(`) `)
+		//line service.qtpl:97
 	}
-	//line service.qtpl:101
-	qw422016.N().S(`) `)
-	//line service.qtpl:103
+	//line service.qtpl:99
 	if !x.procedure {
-		//line service.qtpl:103
+		//line service.qtpl:99
 		qw422016.N().S(`: `)
-		//line service.qtpl:105
+		//line service.qtpl:101
 		if x.retArray {
-			//line service.qtpl:106
+			//line service.qtpl:102
 			qw422016.N().S("TArray<")
-			//line service.qtpl:106
+			//line service.qtpl:102
 			qw422016.N().S(x.retDelphiType)
-			//line service.qtpl:106
+			//line service.qtpl:102
 			qw422016.N().S(">")
-			//line service.qtpl:107
+			//line service.qtpl:103
 		} else {
-			//line service.qtpl:108
+			//line service.qtpl:104
 			qw422016.N().S(x.retDelphiType)
-			//line service.qtpl:109
+			//line service.qtpl:105
 		}
-		//line service.qtpl:110
+		//line service.qtpl:106
 	}
-//line service.qtpl:111
+//line service.qtpl:107
 }
 
-//line service.qtpl:111
+//line service.qtpl:107
 func (x method) writesignature(qq422016 qtio422016.Writer, headPart string) {
-	//line service.qtpl:111
+	//line service.qtpl:107
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line service.qtpl:111
+	//line service.qtpl:107
 	x.streamsignature(qw422016, headPart)
-	//line service.qtpl:111
+	//line service.qtpl:107
 	qt422016.ReleaseWriter(qw422016)
-//line service.qtpl:111
+//line service.qtpl:107
 }
 
-//line service.qtpl:111
+//line service.qtpl:107
 func (x method) signature(headPart string) string {
-	//line service.qtpl:111
+	//line service.qtpl:107
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line service.qtpl:111
+	//line service.qtpl:107
 	x.writesignature(qb422016, headPart)
-	//line service.qtpl:111
+	//line service.qtpl:107
 	qs422016 := string(qb422016.B)
-	//line service.qtpl:111
+	//line service.qtpl:107
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line service.qtpl:111
+	//line service.qtpl:107
 	return qs422016
-//line service.qtpl:111
+//line service.qtpl:107
 }

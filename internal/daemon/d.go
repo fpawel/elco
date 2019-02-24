@@ -218,7 +218,7 @@ func (x *D) serveRPC(ln net.Listener, ctx context.Context) {
 		case winio.ErrPipeListenerClosed:
 			return
 		default:
-			fmt.Println("rpc pipe error:", err)
+			logrus.Errorln("rpc pipe error:", err)
 			return
 		}
 	}
