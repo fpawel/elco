@@ -13,6 +13,9 @@ func Values(err error) (m logrus.Fields) {
 		}
 		m[fmt.Sprintf("%v", k)] = fmt.Sprintf("%v", v)
 	}
+	if len(m) == 0 {
+		m = logrus.Fields{}
+	}
 	m["stack"] = merry.Stacktrace(err)
 	return
 }

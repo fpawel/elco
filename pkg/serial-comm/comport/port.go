@@ -158,7 +158,7 @@ func (x *Port) Close() error {
 	return err
 }
 
-func (x *Port) GetAvailableBytesCount() (int, error) {
+func (x *Port) BytesToReadCount() (int, error) {
 	var (
 		errors   uint32
 		commStat serial.CommStat
@@ -173,7 +173,7 @@ func (x *Port) GetResponse(commConfig comm.Config, request []byte) ([]byte, erro
 	//x.Port.GetResponse(request, x.Config)
 
 	t := time.Now()
-	response, err := comm.GetResponse(x.ctx, commConfig, x, request)
+	response, err := comm.GetResponse(x.ctx, commConfig, x, x, request)
 	duration := time.Since(t)
 
 	if err == context.DeadlineExceeded {

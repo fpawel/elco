@@ -12,7 +12,6 @@ import (
 	"github.com/fpawel/elco/pkg/serial-comm/modbus"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"log"
 	"sort"
 	"time"
 )
@@ -45,11 +44,6 @@ func (x *D) switchGas(n int) error {
 }
 
 func (x *D) doSwitchGas(n int) error {
-	if !x.portGas.Opened() {
-		if err := x.portGas.Open(x.cfg.User().ComportGas, 9600, 0, context.Background()); err != nil {
-			return err
-		}
-	}
 
 	logrus.WithField("code", n).Warn("switch gas")
 
@@ -70,12 +64,18 @@ func (x *D) doSwitchGas(n int) error {
 	case 3:
 		req.Data[6] = 4
 	default:
-		log.Panicf("wrong gas code: %d", n)
+		return merry.Errorf("wrong gas code: %d", n)
 	}
 
 	responseReader := comport.Comm{
 		Port:   x.portGas,
 		Config: x.cfg.Predefined().ComportGas,
+	}
+
+	if !x.portGas.Opened() {
+		if err := x.portGas.Open(x.cfg.User().ComportGas, 9600, 0, context.Background()); err != nil {
+			return err
+		}
 	}
 
 	if _, err := responseReader.GetResponse(req.Bytes()); err != nil {
@@ -126,7 +126,11 @@ func (x *D) delay(what string, duration time.Duration) error {
 
 	defer notify.Delay(x.w, api.DelayInfo{Run: false})
 	for {
-		productsWithSerials, err := data.GetLastPartyProducts(x.dbProducts, data.ProductsFilter{WithSerials: true})
+		productsWithSerials, err := data.GetLastPartyProducts(x.dbProducts,
+			data.ProductsFilter{
+				WithSerials:    true,
+				WithProduction: true,
+			})
 		if err != nil {
 			return err
 		}
@@ -146,12 +150,12 @@ func (x *D) delay(what string, duration time.Duration) error {
 			default:
 				block := products[0].Place / 8
 				for _, err := x.readBlockMeasure(block); err != nil; _, err = x.readBlockMeasure(block) {
-					if err == context.Canceled {
+					if merry.Is(err, context.Canceled) {
 						return err
 					}
 					notify.Warning(x.w, fmt.Sprintf("фоновый опрос: блок измерения %d: %v", block+1, err))
-					if x.hardware.ctx.Err() == context.Canceled {
-						return err
+					if ctx.Err() != nil {
+						return ctx.Err()
 					}
 				}
 			}

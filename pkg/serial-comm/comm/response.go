@@ -8,16 +8,18 @@ import (
 	"time"
 )
 
-type ResponseReader interface {
+type BytesToReadCounter interface {
 	io.ReadWriter
-	GetAvailableBytesCount() (int, error)
+	BytesToReadCount() (int, error)
 }
 
-func GetResponse(ctx context.Context, config Config, responseReader ResponseReader, request []byte) ([]byte, error) {
+func GetResponse(ctx context.Context, config Config, readWriter io.ReadWriter,
+	bytesToReadCounter BytesToReadCounter, request []byte) ([]byte, error) {
 	return reader{
-		ResponseReader: responseReader,
-		config:         config,
-		request:        request,
+		bc:      bytesToReadCounter,
+		rw:      readWriter,
+		config:  config,
+		request: request,
 	}.getResponse(ctx)
 }
 
@@ -36,7 +38,8 @@ func (x Config) ReadByteTimeout() time.Duration {
 }
 
 type reader struct {
-	ResponseReader
+	bc      BytesToReadCounter
+	rw      io.ReadWriter
 	request []byte
 	config  Config
 }
@@ -93,8 +96,8 @@ func (x reader) getResponse(parentCtx context.Context) ([]byte, error) {
 func (x reader) write() error {
 
 	t := time.Now()
-	writtenCount, err := x.Write(x.request)
-	for ; err == nil && writtenCount == 0 && time.Since(t) < x.config.ReadTimeout(); writtenCount, err = x.Write(x.request) {
+	writtenCount, err := x.rw.Write(x.request)
+	for ; err == nil && writtenCount == 0 && time.Since(t) < x.config.ReadTimeout(); writtenCount, err = x.rw.Write(x.request) {
 		// COMPORT PENDING
 		time.Sleep(50 * time.Millisecond)
 	}
@@ -111,42 +114,50 @@ func (x reader) write() error {
 
 func (x reader) waitForResponse(ctx context.Context, c chan result) {
 
+	var response []byte
+	ctxReady := context.Background()
+
 	for {
 		select {
 
 		case <-ctx.Done():
 			return
 
+		case <-ctxReady.Done():
+			c <- result{response, nil}
+			return
+
 		default:
-
-			availableBytesCount, err := x.GetAvailableBytesCount()
-
+			bytesToReadCount, err := x.bc.BytesToReadCount()
 			if err != nil {
-				c <- result{err: merry.Wrap(err)}
+				c <- result{response, merry.Wrap(err)}
 				return
 			}
 
-			if availableBytesCount == 0 {
+			if bytesToReadCount == 0 {
 				time.Sleep(time.Millisecond)
 				continue
 			}
-
-			response := make([]byte, availableBytesCount)
-
-			readCount, err := x.Read(response)
+			b, err := x.read(bytesToReadCount)
 			if err != nil {
-				c <- result{err: merry.Wrap(err)}
+				c <- result{response, merry.WithMessagef(err, "[% X]", response)}
 				return
 			}
-
-			if readCount != availableBytesCount {
-				c <- result{err: merry.Errorf("await %d bytes, %d read, [% X]",
-					availableBytesCount, readCount, response)}
-				return
-			}
-
-			c <- result{response: response}
-			return
+			response = append(response, b...)
+			ctx = context.Background()
+			ctxReady, _ = context.WithTimeout(context.Background(), x.config.ReadByteTimeout())
 		}
 	}
+}
+
+func (x reader) read(bytesToReadCount int) ([]byte, error) {
+	b := make([]byte, bytesToReadCount)
+	readCount, err := x.rw.Read(b)
+	if err != nil {
+		return nil, merry.Wrap(err)
+	}
+	if readCount != bytesToReadCount {
+		return nil, merry.Errorf("await %d bytes, %d read", bytesToReadCount, readCount)
+	}
+	return b, nil
 }

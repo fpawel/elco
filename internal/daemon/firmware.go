@@ -28,6 +28,7 @@ func (x *D) writePartyFirmware() error {
 
 	products, err := data.GetLastPartyProducts(x.dbProducts, data.ProductsFilter{
 		WithProduction: true,
+		WithSerials:    true,
 	})
 	if err != nil {
 		return err
@@ -39,6 +40,8 @@ func (x *D) writePartyFirmware() error {
 	}
 	sort.Strings(placesStrs)
 	placesStr := strings.Join(placesStrs, ", ")
+
+	logrus.Infof("запись партии: %s", placesStr)
 
 	placeBytes := map[int][]byte{}
 
