@@ -71,7 +71,7 @@ procedure HandleCopydata(var Message: TMessage);
 	}
 	//line notify.qtpl:15
 	qw422016.N().S(`
-procedure Cancel;
+procedure NotifyServices_SetEnabled(enabled:boolean);
 
 implementation 
 `)
@@ -118,11 +118,11 @@ var
 		//line notify.qtpl:27
 	}
 	//line notify.qtpl:27
-	qw422016.N().S(`_cancel:boolean;
+	qw422016.N().S(`_enabled:boolean;
 
-procedure Cancel;
+procedure NotifyServices_SetEnabled(enabled:boolean);
 begin
-   _cancel := true;
+   _enabled := enabled;
 end;
 
 procedure HandleCopydata(var Message: TMessage);
@@ -131,7 +131,7 @@ var
     cmd: TServerAppCmd;
     str:string;
 begin
-    if _cancel then
+    if not _enabled then
         exit;
     cd := PCOPYDATASTRUCT(Message.LParam);
     cmd := TServerAppCmd(Message.WParam);
@@ -215,7 +215,7 @@ end;
 	qw422016.N().S(`
 
 initialization
-    _cancel := false;
+    _enabled := false;
 
 end.`)
 //line notify.qtpl:70

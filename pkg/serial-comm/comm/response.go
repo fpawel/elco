@@ -13,10 +13,14 @@ type BytesToReadCounter interface {
 	BytesToReadCount() (int, error)
 }
 
-func GetResponse(ctx context.Context, config Config, readWriter io.ReadWriter,
-	bytesToReadCounter BytesToReadCounter, request []byte) ([]byte, error) {
+func GetResponse(ctx context.Context, config Config, readWriter io.ReadWriter, bc BytesToReadCounter, request []byte) ([]byte, error) {
+
+	if config.MaxAttemptsRead < 1 {
+		config.MaxAttemptsRead = 1
+	}
+
 	return reader{
-		bc:      bytesToReadCounter,
+		bc:      bc,
 		rw:      readWriter,
 		config:  config,
 		request: request,
@@ -50,7 +54,6 @@ type result struct {
 }
 
 func (x reader) getResponse(parentCtx context.Context) ([]byte, error) {
-
 	for attempt := 0; attempt < x.config.MaxAttemptsRead; attempt++ {
 		if err := x.write(); err != nil {
 			return nil, err

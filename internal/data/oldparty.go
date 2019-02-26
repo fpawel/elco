@@ -144,7 +144,6 @@ func (s Party) OldParty(products []Product) (p OldParty) {
 			N:                y.Place,
 			IsReportIncluded: y.Production,
 			IsChecked:        true,
-			Flash:            y.Firmware,
 			I13:              f(y.I13),
 			I24:              f(y.I24),
 			I35:              f(y.I35),

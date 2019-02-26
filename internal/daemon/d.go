@@ -177,8 +177,6 @@ func Run(skipRunUIApp, createNewDB bool) error {
 		win.DispatchMessage(&msg)
 	}
 
-	x.hardware.cancel()
-
 	cancel()
 
 	logrus.Debugln("close pipe listener on exit:", ln.Close())

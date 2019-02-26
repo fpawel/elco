@@ -11,9 +11,11 @@ import (
 )
 
 type UserConfig struct {
-	ComportMeasurer, ComportGas string
-	LogComports                 bool
-	ChipType                    int
+	ComportMeasurer string
+	ComportGas      string
+	LogComports     bool
+	ChipType        int
+	CheckBlock      [12]bool
 }
 
 func (x *UserConfig) Sections() []ConfigSection {
@@ -126,6 +128,7 @@ func (x *UserConfig) setValue(section, property, value string) error {
 
 func defaultUserConfig() *UserConfig {
 	return &UserConfig{
+		CheckBlock:      [12]bool{true, true, true, true, true, true, true, true, true, true, true, true},
 		ChipType:        16,
 		ComportMeasurer: "COM1",
 		ComportGas:      "COM2",

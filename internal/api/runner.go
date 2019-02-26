@@ -3,7 +3,7 @@ package api
 import "errors"
 
 type Runner interface {
-	RunReadCurrent([12]bool)
+	RunReadCurrent()
 	StopHardware()
 	SkipDelay()
 	RunTemperature([3]bool)
@@ -30,15 +30,10 @@ func (x *RunnerSvc) RunTemperature(workCheck [3]bool, _ *struct{}) error {
 	return errors.New("необходимо отметить как минимум одну теммпературу")
 }
 
-func (x *RunnerSvc) RunReadCurrent(checkPlaces [12]bool, _ *struct{}) error {
+func (x *RunnerSvc) RunReadCurrent(_ struct{}, _ *struct{}) error {
 
-	for _, v := range checkPlaces {
-		if v {
-			x.Runner.RunReadCurrent(checkPlaces)
-			return nil
-		}
-	}
-	return errors.New("необходимо отметить как минимум один блок измерительный из двенадцати")
+	x.Runner.RunReadCurrent()
+	return nil
 }
 
 func (x *RunnerSvc) StopHardware(_ struct{}, _ *struct{}) error {

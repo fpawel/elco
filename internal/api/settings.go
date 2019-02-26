@@ -55,3 +55,16 @@ func (x *SettingsSvc) SetDefaultPredefinedConfig(_ struct{}, r *string) error {
 	x.c.SetPredefined(p)
 	return nil
 }
+
+type GetCheckBlocksArg struct {
+	Check [12]bool
+}
+
+func (x *SettingsSvc) GetCheckBlocks(_ struct{}, r *GetCheckBlocksArg) error {
+	r.Check = x.c.User().CheckBlock
+	return nil
+}
+
+func (x *SettingsSvc) SetCheckBlock(r [2]int, _ *struct{}) error {
+	return x.c.SetCheckBlock(r[0], r[1] != 0)
+}

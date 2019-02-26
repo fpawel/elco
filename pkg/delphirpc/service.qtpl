@@ -10,7 +10,8 @@ type
     public
         {% for _,m := range srv.methods %}{%s= m.signature("") %};
         {% endfor %} 
-    end;{% endfor %} 
+    end;{% endfor %}
+
 
 
 implementation 
@@ -18,7 +19,7 @@ implementation
 
 var
     pipe_conn: TPipe;
-    
+
 procedure ensure_pipe_connected;
 begin
     if Assigned(pipe_conn) then

@@ -8,7 +8,6 @@ import (
 	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/elco/internal/data/journal"
 	"github.com/fpawel/elco/pkg/errfmt"
-	"github.com/fpawel/goutils/intrng"
 	"github.com/hashicorp/go-multierror"
 	"github.com/sirupsen/logrus"
 	"sync"
@@ -81,21 +80,21 @@ func (x *D) SkipDelay() {
 	logrus.Warn("пользователь прервал задержку")
 }
 
-func (x *D) RunReadCurrent(checkPlaces [12]bool) {
-	var places, xs []int
-	for i, v := range checkPlaces {
-		if v {
-			places = append(places, i)
-			xs = append(xs, i+1)
-		}
-	}
-	x.runHardware(false, "Опрос блоков измерительных: "+intrng.Format(xs), func() error {
+func (x *D) RunReadCurrent() {
+	x.runHardware(false, "опрос блоков измерительных", func() error {
 		for {
-			for _, place := range places {
-				if _, err := x.readBlockMeasure(place); err != nil {
-					return err
+			bs := x.cfg.User().CheckBlock
+			if bs == [12]bool{} {
+				return merry.New("необходимо выбрать блок для опроса")
+			}
+			for place, check := range bs {
+				if check {
+					if _, err := x.readBlockMeasure(place); err != nil {
+						return err
+					}
 				}
 			}
+
 		}
 	})
 }

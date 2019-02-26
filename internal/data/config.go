@@ -2,6 +2,7 @@ package data
 
 import (
 	"database/sql"
+	"github.com/ansel1/merry"
 	"github.com/fpawel/elco/pkg/serial-comm/comm"
 	"gopkg.in/reform.v1"
 	"sync"
@@ -104,6 +105,16 @@ func (x *Config) Sections() (ConfigSections, error) {
 		Properties: c,
 	})
 	return r, nil
+}
+
+func (x *Config) SetCheckBlock(block int, value bool) error {
+	if block < 0 || block > 12 {
+		return merry.Errorf("block out of range: %d", block)
+	}
+	x.mu.Lock()
+	defer x.mu.Unlock()
+	x.u.CheckBlock[block] = value
+	return nil
 }
 
 func (x *Config) SetValue(section, property, value string) error {

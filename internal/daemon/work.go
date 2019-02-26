@@ -37,7 +37,7 @@ func (x *D) switchGas(n int) error {
 	}
 	s += " вручную."
 	notify.Warning(x.w, s)
-	if x.hardware.ctx.Err() == context.Canceled {
+	if merry.Is(x.hardware.ctx.Err(), context.Canceled) {
 		return err
 	}
 	return nil
@@ -114,9 +114,7 @@ func (x *D) blowGas(nGas int) error {
 func (x *D) delay(what string, duration time.Duration) error {
 
 	var ctx context.Context
-	ctx, x.hardware.skipDelay = context.WithCancel(x.hardware.ctx)
-
-	t := time.After(duration)
+	ctx, x.hardware.skipDelay = context.WithTimeout(x.hardware.ctx, duration)
 
 	notify.Delay(x.w, api.DelayInfo{
 		Run:         true,
@@ -129,8 +127,7 @@ func (x *D) delay(what string, duration time.Duration) error {
 		productsWithSerials, err := data.GetLastPartyProducts(x.dbProducts,
 			data.ProductsFilter{
 				WithSerials:    true,
-				WithProduction: true,
-			})
+				WithProduction: true})
 		if err != nil {
 			return err
 		}
@@ -138,26 +135,25 @@ func (x *D) delay(what string, duration time.Duration) error {
 			return merry.New("фоновый опрос: не задано ни одного серийного номера ЭХЯ в данной партии")
 		}
 		for _, products := range GroupProductsByBlocks(productsWithSerials) {
-
+			block := products[0].Place / 8
 			select {
-
 			case <-ctx.Done():
 				return nil
-
-			case <-t:
-				return nil
-
 			default:
-				block := products[0].Place / 8
-				for _, err := x.readBlockMeasure(block); err != nil; _, err = x.readBlockMeasure(block) {
-					if merry.Is(err, context.Canceled) {
-						return err
-					}
-					notify.Warning(x.w, fmt.Sprintf("фоновый опрос: блок измерения %d: %v", block+1, err))
-					if ctx.Err() != nil {
-						return ctx.Err()
-					}
+				_, err := x.readBlockMeasure(block)
+				if err == nil {
+					continue
 				}
+				if merry.Is(err, context.Canceled) {
+					return err
+				}
+
+				notify.Warningf(x.w, "фоновый опрос: блок измерения %d: %v", block+1, err)
+
+				if merry.Is(x.hardware.ctx.Err(), context.Canceled) {
+					return err
+				}
+				continue
 			}
 		}
 	}
@@ -255,22 +251,24 @@ func (x *D) determineProductsTemperatureCurrents(temperature data.Temperature, s
 
 func (x *D) determineProductsCurrents(fields logrus.Fields, f func(*data.Product, float64)) error {
 
-	productsWithSerials, err := data.GetLastPartyProducts(x.dbProducts, data.ProductsFilter{
-		WithSerials: true,
+	productsToWork, err := data.GetLastPartyProducts(x.dbProducts, data.ProductsFilter{
+		WithSerials:    true,
+		WithProduction: true,
 	})
 	if err != nil {
 		return err
 	}
-	if len(productsWithSerials) == 0 {
+	if len(productsToWork) == 0 {
 		return merry.New("снятие: не задано ни одного серийного номера ЭХЯ в данной партии")
 	}
-	for _, products := range GroupProductsByBlocks(productsWithSerials) {
+	blockProducts := GroupProductsByBlocks(productsToWork)
+	for _, products := range blockProducts {
 		block := products[0].Place / 8
 
 		values, err := x.readBlockMeasure(block)
 
 		for ; err != nil; values, err = x.readBlockMeasure(block) {
-			if err == context.Canceled {
+			if merry.Is(err, context.Canceled) {
 				return err
 			}
 			notify.Warning(x.w, fmt.Sprintf("снятие: блок измерения %d: %v", block+1, err))
@@ -293,7 +291,6 @@ func (x *D) determineProductsCurrents(fields logrus.Fields, f func(*data.Product
 				return err
 			}
 		}
-		return nil
 	}
 
 	var party data.Party

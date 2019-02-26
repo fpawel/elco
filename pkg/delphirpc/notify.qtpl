@@ -13,7 +13,7 @@ procedure HandleCopydata(var Message: TMessage);
 
 {% for _,m := range x.services %}procedure SetOn{%s m.serviceName %}( AHandler : {%s m.handlerType %});
 {% endfor %}
-procedure Cancel;
+procedure NotifyServices_SetEnabled(enabled:boolean);
 
 implementation 
 {%s uses(x.implUses) %}
@@ -24,11 +24,11 @@ type
 
 var
     {% for _,m := range x.services %}_On{%s m.serviceName %} : {%s strEnsureFirstT(m.typeName) %}Handler;
-    {% endfor %}_cancel:boolean;
+    {% endfor %}_enabled:boolean;
 
-procedure Cancel;
+procedure NotifyServices_SetEnabled(enabled:boolean);
 begin
-   _cancel := true;
+   _enabled := enabled;
 end;
 
 procedure HandleCopydata(var Message: TMessage);
@@ -37,7 +37,7 @@ var
     cmd: TServerAppCmd;
     str:string;
 begin
-    if _cancel then
+    if not _enabled then
         exit;
     cd := PCOPYDATASTRUCT(Message.LParam);
     cmd := TServerAppCmd(Message.WParam);
@@ -65,6 +65,6 @@ end;
 {% endfor %}
 
 initialization
-    _cancel := false;
+    _enabled := false;
 
 end.{% endfunc %}
