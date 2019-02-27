@@ -7,8 +7,6 @@ import (
 	"github.com/ansel1/merry"
 	"github.com/fpawel/elco/internal/api/notify"
 	"github.com/fpawel/elco/internal/data"
-	"github.com/fpawel/elco/pkg/errfmt"
-	"github.com/fpawel/elco/pkg/serial-comm/comport"
 	"github.com/fpawel/elco/pkg/serial-comm/modbus"
 	"github.com/hako/durafmt"
 	"github.com/sirupsen/logrus"
@@ -181,10 +179,6 @@ func (x *D) readPlaceFirmware(place int) ([]byte, error) {
 	startTime := time.Now()
 	block := place / 8
 	placeInBlock := place % 8
-	responseReader := comport.Comm{
-		Port:   x.portMeasurer,
-		Config: x.cfg.Predefined().ComportMeasurer,
-	}
 	b := make([]byte, data.FirmwareSize)
 	for i := range b {
 		b[i] = 0xff
@@ -203,18 +197,17 @@ func (x *D) readPlaceFirmware(place int) ([]byte, error) {
 				byte(count),
 			},
 		}
-		resp, err := responseReader.GetResponse(req.Bytes())
+		resp, err := x.commMeasurer().GetResponse(req.Bytes(), func(request, response []byte) error {
+			if len(response) != 10+int(count) {
+				return merry.Errorf("ожидалось %d байт ответа, получено %d",
+					10+int(count), len(response))
+			}
+			return nil
+		})
 		if err != nil {
 			return nil, err
 		}
-		if err = req.CheckResponse(resp); err != nil {
-			return nil, err
-		}
-		if len(resp) != 10+int(count) {
-			return nil, errfmt.WithReqRespMsgf(req.Bytes(), resp,
-				"ожидалось %d байт ответа, получено %d",
-				10+int(count), len(resp))
-		}
+
 		copy(b[c.addr1:c.addr1+count], resp[8:8+count])
 		if i < len(firmwareAddresses)-1 {
 			time.Sleep(time.Duration(
@@ -288,7 +281,7 @@ func (x *D) waitStatus45(block int, placesMask byte) error {
 
 		select {
 		case <-ctx.Done():
-			request, response, err := x.readStatus45(block)
+			response, err := x.readStatus45(block)
 			if err != nil {
 				return err
 			}
@@ -296,8 +289,7 @@ func (x *D) waitStatus45(block int, placesMask byte) error {
 
 			for i, b := range status {
 				if (1<<byte(i))&placesMask != 0 && b != 0 {
-					return errfmt.WithReqRespMsgf(
-						request, response,
+					return merry.Errorf(
 						"%s: таймаут %s, статус[%d]=%X",
 						data.FormatPlace(block*8+i), durafmt.Parse(t), i, b)
 				}
@@ -305,7 +297,7 @@ func (x *D) waitStatus45(block int, placesMask byte) error {
 			return nil
 
 		default:
-			request, response, err := x.readStatus45(block)
+			response, err := x.readStatus45(block)
 			if err != nil {
 				return err
 			}
@@ -318,9 +310,7 @@ func (x *D) waitStatus45(block int, placesMask byte) error {
 					}
 					statusOk = false
 					if b != 0xB2 {
-						return errfmt.WithReqRespMsgf(
-							request, response,
-							"место %s: статус[%d]=%X",
+						return merry.Errorf("место %s: статус[%d]=%X",
 							data.FormatPlace(block*8+i), i, b)
 					}
 				}
@@ -332,30 +322,16 @@ func (x *D) waitStatus45(block int, placesMask byte) error {
 	}
 }
 
-func (x *D) readStatus45(block int) (request []byte, response []byte, err error) {
-	req := modbus.Req{
+func (x *D) readStatus45(block int) ([]byte, error) {
+	return x.commMeasurer().GetResponse(modbus.Req{
 		Addr:     modbus.Addr(block) + 101,
 		ProtoCmd: 0x45,
-	}
-	request = req.Bytes()
-
-	responseReader := comport.Comm{
-		Port:   x.portMeasurer,
-		Config: x.cfg.Predefined().ComportMeasurer,
-	}
-
-	response, err = responseReader.GetResponse(req.Bytes())
-	if err != nil {
-		return
-	}
-	if err = req.CheckResponse(response); err != nil {
-		return
-	}
-	if len(response) != 12 {
-		err = errfmt.WithReqRespMsgf(request, response, "ожидалось 12 байт ответа, получено %d", len(response))
-		return
-	}
-	return
+	}.Bytes(), func(request, response []byte) error {
+		if len(response) != 12 {
+			return merry.Errorf("ожидалось 12 байт ответа, получено %d", len(response))
+		}
+		return nil
+	})
 }
 
 func (x *D) writePreparedDataToFlash(block int, placesMask byte, addr uint16, count int) error {
@@ -373,23 +349,13 @@ func (x *D) writePreparedDataToFlash(block int, placesMask byte, addr uint16, co
 	}
 	request := req.Bytes()
 
-	responseReader := comport.Comm{
-		Port:   x.portMeasurer,
-		Config: x.cfg.Predefined().ComportMeasurer,
-	}
-	response, err := responseReader.GetResponse(request)
-	if err != nil {
-		return err
-	}
-	if err = req.CheckResponse(response); err != nil {
-		return err
-	}
-
-	if !compareBytes(response, req.Bytes()) {
-		return errfmt.WithReqRespMsg(request, response, "запрос не равен ответу")
-	}
-
-	return nil
+	_, err := x.commMeasurer().GetResponse(request, func(request, response []byte) error {
+		if !compareBytes(response, req.Bytes()) {
+			return merry.New("запрос не равен ответу")
+		}
+		return nil
+	})
+	return err
 }
 
 func (x *D) sendDataToWrite42(block, placeInBlock int, b []byte) error {
@@ -403,26 +369,17 @@ func (x *D) sendDataToWrite42(block, placeInBlock int, b []byte) error {
 		}, b...),
 	}
 	request := req.Bytes()
-	responseReader := comport.Comm{
-		Port:   x.portMeasurer,
-		Config: x.cfg.Predefined().ComportMeasurer,
-	}
-	response, err := responseReader.GetResponse(request)
+	_, err := x.commMeasurer().GetResponse(request, func(request, response []byte) error {
+		if len(response) != 7 {
+			return merry.Errorf("длина ответа %d не равна 7", len(response))
+		}
+		if !compareBytes(response[:5], req.Bytes()[:5]) {
+			return merry.Errorf("% X != % X", response[:5], request[:5])
+		}
+		return nil
+	})
 
-	if err != nil {
-		return err
-	}
-	if err = req.CheckResponse(response); err != nil {
-		return err
-	}
-	if len(response) != 7 {
-		return errfmt.WithReqRespMsgf(request, response, "длина ответа %d не равна 7", len(response))
-	}
-	if !compareBytes(response[:5], req.Bytes()[:5]) {
-		return errfmt.WithReqRespMsgf(request, response, "% X != % X", response[:5], request[:5])
-	}
-
-	return nil
+	return err
 }
 
 func compareBytes(x, y []byte) bool {

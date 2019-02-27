@@ -56,18 +56,23 @@ func (x *D) RunMainError() {
 	x.runHardware(true, "Снятие основной погрешности", x.determineMainError)
 }
 
-func (x *D) RunTemperature(workCheck [3]bool) {
+func (x *D) RunTemperature(workCheck [4]bool) {
 	x.runHardware(true, "Снятие термокомпенсации", func() error {
 		for i, temperature := range []data.Temperature{20, -20, 50} {
 			if workCheck[i] {
 				notify.Statusf(x.w, "%v⁰C: снятие термокомпенсации", temperature)
 				if err := x.determineTemperature(temperature); err != nil {
-					logrus.WithField("temperature", temperature).Errorf("%v", err)
 					return err
 				}
 			}
 		}
-		return x.determineNKU2()
+		if workCheck[3] {
+			notify.Statusf(x.w, "20⁰C: повторное снятие")
+			if err := x.determineNKU2(); err != nil {
+				return err
+			}
+		}
+		return nil
 	})
 }
 

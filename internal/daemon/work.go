@@ -7,7 +7,6 @@ import (
 	"github.com/fpawel/elco/internal/api"
 	"github.com/fpawel/elco/internal/api/notify"
 	"github.com/fpawel/elco/internal/data"
-	"github.com/fpawel/elco/pkg/errfmt"
 	"github.com/fpawel/elco/pkg/serial-comm/comport"
 	"github.com/fpawel/elco/pkg/serial-comm/modbus"
 	"github.com/pkg/errors"
@@ -78,7 +77,7 @@ func (x *D) doSwitchGas(n int) error {
 		}
 	}
 
-	if _, err := responseReader.GetResponse(req.Bytes()); err != nil {
+	if _, err := responseReader.GetResponse(req.Bytes(), nil); err != nil {
 		return err
 	}
 
@@ -96,7 +95,7 @@ func (x *D) doSwitchGas(n int) error {
 		req.Data[3] = 0xD5
 	}
 
-	if _, err := responseReader.GetResponse(req.Bytes()); err != nil {
+	if _, err := responseReader.GetResponse(req.Bytes(), nil); err != nil {
 		return err
 	}
 
@@ -325,25 +324,29 @@ func GroupProductsByBlocks(ps []data.Product) (gs [][]*data.Product) {
 
 func (x *D) readBlockMeasure(block int) ([]float64, error) {
 
-	r, err := modbus.Read3BCDValues(comport.Comm{
-		Port:   x.portMeasurer,
-		Config: x.cfg.Predefined().ComportMeasurer,
-	}, modbus.Addr(block+101), 0, 8)
+	values, err := modbus.Read3BCDValues(x.commMeasurer(), modbus.Addr(block+101), 0, 8)
 
 	switch err {
 
 	case nil:
 		notify.ReadCurrent(x.w, api.ReadCurrent{
 			Block:  block,
-			Values: r.Values,
+			Values: values,
 		})
-		return r.Values, nil
+		return values, nil
 
 	case context.Canceled:
 		return nil, context.Canceled
 
 	default:
-		return nil, errfmt.WithReqResp(err, r.Request, r.Response).WithValue("block", block)
+		return nil, merry.WithValue(err, "block", block)
+	}
+}
+
+func (x *D) commMeasurer() comport.Comm {
+	return comport.Comm{
+		Port:   x.portMeasurer,
+		Config: x.cfg.Predefined().ComportMeasurer,
 	}
 }
 

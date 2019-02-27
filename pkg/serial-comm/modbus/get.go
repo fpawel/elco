@@ -2,61 +2,65 @@ package modbus
 
 import (
 	"fmt"
+	"github.com/ansel1/merry"
 	"github.com/fpawel/elco/pkg/errfmt"
+	"github.com/fpawel/elco/pkg/serial-comm/comm"
 	"github.com/hashicorp/go-multierror"
 )
 
 type responseGetter interface {
-	GetResponse([]byte) ([]byte, error)
+	GetResponse([]byte, comm.ResponseParser) ([]byte, error)
 }
 
-func read3(responseReader responseGetter, addr Addr, firstReg Var, regsCount uint16) ([]byte, []byte, error) {
+func read3(responseReader responseGetter, addr Addr, firstReg Var, regsCount uint16,
+	parseResponse comm.ResponseParser) ([]byte, error) {
 	req := Req{
 		Addr:     addr,
 		ProtoCmd: 3,
 		Data:     append(uint16b(uint16(firstReg)), uint16b(regsCount)...),
 	}
 	request := req.Bytes()
-	response, err := responseReader.GetResponse(request)
-	if err != nil {
-		return request, nil, err
-	}
-	err = req.CheckResponse(response)
-	if err != nil {
-		return request, nil, err
-	}
-	lenMustBe := int(regsCount)*2 + 5
-	if len(response) != lenMustBe {
-		return request, nil, errfmt.WithReqResp(ProtocolError.Here(), request, response).
-			WithMessagef("длина ответа %d не равна %d", len(response), lenMustBe)
-	}
-	return request, response, nil
-}
+	response, err := responseReader.GetResponse(request, func(request, response []byte) error {
 
-type ReadBCDValuesResult struct {
-	Request, Response []byte
-	Values            []float64
-}
-
-func Read3BCDValues(responseReader responseGetter, addr Addr, var3 Var, count int) (r ReadBCDValuesResult, err error) {
-	r.Request, r.Response, err = read3(responseReader, addr, var3, uint16(count*2))
-	if err != nil {
-		return
-	}
-	for i := 0; i < count; i++ {
-		n := 3 + i*4
-		if v, ok := ParseBCD6(r.Response[n:]); !ok {
-			err = multierror.Append(err,
-				fmt.Errorf("не правильный код BCD: n=%d BCD=%X", n, r.Response[n:n+4]))
-		} else {
-			r.Values = append(r.Values, v)
+		if err := req.CheckResponse(response); err != nil {
+			return err
 		}
-	}
+		lenMustBe := int(regsCount)*2 + 5
+		if len(response) != lenMustBe {
+			return merry.Errorf("длина ответа %d не равна %d", len(response), lenMustBe)
+		}
+		if parseResponse != nil {
+			return parseResponse(request, response)
+		}
+		return nil
+	})
 	if err != nil {
-		err = errfmt.WithReqResp(ProtocolError.Here(), r.Request, r.Response).
-			WithMessagef("addr=%d var3=%d count=%d: %s", addr, var3, count, err.Error())
+		return response, errfmt.WithReqResp(err, request, response)
 	}
-	return
+	return response, nil
+}
+
+func Read3BCDValues(responseGetter responseGetter, addr Addr, var3 Var, count int) ([]float64, error) {
+	var values []float64
+	_, err := read3(responseGetter, addr, var3, uint16(count*2),
+		func(request, response []byte) error {
+			var err error
+			for i := 0; i < count; i++ {
+				n := 3 + i*4
+				if v, ok := ParseBCD6(response[n:]); !ok {
+					err = multierror.Append(err,
+						fmt.Errorf("не правильный код BCD: n=%d BCD=%X", n, response[n:n+4]))
+				} else {
+					values = append(values, v)
+				}
+			}
+			if err != nil {
+				return merry.WithMessagef(err, "addr=%d var3=%d count=%d: %s", addr, var3, count)
+			}
+			return nil
+		})
+	return values, err
+
 }
 
 //func Read3(responseReader responseGetter, addr Addr, firstReg Var, regsCount uint16) ([]byte, error) {

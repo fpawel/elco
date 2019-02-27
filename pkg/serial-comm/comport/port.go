@@ -18,8 +18,8 @@ type Comm struct {
 	Config comm.Config
 }
 
-func (x Comm) GetResponse(request []byte) ([]byte, error) {
-	return x.Port.GetResponse(x.Config, request)
+func (x Comm) GetResponse(request []byte, prs comm.ResponseParser) ([]byte, error) {
+	return x.Port.GetResponse(request, x.Config, prs)
 }
 
 type Port struct {
@@ -169,11 +169,17 @@ func (x *Port) BytesToReadCount() (int, error) {
 	return int(commStat.InQue), nil
 }
 
-func (x *Port) GetResponse(commConfig comm.Config, request []byte) ([]byte, error) {
+func (x *Port) GetResponse(request []byte, commConfig comm.Config, prs comm.ResponseParser) ([]byte, error) {
 	//x.Port.GetResponse(request, x.Config)
 
 	t := time.Now()
-	response, err := comm.GetResponse(x.ctx, commConfig, x, x, request)
+	response, err := comm.GetResponse(comm.Request{
+		Bytes:              request,
+		Config:             commConfig,
+		ReadWriter:         x,
+		BytesToReadCounter: x,
+		ResponseParser:     prs,
+	}, x.ctx)
 	duration := time.Since(t)
 
 	if err == context.DeadlineExceeded {
@@ -188,7 +194,7 @@ func (x *Port) GetResponse(commConfig comm.Config, request []byte) ([]byte, erro
 	}
 
 	if x.hook != nil {
-		x.hook(Entry{
+		go x.hook(Entry{
 			Request:  request,
 			Response: response,
 			Duration: duration,

@@ -13,52 +13,36 @@ type BytesToReadCounter interface {
 	BytesToReadCount() (int, error)
 }
 
-func GetResponse(ctx context.Context, config Config, readWriter io.ReadWriter, bc BytesToReadCounter, request []byte) ([]byte, error) {
+type Request struct {
+	Bytes              []byte
+	Config             Config
+	ReadWriter         io.ReadWriter
+	BytesToReadCounter BytesToReadCounter
+	ResponseParser     ResponseParser
+}
 
-	if config.MaxAttemptsRead < 1 {
-		config.MaxAttemptsRead = 1
+type ResponseParser = func(request, response []byte) error
+
+func GetResponse(request Request, ctx context.Context) ([]byte, error) {
+	if request.Config.MaxAttemptsRead < 1 {
+		request.Config.MaxAttemptsRead = 1
 	}
-
-	return reader{
-		bc:      bc,
-		rw:      readWriter,
-		config:  config,
-		request: request,
-	}.getResponse(ctx)
+	return request.getResponse(ctx)
 }
 
-type Config struct {
-	ReadTimeoutMillis     int `toml:"read_timeout" comment:"таймаут получения ответа, мс"`
-	ReadByteTimeoutMillis int `toml:"read_byte_timeout" comment:"таймаут окончания ответа, мс"`
-	MaxAttemptsRead       int `toml:"max_attempts_read" comment:"число попыток получения ответа"`
-}
-
-func (x Config) ReadTimeout() time.Duration {
-	return time.Duration(x.ReadTimeoutMillis) * time.Millisecond
-}
-
-func (x Config) ReadByteTimeout() time.Duration {
-	return time.Duration(x.ReadByteTimeoutMillis) * time.Millisecond
-}
-
-type reader struct {
-	bc      BytesToReadCounter
-	rw      io.ReadWriter
-	request []byte
-	config  Config
-}
+var ErrProtocol = merry.New("protocol error")
 
 type result struct {
 	response []byte
 	err      error
 }
 
-func (x reader) getResponse(parentCtx context.Context) ([]byte, error) {
-	for attempt := 0; attempt < x.config.MaxAttemptsRead; attempt++ {
+func (x Request) getResponse(mainContext context.Context) ([]byte, error) {
+	for attempt := 0; attempt < x.Config.MaxAttemptsRead; attempt++ {
 		if err := x.write(); err != nil {
 			return nil, err
 		}
-		ctx, _ := context.WithTimeout(parentCtx, x.config.ReadTimeout())
+		ctx, _ := context.WithTimeout(mainContext, x.Config.ReadTimeout())
 		c := make(chan result)
 
 		go x.waitForResponse(ctx, c)
@@ -68,7 +52,13 @@ func (x reader) getResponse(parentCtx context.Context) ([]byte, error) {
 		case r := <-c:
 
 			if r.err == nil {
-				return r.response, nil
+				if x.ResponseParser != nil {
+					r.err = x.ResponseParser(x.Bytes, r.response)
+				}
+				if merry.Is(r.err, ErrProtocol) {
+					continue
+				}
+				return r.response, r.err
 			}
 
 			return nil, merry.WithValue(r.err, "attempt", attempt)
@@ -90,17 +80,17 @@ func (x reader) getResponse(parentCtx context.Context) ([]byte, error) {
 	}
 
 	return nil, merry.WithMessage(context.DeadlineExceeded, "не отвечает").
-		WithValue("attempt", x.config.MaxAttemptsRead).
-		WithValue("timeout", durafmt.Parse(x.config.ReadTimeout())).
-		WithValue("read_byte_timeout", durafmt.Parse(x.config.ReadByteTimeout()))
+		WithValue("attempt", x.Config.MaxAttemptsRead).
+		WithValue("timeout", durafmt.Parse(x.Config.ReadTimeout())).
+		WithValue("read_byte_timeout", durafmt.Parse(x.Config.ReadByteTimeout()))
 
 }
 
-func (x reader) write() error {
+func (x Request) write() error {
 
 	t := time.Now()
-	writtenCount, err := x.rw.Write(x.request)
-	for ; err == nil && writtenCount == 0 && time.Since(t) < x.config.ReadTimeout(); writtenCount, err = x.rw.Write(x.request) {
+	writtenCount, err := x.ReadWriter.Write(x.Bytes)
+	for ; err == nil && writtenCount == 0 && time.Since(t) < x.Config.ReadTimeout(); writtenCount, err = x.ReadWriter.Write(x.Bytes) {
 		// COMPORT PENDING
 		time.Sleep(50 * time.Millisecond)
 	}
@@ -108,14 +98,15 @@ func (x reader) write() error {
 		return err
 	}
 
-	if writtenCount != len(x.request) {
+	if writtenCount != len(x.Bytes) {
 
-		return merry.Errorf("записано %d из %d байт, %s", writtenCount, len(x.request), durafmt.Parse(time.Since(t)))
+		return merry.Errorf("записано %d из %d байт, %s", writtenCount, len(x.Bytes),
+			durafmt.Parse(time.Since(t)))
 	}
 	return err
 }
 
-func (x reader) waitForResponse(ctx context.Context, c chan result) {
+func (x Request) waitForResponse(ctx context.Context, c chan result) {
 
 	var response []byte
 	ctxReady := context.Background()
@@ -131,7 +122,7 @@ func (x reader) waitForResponse(ctx context.Context, c chan result) {
 			return
 
 		default:
-			bytesToReadCount, err := x.bc.BytesToReadCount()
+			bytesToReadCount, err := x.BytesToReadCounter.BytesToReadCount()
 			if err != nil {
 				c <- result{response, merry.Wrap(err)}
 				return
@@ -148,14 +139,14 @@ func (x reader) waitForResponse(ctx context.Context, c chan result) {
 			}
 			response = append(response, b...)
 			ctx = context.Background()
-			ctxReady, _ = context.WithTimeout(context.Background(), x.config.ReadByteTimeout())
+			ctxReady, _ = context.WithTimeout(context.Background(), x.Config.ReadByteTimeout())
 		}
 	}
 }
 
-func (x reader) read(bytesToReadCount int) ([]byte, error) {
+func (x Request) read(bytesToReadCount int) ([]byte, error) {
 	b := make([]byte, bytesToReadCount)
-	readCount, err := x.rw.Read(b)
+	readCount, err := x.ReadWriter.Read(b)
 	if err != nil {
 		return nil, merry.Wrap(err)
 	}

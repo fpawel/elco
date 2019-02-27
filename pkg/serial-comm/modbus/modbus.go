@@ -50,12 +50,12 @@ func (x *Req) ParseBCDValue(b []byte) (v float64, err error) {
 		return
 	}
 	if len(b) != 9 {
-		err = ProtocolError.Here().WithMessagef("длина ответа %d не равна 9", len(b))
+		err = ErrProtocol.Here().WithMessagef("длина ответа %d не равна 9", len(b))
 		return
 	}
 	var ok bool
 	if v, ok = ParseBCD6(b[3:]); !ok {
-		err = ProtocolError.Here().WithMessagef("не правильный код BCD [% X]", b[3:7])
+		err = ErrProtocol.Here().WithMessagef("не правильный код BCD [% X]", b[3:7])
 	}
 	return
 
