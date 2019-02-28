@@ -1,7 +1,7 @@
 package api
 
 import (
-	"github.com/fpawel/elco/internal/data/journal"
+	"github.com/fpawel/elco/internal/journal"
 	"github.com/jmoiron/sqlx"
 	"gopkg.in/reform.v1"
 )

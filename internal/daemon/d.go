@@ -9,9 +9,10 @@ import (
 	"github.com/ansel1/merry"
 	"github.com/fpawel/elco/internal/api"
 	"github.com/fpawel/elco/internal/api/notify"
+	"github.com/fpawel/elco/internal/cfg"
 	"github.com/fpawel/elco/internal/data"
-	"github.com/fpawel/elco/internal/data/journal"
 	"github.com/fpawel/elco/internal/elco"
+	"github.com/fpawel/elco/internal/journal"
 	"github.com/fpawel/elco/pkg/copydata"
 	"github.com/fpawel/elco/pkg/serial-comm/comport"
 	"github.com/fpawel/elco/pkg/winapp"
@@ -35,11 +36,10 @@ import (
 
 type D struct {
 	dbProducts    *reform.DB
-	dbJournal     *reform.DB
 	dbxProducts   *sqlx.DB
-	dbxJournal    *sqlx.DB
+	dbJournal     *reform.DB
 	w             *copydata.NotifyWindow // окно для отправки сообщений WM_COPYDATA дельфи-приложению
-	cfg           *data.Config
+	cfg           *cfg.Config
 	ctx           context.Context
 	hardware      hardware
 	logFields     logrus.Fields
@@ -96,9 +96,8 @@ func Run(skipRunUIApp, createNewDB bool) error {
 
 	x := &D{
 		dbProducts:  reform.NewDB(dbProductsConn, sqlite3.Dialect, nil),
-		dbJournal:   reform.NewDB(dbJournalConn, sqlite3.Dialect, nil),
 		dbxProducts: sqlx.NewDb(dbProductsConn, "sqlite3"),
-		dbxJournal:  sqlx.NewDb(dbJournalConn, "sqlite3"),
+		dbJournal:   reform.NewDB(dbJournalConn, sqlite3.Dialect, nil),
 		w:           copydata.NewNotifyWindow(elco.ServerWindowClassName, elco.PeerWindowClassName),
 		hardware: hardware{
 			Continue:  func() {},
@@ -111,7 +110,7 @@ func Run(skipRunUIApp, createNewDB bool) error {
 	if err := data.Init(x.dbProducts); err != nil {
 		return merry.Wrap(err)
 	}
-	x.cfg = data.OpenConfig(x.dbProducts)
+	x.cfg = cfg.OpenConfig(x.dbProducts)
 	if err := journal.Init(x.dbJournal); err != nil {
 		return merry.Wrap(err)
 	}
@@ -131,15 +130,15 @@ func Run(skipRunUIApp, createNewDB bool) error {
 
 	for _, svcObj := range []interface{}{
 		api.NewPartiesCatalogue(x.dbProducts, x.dbxProducts),
-		api.NewLastParty(x.dbProducts),
+		api.NewLastParty(x.dbProducts, x.dbxProducts),
 		api.NewProductTypes(x.dbProducts),
 		api.NewProductFirmware(x.dbProducts, x),
 		api.NewSetsSvc(x.cfg),
-		api.NewJournal(x.dbJournal, x.dbxJournal),
+		api.NewJournal(x.dbJournal, sqlx.NewDb(dbJournalConn, "sqlite3")),
 		&api.RunnerSvc{Runner: x},
 	} {
 		if err := rpc.Register(svcObj); err != nil {
-			panic(err)
+			return merry.Wrap(err)
 		}
 	}
 
@@ -239,13 +238,14 @@ func runUIApp() error {
 }
 
 func setupNotifyIcon(notifyIcon *walk.NotifyIcon, exitFunc func()) error {
-	iconBytes, err := FSByte(false, "/img/appicon.ico")
+
+	appIconFileName, err := winapp.ProfileFileName(".elco", "assets", "appicon.ico")
 	if err != nil {
-		return merry.WithMessagef(err, "unable to restore elco icon bytes")
+		return merry.Wrap(err)
 	}
 
 	//We load our icon from a temp file.
-	appIcon, err := winapp.IconFromBytes(iconBytes)
+	appIcon, err := walk.NewIconFromFile(appIconFileName)
 	if err != nil {
 		return merry.Wrap(err)
 	}

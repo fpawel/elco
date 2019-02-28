@@ -3,7 +3,7 @@ package notify
 import (
 	"github.com/fpawel/elco/internal/api"
 	"github.com/fpawel/elco/internal/data"
-	"github.com/fpawel/elco/internal/data/journal"
+	"github.com/fpawel/elco/internal/journal"
 	"github.com/fpawel/elco/pkg/copydata"
 )
 

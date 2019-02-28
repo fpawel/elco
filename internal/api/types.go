@@ -16,3 +16,7 @@ type ComportEntry struct {
 	Error bool
 	Msg   string
 }
+
+type GetCheckBlocksArg struct {
+	Check []bool
+}

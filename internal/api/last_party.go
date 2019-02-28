@@ -2,16 +2,18 @@ package api
 
 import (
 	"github.com/fpawel/elco/internal/data"
+	"github.com/jmoiron/sqlx"
 	"gopkg.in/reform.v1"
 	"strings"
 )
 
 type LastParty struct {
-	db *reform.DB
+	db  *reform.DB
+	dbx *sqlx.DB
 }
 
-func NewLastParty(db *reform.DB) *LastParty {
-	return &LastParty{db}
+func NewLastParty(db *reform.DB, dbx *sqlx.DB) *LastParty {
+	return &LastParty{db, dbx}
 }
 
 func (x *LastParty) Party(_ struct{}, r *data.Party) error {
@@ -101,21 +103,24 @@ UPDATE product SET production = ? WHERE party_id = (SELECT last_party.party_id F
 	return
 }
 
-func (x LastParty) SelectBlock(r struct {
-	Checked bool
-	Block   int
-}, _ *struct{}) (err error) {
-	_, err = x.db.Exec(`
-UPDATE product 
-SET production = ? 
-WHERE party_id = (SELECT last_party.party_id FROM last_party) AND place / 8 = ?`, r.Checked, r.Block)
-	return
-}
-
 func (x LastParty) Export(_ struct{}, _ *struct{}) error {
 	return data.ExportLastParty(x.db)
 }
 
-func (x *PartiesCatalogue) Import(_ struct{}, r *data.Party) (err error) {
-	return data.ImportLastParty(x.db)
+func (x *LastParty) GetCheckBlocks(_ struct{}, r *GetCheckBlocksArg) error {
+	return data.GetBlocksChecked(x.dbx, &r.Check)
+}
+
+func (x *LastParty) SetBlockChecked(r [2]int, a *int64) error {
+	if err := data.SetBlockChecked(x.dbx, r[0], r[1] != 0); err != nil {
+		return err
+	}
+	b := false
+	if err := data.GetBlockChecked(x.dbx, r[0], &b); err != nil {
+		return err
+	}
+	if b {
+		*a = 1
+	}
+	return nil
 }

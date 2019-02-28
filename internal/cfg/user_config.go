@@ -1,4 +1,4 @@
-package data
+package cfg
 
 import (
 	"encoding/json"
@@ -15,7 +15,6 @@ type UserConfig struct {
 	ComportGas      string
 	LogComports     bool
 	ChipType        int
-	CheckBlock      [12]bool
 }
 
 func (x *UserConfig) Sections() []ConfigSection {
@@ -128,7 +127,6 @@ func (x *UserConfig) setValue(section, property, value string) error {
 
 func defaultUserConfig() *UserConfig {
 	return &UserConfig{
-		CheckBlock:      [12]bool{true, true, true, true, true, true, true, true, true, true, true, true},
 		ChipType:        16,
 		ComportMeasurer: "COM1",
 		ComportGas:      "COM2",

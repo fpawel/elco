@@ -1,19 +1,19 @@
 package api
 
 import (
-	"github.com/fpawel/elco/internal/data"
+	"github.com/fpawel/elco/internal/cfg"
 	"github.com/pelletier/go-toml"
 )
 
 type SettingsSvc struct {
-	c *data.Config
+	c *cfg.Config
 }
 
-func NewSetsSvc(cfg *data.Config) *SettingsSvc {
+func NewSetsSvc(cfg *cfg.Config) *SettingsSvc {
 	return &SettingsSvc{cfg}
 }
 
-func (x *SettingsSvc) Sections(_ struct{}, res *data.ConfigSections) (err error) {
+func (x *SettingsSvc) Sections(_ struct{}, res *cfg.ConfigSections) (err error) {
 	*res, err = x.c.Sections()
 	return nil
 }
@@ -32,7 +32,7 @@ func (x *SettingsSvc) PredefinedConfig(_ struct{}, r *string) error {
 }
 
 func (x *SettingsSvc) ChangePredefinedConfig(s [1]string, r *string) error {
-	var p data.PredefinedConfig
+	var p cfg.PredefinedConfig
 	if err := toml.Unmarshal([]byte(s[0]), &p); err != nil {
 		return err
 	}
@@ -46,7 +46,7 @@ func (x *SettingsSvc) ChangePredefinedConfig(s [1]string, r *string) error {
 }
 
 func (x *SettingsSvc) SetDefaultPredefinedConfig(_ struct{}, r *string) error {
-	p := data.DefaultPredefinedConfig()
+	p := cfg.DefaultPredefinedConfig()
 	b, err := toml.Marshal(&p)
 	if err != nil {
 		return err
@@ -54,17 +54,4 @@ func (x *SettingsSvc) SetDefaultPredefinedConfig(_ struct{}, r *string) error {
 	*r = string(b)
 	x.c.SetPredefined(p)
 	return nil
-}
-
-type GetCheckBlocksArg struct {
-	Check [12]bool
-}
-
-func (x *SettingsSvc) GetCheckBlocks(_ struct{}, r *GetCheckBlocksArg) error {
-	r.Check = x.c.User().CheckBlock
-	return nil
-}
-
-func (x *SettingsSvc) SetCheckBlock(r [2]int, _ *struct{}) error {
-	return x.c.SetCheckBlock(r[0], r[1] != 0)
 }

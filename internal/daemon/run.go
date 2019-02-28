@@ -6,7 +6,7 @@ import (
 	"github.com/ansel1/merry"
 	"github.com/fpawel/elco/internal/api/notify"
 	"github.com/fpawel/elco/internal/data"
-	"github.com/fpawel/elco/internal/data/journal"
+	"github.com/fpawel/elco/internal/journal"
 	"github.com/fpawel/elco/pkg/errfmt"
 	"github.com/hashicorp/go-multierror"
 	"github.com/sirupsen/logrus"
@@ -88,18 +88,18 @@ func (x *D) SkipDelay() {
 func (x *D) RunReadCurrent() {
 	x.runHardware(false, "опрос блоков измерительных", func() error {
 		for {
-			bs := x.cfg.User().CheckBlock
-			if bs == [12]bool{} {
+			var checkedBlocks []int
+			if err := data.GetCheckedBlocks(x.dbxProducts, &checkedBlocks); err != nil {
+				return err
+			}
+			if len(checkedBlocks) == 0 {
 				return merry.New("необходимо выбрать блок для опроса")
 			}
-			for place, check := range bs {
-				if check {
-					if _, err := x.readBlockMeasure(place); err != nil {
-						return err
-					}
+			for _, block := range checkedBlocks {
+				if _, err := x.readBlockMeasure(block); err != nil {
+					return err
 				}
 			}
-
 		}
 	})
 }

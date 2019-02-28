@@ -3,11 +3,14 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/ansel1/merry"
+	"github.com/fpawel/elco/internal/assets"
 	"github.com/fpawel/elco/internal/daemon"
 	"github.com/fpawel/elco/internal/elco"
 	"github.com/fpawel/elco/pkg/winapp"
 	"github.com/lxn/win"
 	"github.com/sirupsen/logrus"
+	"log"
 )
 
 func main() {
@@ -50,7 +53,12 @@ func main() {
 	logrus.SetFormatter(elco.Logger.Formatter)
 	logrus.SetOutput(elco.Logger.Out)
 	logrus.SetReportCaller(true)
+
+	if err := assets.Ensure(); err != nil {
+		log.Fatal(err)
+	}
+
 	if err := daemon.Run(skipRunUIApp, createNewDB); err != nil {
-		logrus.Panic(err)
+		panic(merry.Details(err))
 	}
 }

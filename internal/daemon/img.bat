@@ -1,1 +1,0 @@
-esc -o img.go -pkg="daemon" img

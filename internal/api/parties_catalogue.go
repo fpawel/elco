@@ -153,3 +153,7 @@ func (x *PartiesCatalogue) CopyParty(partyID [1]int64, party *data.Party) (err e
 
 	return nil
 }
+
+func (x *PartiesCatalogue) Import(_ struct{}, r *data.Party) (err error) {
+	return data.ImportLastParty(x.db)
+}

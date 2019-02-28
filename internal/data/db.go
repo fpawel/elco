@@ -3,6 +3,7 @@ package data
 import (
 	"database/sql"
 	"github.com/ansel1/merry"
+	"github.com/jmoiron/sqlx"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/reform.v1"
 )
@@ -213,4 +214,69 @@ func UpdateProductAtPlace(db *reform.DB, place int, f func(p *Product) error) (i
 		return 0, err
 	}
 	return p.ProductID, nil
+}
+
+func GetCheckedBlocks(db *sqlx.DB, r *[]int) error {
+	return db.Select(r, `
+WITH block AS (
+  WITH RECURSIVE
+    cnt(x) AS (
+      SELECT 0
+      UNION ALL
+      SELECT x + 1
+      FROM cnt
+      LIMIT 12
+      )
+    SELECT x FROM cnt)
+
+SELECT block.x AS block       
+FROM block
+WHERE EXISTS(
+           SELECT *
+           FROM product
+           WHERE party_id = (SELECT party_id FROM last_party)
+             AND production
+             AND place / 8 = block.x) 
+`)
+}
+
+func GetBlocksChecked(db *sqlx.DB, r *[]bool) error {
+	return db.Select(r, `
+WITH block AS (
+  WITH RECURSIVE
+    cnt(x) AS (
+      SELECT 0
+      UNION ALL
+      SELECT x + 1
+      FROM cnt
+      LIMIT 12
+      )
+    SELECT x FROM cnt)
+
+SELECT EXISTS(
+           SELECT *
+           FROM product
+           WHERE party_id = (SELECT party_id FROM last_party)
+             AND production
+             AND place / 8 = block.x) AS checked
+FROM block`)
+}
+
+func GetBlockChecked(db *sqlx.DB, block int, r *bool) error {
+	return db.Get(r, `
+SELECT EXISTS( 
+  SELECT * 
+  FROM product 
+  WHERE party_id = ( SELECT party_id FROM last_party) 
+    AND production 
+    AND place / 8 = ?)`, block)
+}
+
+func SetBlockChecked(db *sqlx.DB, block int, r bool) error {
+	_, err := db.Exec(` 
+  UPDATE product
+  SET production = ?
+  WHERE party_id = ( SELECT party_id FROM last_party) 
+    AND place / 8 = ?`, r, block)
+	return err
 }

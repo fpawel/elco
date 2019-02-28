@@ -51,17 +51,18 @@ func (x Request) getResponse(mainContext context.Context) ([]byte, error) {
 
 		case r := <-c:
 
-			if r.err == nil {
-				if x.ResponseParser != nil {
-					r.err = x.ResponseParser(x.Bytes, r.response)
-				}
-				if merry.Is(r.err, ErrProtocol) {
-					continue
-				}
-				return r.response, r.err
+			if r.err != nil {
+				return nil, merry.WithValue(r.err, "attempt", attempt)
 			}
 
-			return nil, merry.WithValue(r.err, "attempt", attempt)
+			if x.ResponseParser != nil {
+				r.err = x.ResponseParser(x.Bytes, r.response)
+			}
+			if merry.Is(r.err, ErrProtocol) {
+				time.Sleep(x.Config.ReadByteTimeout())
+				continue
+			}
+			return r.response, r.err
 
 		case <-ctx.Done():
 

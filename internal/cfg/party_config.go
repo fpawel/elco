@@ -1,8 +1,9 @@
-package data
+package cfg
 
 import (
 	"database/sql"
 	"fmt"
+	"github.com/fpawel/elco/internal/data"
 	"github.com/pkg/errors"
 	"gopkg.in/reform.v1"
 	"strconv"
@@ -10,12 +11,12 @@ import (
 )
 
 func PartyConfigProperties(db *reform.DB) ([]ConfigProperty, error) {
-	var party Party
-	if err := GetLastParty(db, &party); err != nil {
+	var party data.Party
+	if err := data.GetLastParty(db, &party); err != nil {
 		return nil, err
 	}
 
-	productTypesNames, err := ListProductTypeNames(db)
+	productTypesNames, err := data.ListProductTypeNames(db)
 	if err != nil {
 		return nil, err
 	}
@@ -133,8 +134,8 @@ func PartyConfigProperties(db *reform.DB) ([]ConfigProperty, error) {
 
 func SetPartyConfigValue(db *reform.DB, property, value string) (err error) {
 
-	var party Party
-	if err := GetLastParty(db, &party); err != nil {
+	var party data.Party
+	if err := data.GetLastParty(db, &party); err != nil {
 		return err
 	}
 

@@ -3,8 +3,8 @@ package main
 import (
 	"github.com/fpawel/elco/internal/api"
 	"github.com/fpawel/elco/internal/data"
-	"github.com/fpawel/elco/internal/data/journal"
 	"github.com/fpawel/elco/internal/elco"
+	"github.com/fpawel/elco/internal/journal"
 	"github.com/fpawel/elco/pkg/delphirpc"
 	"github.com/fpawel/elco/pkg/winapp"
 	"log"
