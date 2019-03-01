@@ -6,6 +6,11 @@ import (
 	"os/exec"
 )
 
+const (
+	fontSize1 = 8
+	lineSpace1 = 4
+)
+
 func PasportSou() error {
 
 	fontDir, err := ensureFontDir()
@@ -33,30 +38,44 @@ func PasportSou() error {
 
 	d.SetX(x)
 
-	sentence := func(fontStyleStr string, fontSize float64, h int, s string) {
+	sentence := func(fontStyleStr string, fontSize float64, h float64, s string) {
 		d.SetFont("", fontStyleStr, fontSize)
-		d.CellFormat(d.GetStringWidth(tr(s)), 5, tr(s), "", 0, "", false, 0, "")
+		d.CellFormat(d.GetStringWidth(tr(s)), h, tr(s), "", 0, "", false, 0, "")
 	}
-	sentence("", 10, 5, "Дата изготовления ")
-	sentence("B", 10, 5, "26 февраля 2019 ")
-	sentence("", 10, 5, "Заводской номер ")
-	sentence("B", 10, 5, "257")
-	d.Ln(5)
-	d.SetX(x)
-	sentence("", 10, 5, "Фоновый ток ")
-	sentence("B", 10, 5, "0.465 мкА ")
-	sentence("", 10, 5, "Чувствительность ")
-	sentence("B", 10, 5, "0.215 мкА/об.дол.%")
-	d.Ln(5)
+
+	sentence1 := func(fontStyleStr string, s string) {
+		sentence(fontStyleStr, fontSize1 , lineSpace1 , s )
+	}
+
+	sentence1("",  "Дата изготовления: ")
+	sentence1("B",  "26 февраля 2019")
+	sentence1("", ".")
+	sentence1("",  "Заводской номер: ")
+	sentence1("B", "257")
+	sentence1("",  ".")
+	d.Ln(lineSpace1)
 	d.SetX(x)
 
-	fancyTable(d, []string{"tab1", "tab2", "tab3", "tab4"},
+	sentence1("", "Фоновый ток: ")
+	sentence1("B", "0.465 мкА")
+	sentence1("", ".")
+	sentence1("", "Чувствительность ")
+	sentence1("B", "0.215 мкА/об.дол.%")
+	sentence1("", ".")
+	d.Ln(lineSpace1)
+	d.SetX(x)
+
+	sentence1("", "Температурная зависимость фоновых токов:")
+
+	d.Ln(lineSpace1)
+	d.SetX(x)
+
+	table(d, []string{"T, \"C", "Iфон, мкА", "Кч, %"},
 		[][]string{
-			{"row11", "row12", "row33", "row44"},
-			{"row21", "row22", "row33", "row44"},
-			{"row31", "row32", "row33", "row44"},
-			{"row41", "row42", "row33", "row44"},
-		}, x)
+			{"строка 11", "row12", "row33", },
+			{"строка 21", "row22", "row33", },
+			{"строка 31", "row32", "row33", },
+		}, x )
 
 	reportFileName, err := winapp.ProfileFileName(".elco", "report.pdf")
 	if err != nil {
@@ -77,32 +96,27 @@ func ensureFontDir() (string, error) {
 	return winapp.ProfileFolderPath(".elco", "assets", "fonts")
 }
 
-func fancyTable(pdf *gofpdf.Fpdf, header []string, cells [][]string, left float64) {
+func table(pdf *gofpdf.Fpdf, header []string, cells [][]string, left float64) {
+	tr := pdf.UnicodeTranslatorFromDescriptor("cp1251")
 	// Colors, line width and bold font
-	pdf.SetFillColor(230, 230, 230)
+	pdf.SetFillColor(225, 225, 225)
 	//pdf.SetTextColor(255, 255, 255)
 	pdf.SetDrawColor(169, 169, 169)
 	pdf.SetLineWidth(.1)
-	pdf.SetFont("", "B", 8)
+	pdf.SetFont("", "B", fontSize1)
 	// 	Header
 	pdf.SetX(left)
 	for _, str := range header {
-		pdf.CellFormat(15, 4, str, "1", 0, "C", true, 0, "")
+		pdf.CellFormat(15, 4, tr(str), "1", 0, "C", true, 0, "")
 	}
 	pdf.Ln(-1)
-	// Color and font restoration
-	pdf.SetFillColor(240, 240, 240)
 	pdf.SetTextColor(0, 0, 0)
-	pdf.SetFont("", "", 8)
-	// 	Data
-	fill := false
+	pdf.SetFont("", "", fontSize1)
 	for _, c := range cells {
 		pdf.SetX(left)
-		for _, cellStr := range c {
-			pdf.CellFormat(15, 4, cellStr, "1", 0, "", fill, 0, "")
+		for _, str := range c {
+			pdf.CellFormat(15, 4, tr(str), "1", 0, "", false, 0, "")
 		}
 		pdf.Ln(-1)
-		fill = !fill
-
 	}
 }
