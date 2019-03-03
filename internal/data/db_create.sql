@@ -154,6 +154,8 @@ SELECT product_id,
        round(i17, 3)                                                           AS i17,
        round(not_measured, 3)                                                  AS not_measured,
 
+       round(i26 - i24, 3)                                                  AS variation,
+
        round(100 * (i_s_plus50 - i_f_plus50) / (i_s_plus20 - i_f_plus20), 3)   AS k_sens50,
        round(100 * (i_s_minus20 - i_f_minus20) / (i_s_plus20 - i_f_plus20), 3) AS k_sens_minus20,
 

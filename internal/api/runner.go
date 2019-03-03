@@ -6,9 +6,11 @@ type Runner interface {
 	RunReadCurrent()
 	StopHardware()
 	SkipDelay()
-	RunTemperature([4]bool)
+	RunTemperature([3]bool)
 	RunWritePartyFirmware()
 	RunMainError()
+
+	RunReadAndSaveProductCurrents(field string)
 }
 
 type RunnerSvc struct {
@@ -20,7 +22,7 @@ func (x *RunnerSvc) RunWritePartyFirmware(_ struct{}, _ *struct{}) error {
 	return nil
 }
 
-func (x *RunnerSvc) RunTemperature(workCheck [4]bool, _ *struct{}) error {
+func (x *RunnerSvc) RunTemperature(workCheck [3]bool, _ *struct{}) error {
 	for _, v := range workCheck {
 		if v {
 			x.Runner.RunTemperature(workCheck)
@@ -48,5 +50,10 @@ func (x *RunnerSvc) SkipDelay(_ struct{}, _ *struct{}) error {
 
 func (x *RunnerSvc) RunMainError(_ struct{}, _ *struct{}) error {
 	x.Runner.RunMainError()
+	return nil
+}
+
+func (x *RunnerSvc) RunReadAndSaveProductCurrents(r [1]string, _ *struct{}) error {
+	x.Runner.RunReadAndSaveProductCurrents(r[0])
 	return nil
 }

@@ -3,7 +3,6 @@ package daemon
 import (
 	"bytes"
 	"context"
-	"database/sql"
 	"fmt"
 	"github.com/Microsoft/go-winio"
 	"github.com/ansel1/merry"
@@ -27,7 +26,6 @@ import (
 	"gopkg.in/reform.v1/dialects/sqlite3"
 	"net"
 	"net/rpc"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"sync"
@@ -59,40 +57,15 @@ type hardware struct {
 
 func Run(skipRunUIApp, createNewDB bool) error {
 
-	dataFolderPath, err := elco.DataFolderPath()
+	dbProductsConn, err := data.Open(createNewDB)
 	if err != nil {
-		return merry.Wrap(err)
-	}
-	productsDataFileName := filepath.Join(dataFolderPath, "elco.sqlite")
-	journalDataFileName := filepath.Join(dataFolderPath, "journal.sqlite")
-
-	logrus.Infoln(productsDataFileName)
-	logrus.Infoln(journalDataFileName)
-
-	if createNewDB {
-		logrus.Warn("delete data base file because new-db flag was set")
-		for _, fileName := range []string{productsDataFileName, journalDataFileName} {
-			if err := os.Remove(fileName); err != nil {
-				logrus.Errorf("unable to delete file: %s: %v", fileName, err)
-			}
-		}
+		return merry.WithMessage(err, "не удалось открыть файл данных")
 	}
 
-	dbProductsConn, err := sql.Open("sqlite3", productsDataFileName)
+	dbJournalConn, err := journal.Open(createNewDB)
 	if err != nil {
-		return merry.WithMessagef(err, "не удалось открыть файл данных: %s", productsDataFileName)
+		return merry.WithMessage(err, "не удалось открыть журнал")
 	}
-	dbProductsConn.SetMaxIdleConns(1)
-	dbProductsConn.SetMaxOpenConns(1)
-	dbProductsConn.SetConnMaxLifetime(0)
-
-	dbJournalConn, err := sql.Open("sqlite3", journalDataFileName)
-	if err != nil {
-		return merry.WithMessagef(err, "не удалось открыть журнал: %s", journalDataFileName)
-	}
-	dbJournalConn.SetMaxIdleConns(1)
-	dbJournalConn.SetMaxOpenConns(1)
-	dbJournalConn.SetConnMaxLifetime(0)
 
 	x := &D{
 		dbProducts:  reform.NewDB(dbProductsConn, sqlite3.Dialect, nil),
@@ -197,7 +170,7 @@ func Run(skipRunUIApp, createNewDB bool) error {
 }
 
 func (x *D) onComport(w comport.Entry) {
-	if x.cfg.User().LogComports {
+	if x.cfg.Predefined().VerboseLogging {
 		notify.ComportEntry(x.w, api.ComportEntry{
 			Port:  w.Port,
 			Error: w.Error != nil,

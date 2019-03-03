@@ -42,6 +42,7 @@ type PredefinedConfig struct {
 	HoldTemperatureMinutes int         `toml:"hold_temperature_minutes" comment:"длительность выдержки термокамеры, мин."`
 	StatusTimeoutSeconds   int         `toml:"status_timeout_seconds" comment:"таймаут статуса прошивки, с"`
 	ReadRangeDelayMillis   int         `toml:"read_range_delay_millis" comment:"задержка при считывании диапазонов, мс"`
+	VerboseLogging         bool        `toml:"verbose_logging" comment:"подробные сллбщения в консоли"`
 }
 
 type ConfigSection struct {
@@ -128,9 +129,9 @@ var defaultPredefinedConfig = PredefinedConfig{
 		MaxAttemptsRead:       3,
 	},
 	ComportMeasurer: comm.Config{
-		ReadByteTimeoutMillis: 50,
+		ReadByteTimeoutMillis: 15,
 		ReadTimeoutMillis:     500,
-		MaxAttemptsRead:       30,
+		MaxAttemptsRead:       10,
 	},
 	StatusTimeoutSeconds: 3,
 	ReadRangeDelayMillis: 10,

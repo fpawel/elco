@@ -7,13 +7,11 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"io/ioutil"
-	"strconv"
 )
 
 type UserConfig struct {
 	ComportMeasurer string
 	ComportGas      string
-	LogComports     bool
 	ChipType        int
 }
 
@@ -49,12 +47,6 @@ func (x *UserConfig) Sections() []ConfigSection {
 					Name:      "Gas",
 					ValueType: VtComportName,
 					Value:     x.ComportGas,
-				},
-				{
-					Hint:      "Консоль СОМ порта",
-					Name:      "ComportConsole",
-					ValueType: VtBool,
-					Value:     strconv.FormatBool(x.LogComports),
 				},
 			},
 		},
@@ -113,13 +105,6 @@ func (x *UserConfig) setValue(section, property, value string) error {
 			}
 			x.ComportGas = value
 			return nil
-		case "ComportConsole":
-			v, err := strconv.ParseBool(value)
-			if err == nil {
-				x.LogComports = v
-			}
-			return err
-
 		}
 	}
 	return errors.Errorf("%q: %q: invalid section/property", section, property)
@@ -130,7 +115,6 @@ func defaultUserConfig() *UserConfig {
 		ChipType:        16,
 		ComportMeasurer: "COM1",
 		ComportGas:      "COM2",
-		LogComports:     false,
 	}
 }
 

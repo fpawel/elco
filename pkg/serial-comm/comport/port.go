@@ -16,16 +16,17 @@ import (
 type Comm struct {
 	Port   *Port
 	Config comm.Config
+	Ctx    context.Context
 }
 
 func (x Comm) GetResponse(request []byte, prs comm.ResponseParser) ([]byte, error) {
-	return x.Port.GetResponse(request, x.Config, prs)
+	return x.Port.GetResponse(request, x.Config, x.Ctx, prs)
 }
 
 type Port struct {
 	config serial.Config
 	port   *serial.Port
-	ctx    context.Context
+
 	hook   Hook
 	device string
 }
@@ -78,7 +79,6 @@ func (x *Port) Open(serialPortName string, baud int, bounceTimeout time.Duration
 	if err != nil {
 		return
 	}
-	x.ctx = ctx
 	x.config = config
 	return
 }
@@ -169,7 +169,7 @@ func (x *Port) BytesToReadCount() (int, error) {
 	return int(commStat.InQue), nil
 }
 
-func (x *Port) GetResponse(request []byte, commConfig comm.Config, prs comm.ResponseParser) ([]byte, error) {
+func (x *Port) GetResponse(request []byte, commConfig comm.Config, ctx context.Context, prs comm.ResponseParser) ([]byte, error) {
 	//x.Port.GetResponse(request, x.Config)
 
 	t := time.Now()
@@ -179,7 +179,7 @@ func (x *Port) GetResponse(request []byte, commConfig comm.Config, prs comm.Resp
 		ReadWriter:         x,
 		BytesToReadCounter: x,
 		ResponseParser:     prs,
-	}, x.ctx)
+	}, ctx)
 	duration := time.Since(t)
 
 	if err == context.DeadlineExceeded {

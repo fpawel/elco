@@ -32,12 +32,16 @@ func (x *D) writePartyFirmware() error {
 		return err
 	}
 
-	var placesStrs []string
-	for _, p := range products {
-		placesStrs = append(placesStrs, data.FormatPlace(p.Place))
+	if len(products) == 0 {
+		return merry.New("не выбрано ни одного прибора")
 	}
-	sort.Strings(placesStrs)
-	placesStr := strings.Join(placesStrs, ", ")
+
+	var placesS []string
+	for _, p := range products {
+		placesS = append(placesS, data.FormatPlace(p.Place))
+	}
+	sort.Strings(placesS)
+	placesStr := strings.Join(placesS, ", ")
 
 	logrus.Infof("запись партии: %s", placesStr)
 
@@ -119,7 +123,7 @@ func (x *D) writeBlock(products []*data.Product, placeBytes map[int][]byte) erro
 		}
 		firmware, err := prodInfo.Firmware()
 		if err != nil {
-			return merry.Appendf(err, "расчёт прошивки ЭХЯ не удался %v", prodInfo)
+			return merry.Appendf(err, "расчёт прошивки ЭХЯ не удался: %s", prodInfo.String2())
 		}
 		placeBytes[p.Place] = firmware.Bytes()
 	}
@@ -197,7 +201,7 @@ func (x *D) readPlaceFirmware(place int) ([]byte, error) {
 				byte(count),
 			},
 		}
-		resp, err := x.commMeasurer().GetResponse(req.Bytes(), func(request, response []byte) error {
+		resp, err := x.commMeasurer(x.hardware.ctx).GetResponse(req.Bytes(), func(request, response []byte) error {
 			if len(response) != 10+int(count) {
 				return merry.Errorf("ожидалось %d байт ответа, получено %d",
 					10+int(count), len(response))
@@ -323,7 +327,7 @@ func (x *D) waitStatus45(block int, placesMask byte) error {
 }
 
 func (x *D) readStatus45(block int) ([]byte, error) {
-	return x.commMeasurer().GetResponse(modbus.Req{
+	return x.commMeasurer(x.hardware.ctx).GetResponse(modbus.Req{
 		Addr:     modbus.Addr(block) + 101,
 		ProtoCmd: 0x45,
 	}.Bytes(), func(request, response []byte) error {
@@ -349,7 +353,7 @@ func (x *D) writePreparedDataToFlash(block int, placesMask byte, addr uint16, co
 	}
 	request := req.Bytes()
 
-	_, err := x.commMeasurer().GetResponse(request, func(request, response []byte) error {
+	_, err := x.commMeasurer(x.hardware.ctx).GetResponse(request, func(request, response []byte) error {
 		if !compareBytes(response, req.Bytes()) {
 			return merry.New("запрос не равен ответу")
 		}
@@ -369,7 +373,7 @@ func (x *D) sendDataToWrite42(block, placeInBlock int, b []byte) error {
 		}, b...),
 	}
 	request := req.Bytes()
-	_, err := x.commMeasurer().GetResponse(request, func(request, response []byte) error {
+	_, err := x.commMeasurer(x.hardware.ctx).GetResponse(request, func(request, response []byte) error {
 		if len(response) != 7 {
 			return merry.Errorf("длина ответа %d не равна 7", len(response))
 		}

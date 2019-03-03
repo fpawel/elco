@@ -30,6 +30,7 @@ type ProductInfo struct {
 	KSensMinus20           sql.NullFloat64 `reform:"k_sens_minus20"`
 	KSens20                sql.NullFloat64 `reform:"k_sens20"`
 	KSens50                sql.NullFloat64 `reform:"k_sens50"`
+	Variation              sql.NullFloat64 `reform:"variation"`
 	DFon20                 sql.NullFloat64 `reform:"d_fon20"`
 	DFon50                 sql.NullFloat64 `reform:"d_fon50"`
 	DNotMeasured           sql.NullFloat64 `reform:"d_not_measured"`

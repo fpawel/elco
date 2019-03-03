@@ -2,6 +2,7 @@ package data
 
 import (
 	"database/sql"
+	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/jmoiron/sqlx"
 	"github.com/sirupsen/logrus"
@@ -118,6 +119,31 @@ type ProductsFilter struct {
 	WithSerials, WithProduction bool
 }
 
+func GetLastPartyWithProductsInfo(db *reform.DB, f ProductsFilter, party *Party) error {
+
+	if err := GetLastParty(db, party); err != nil {
+		return err
+	}
+
+	tail := "WHERE party_id IN (SELECT party_id FROM last_party)"
+	if f.WithSerials {
+		tail += " AND (serial NOTNULL)"
+	}
+	if f.WithProduction {
+		tail += " AND production"
+	}
+	tail += " ORDER BY place"
+	xs, err := db.SelectAllFrom(ProductInfoTable, tail)
+	if err != nil {
+		return merry.Wrap(err)
+	}
+	for _, x := range xs {
+		p := x.(*ProductInfo)
+		party.Products = append(party.Products, *p)
+	}
+	return nil
+}
+
 func GetLastPartyProducts(db *reform.DB, f ProductsFilter) ([]Product, error) {
 	tail := "WHERE party_id IN (SELECT party_id FROM last_party)"
 	if f.WithSerials {
@@ -126,6 +152,7 @@ func GetLastPartyProducts(db *reform.DB, f ProductsFilter) ([]Product, error) {
 	if f.WithProduction {
 		tail += " AND production"
 	}
+	tail += " ORDER BY place"
 	xs, err := db.SelectAllFrom(ProductTable, tail)
 	if err != nil {
 		return nil, merry.Wrap(err)
@@ -278,5 +305,10 @@ func SetBlockChecked(db *sqlx.DB, block int, r bool) error {
   SET production = ?
   WHERE party_id = ( SELECT party_id FROM last_party) 
     AND place / 8 = ?`, r, block)
+	return err
+}
+
+func SetProductValue(db *sqlx.DB, productID int64, field string, value float64) error {
+	_, err := db.Exec(fmt.Sprintf(`UPDATE product SET %s = ? WHERE product_id = ?`, field), value, productID)
 	return err
 }

@@ -2,6 +2,7 @@ package api
 
 import (
 	"github.com/fpawel/elco/internal/data"
+	"github.com/fpawel/elco/internal/pdf"
 	"github.com/jmoiron/sqlx"
 	"gopkg.in/reform.v1"
 	"strings"
@@ -107,6 +108,10 @@ func (x LastParty) Export(_ struct{}, _ *struct{}) error {
 	return data.ExportLastParty(x.db)
 }
 
+func (x *LastParty) Import(_ struct{}, r *data.Party) (err error) {
+	return data.ImportLastParty(x.db)
+}
+
 func (x *LastParty) GetCheckBlocks(_ struct{}, r *GetCheckBlocksArg) error {
 	return data.GetBlocksChecked(x.dbx, &r.Check)
 }
@@ -123,4 +128,8 @@ func (x *LastParty) SetBlockChecked(r [2]int, a *int64) error {
 		*a = 1
 	}
 	return nil
+}
+
+func (x *LastParty) Pdf(_ struct{}, _ *struct{}) error {
+	return pdf.Run(x.db)
 }

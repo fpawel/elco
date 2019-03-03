@@ -2,6 +2,7 @@ package data
 
 import (
 	"database/sql"
+	"fmt"
 	"github.com/ansel1/merry"
 	"log"
 )
@@ -47,6 +48,45 @@ func (x MainErrorPt) Code() int {
 	}
 }
 
+func (x MainErrorPt) Field() string {
+	switch x {
+	case MainError24:
+		return "i24"
+	case MainError35:
+		return "i35"
+	case MainError26:
+		return "i26"
+	case MainError17:
+		return "i17"
+	default:
+		panic(fmt.Sprintf("wrong point: %v", x))
+	}
+}
+
+func TemperatureScaleField(t Temperature, c ScaleType) string {
+	switch c {
+	case Fon:
+		switch t {
+		case -20:
+			return "i_f_minus20"
+		case 20:
+			return "i_f_plus20"
+		case 50:
+			return "i_f_plus50"
+		}
+	case Sens:
+		switch t {
+		case -20:
+			return "i_s_minus20"
+		case 20:
+			return "i_s_plus20"
+		case 50:
+			return "i_s_plus50"
+		}
+	}
+	panic(fmt.Sprintf("wrong point: %v: %v", t, c))
+}
+
 func (s *Product) SetCurrent(t Temperature, c ScaleType, value float64) {
 	v := sql.NullFloat64{Float64: value, Valid: true}
 	switch c {
@@ -75,7 +115,7 @@ func (s *Product) SetCurrent(t Temperature, c ScaleType, value float64) {
 			return
 		}
 	}
-	log.Panicf("wrong point: %v: %v", t, c)
+	panic(fmt.Sprintf("wrong point: %v: %v", t, c))
 }
 
 func (s *Product) SetMainErrorCurrent(pt MainErrorPt, value float64) {

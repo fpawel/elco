@@ -20,7 +20,7 @@ func Values(err error) (m logrus.Fields) {
 	return
 }
 
-func Format(err error) string {
+func Format(err error, inclureStack bool) string {
 	if err == nil {
 		return ""
 	}
@@ -34,7 +34,9 @@ func Format(err error) string {
 			s += "\n" + fmt.Sprintf("%s: %v", k, v)
 		}
 	}
-	s += "\n" + merry.Stacktrace(err)
+	if inclureStack {
+		s += "\n" + merry.Stacktrace(err)
+	}
 	return s
 }
 

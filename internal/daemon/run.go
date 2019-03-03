@@ -14,6 +14,12 @@ import (
 	"time"
 )
 
+func (x *D) RunReadAndSaveProductCurrents(field string) {
+	x.runHardware(true, fmt.Sprintf("Снятие %q", field), func() error {
+		return x.readAndSaveProductsCurrents(field)
+	})
+}
+
 func (x *D) RunWritePlaceFirmware(place int, bytes []byte) {
 	x.runHardware(false, fmt.Sprintf("Запись прошивки места %s", data.FormatPlace(place)), func() error {
 		err := x.writePlaceFirmware(place, bytes)
@@ -56,7 +62,7 @@ func (x *D) RunMainError() {
 	x.runHardware(true, "Снятие основной погрешности", x.determineMainError)
 }
 
-func (x *D) RunTemperature(workCheck [4]bool) {
+func (x *D) RunTemperature(workCheck [3]bool) {
 	x.runHardware(true, "Снятие термокомпенсации", func() error {
 		for i, temperature := range []data.Temperature{20, -20, 50} {
 			if workCheck[i] {
@@ -66,11 +72,8 @@ func (x *D) RunTemperature(workCheck [4]bool) {
 				}
 			}
 		}
-		if workCheck[3] {
-			notify.Statusf(x.w, "20⁰C: повторное снятие")
-			if err := x.determineNKU2(); err != nil {
-				return err
-			}
+		if err := x.setupTemperature(20); err != nil {
+			return err
 		}
 		return nil
 	})
@@ -82,7 +85,7 @@ func (x *D) StopHardware() {
 
 func (x *D) SkipDelay() {
 	x.hardware.skipDelay()
-	logrus.Warn("пользователь прервал задержку")
+
 }
 
 func (x *D) RunReadCurrent() {
@@ -96,7 +99,7 @@ func (x *D) RunReadCurrent() {
 				return merry.New("необходимо выбрать блок для опроса")
 			}
 			for _, block := range checkedBlocks {
-				if _, err := x.readBlockMeasure(block); err != nil {
+				if _, err := x.readBlockMeasure(block, x.hardware.ctx); err != nil {
 					return err
 				}
 			}
@@ -113,7 +116,6 @@ func (x *D) runHardware(logWork bool, workName string, work WorkFunc) {
 	x.hardware.WaitGroup = sync.WaitGroup{}
 	x.hardware.ctx, x.hardware.cancel = context.WithCancel(x.ctx)
 
-	notify.WorkStarted(x.w, workName)
 	x.hardware.WaitGroup.Add(1)
 
 	x.logFields = logrus.Fields{
@@ -135,7 +137,7 @@ func (x *D) runHardware(logWork bool, workName string, work WorkFunc) {
 	x.muCurrentWork.Unlock()
 
 	go func() {
-
+		notify.WorkStarted(x.w, workName)
 		defer func() {
 			notify.WorkStoppedf(x.w, "выполнение окончено: %s", workName)
 			if logWork {
@@ -151,7 +153,7 @@ func (x *D) runHardware(logWork bool, workName string, work WorkFunc) {
 			if merry.Is(err, context.Canceled) {
 				return
 			}
-			notify.ErrorOccurredf(x.w, "%s: %v", workName, errfmt.Format(err))
+			notify.ErrorOccurredf(x.w, "%s: %v", workName, errfmt.Format(err, false))
 		}
 
 		if err := x.portMeasurer.Open(x.cfg.User().ComportMeasurer, 115200, 0, x.hardware.ctx); err != nil {
