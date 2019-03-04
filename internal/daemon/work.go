@@ -286,6 +286,8 @@ func (x *D) doReadAndSaveProductsCurrents(field string) error {
 	if len(productsToWork) == 0 {
 		return merry.New("не выбрано ни одного прибора в данной партии")
 	}
+	logrus.Infof("снятие %q: %s", field, formatProducts(productsToWork))
+
 	blockProducts := GroupProductsByBlocks(productsToWork)
 	for _, products := range blockProducts {
 		block := products[0].Place / 8

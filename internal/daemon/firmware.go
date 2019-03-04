@@ -7,12 +7,13 @@ import (
 	"github.com/ansel1/merry"
 	"github.com/fpawel/elco/internal/api/notify"
 	"github.com/fpawel/elco/internal/data"
+	"github.com/fpawel/elco/pkg/intrng"
+	"github.com/fpawel/elco/pkg/serial-comm/comm"
 	"github.com/fpawel/elco/pkg/serial-comm/modbus"
 	"github.com/hako/durafmt"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/reform.v1"
 	"sort"
-	"strings"
 	"time"
 )
 
@@ -36,14 +37,7 @@ func (x *D) writePartyFirmware() error {
 		return merry.New("не выбрано ни одного прибора")
 	}
 
-	var placesS []string
-	for _, p := range products {
-		placesS = append(placesS, data.FormatPlace(p.Place))
-	}
-	sort.Strings(placesS)
-	placesStr := strings.Join(placesS, ", ")
-
-	logrus.Infof("запись партии: %s", placesStr)
+	logrus.Info(formatProducts(products))
 
 	placeBytes := map[int][]byte{}
 
@@ -54,7 +48,7 @@ func (x *D) writePartyFirmware() error {
 		}
 	}
 	logrus.Infof("запись партии завершена: %s, %s",
-		placesStr,
+		formatProducts(products),
 		durafmt.Parse(time.Since(startTime)))
 
 	startTime = time.Now()
@@ -70,7 +64,7 @@ func (x *D) writePartyFirmware() error {
 		}
 	}
 	logrus.Infof("считывание партии завершено: %s, %s",
-		placesStr, durafmt.Parse(time.Since(startTime)))
+		formatProducts(products), durafmt.Parse(time.Since(startTime)))
 
 	if err = data.GetPartyProducts(x.dbProducts, &party); err != nil {
 		return err
@@ -174,8 +168,8 @@ func (x *D) writeBlock(products []*data.Product, placeBytes map[int][]byte) erro
 	}
 
 	logrus.WithField("places_mask", fmt.Sprintf("%08b", placesMask)).
-		Infof("запись блока %d %d завершена: %s",
-			block, placesInBlock, durafmt.Parse(time.Since(startTime)))
+		Infof("запись блока %d %s завершена: %s",
+			block, intrng.Format(placesInBlock), durafmt.Parse(time.Since(startTime)))
 	return nil
 }
 
@@ -203,7 +197,7 @@ func (x *D) readPlaceFirmware(place int) ([]byte, error) {
 		}
 		resp, err := x.commMeasurer(x.hardware.ctx).GetResponse(req.Bytes(), func(request, response []byte) error {
 			if len(response) != 10+int(count) {
-				return merry.Errorf("ожидалось %d байт ответа, получено %d",
+				return comm.ErrProtocol.Here().WithMessagef("ожидалось %d байт ответа, получено %d",
 					10+int(count), len(response))
 			}
 			return nil
@@ -332,7 +326,7 @@ func (x *D) readStatus45(block int) ([]byte, error) {
 		ProtoCmd: 0x45,
 	}.Bytes(), func(request, response []byte) error {
 		if len(response) != 12 {
-			return merry.Errorf("ожидалось 12 байт ответа, получено %d", len(response))
+			return comm.ErrProtocol.Here().WithMessagef("ожидалось 12 байт ответа, получено %d", len(response))
 		}
 		return nil
 	})

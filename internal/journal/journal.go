@@ -1,14 +1,5 @@
 package journal
 
-import (
-	"gopkg.in/reform.v1"
-)
-
-func Init(db *reform.DB) error {
-	_, err := db.Exec(SQLCreate)
-	return err
-}
-
 func (s Entry) EntryInfo(workName string) EntryInfo {
 	return EntryInfo{
 		CreatedAt: s.CreatedAt,

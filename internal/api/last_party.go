@@ -14,7 +14,7 @@ type LastParty struct {
 }
 
 func NewLastParty(db *reform.DB, dbx *sqlx.DB) *LastParty {
-	return &LastParty{db, dbx}
+	return &LastParty{db, dbx }
 }
 
 func (x *LastParty) Party(_ struct{}, r *data.Party) error {
@@ -133,3 +133,18 @@ func (x *LastParty) SetBlockChecked(r [2]int, a *int64) error {
 func (x *LastParty) Pdf(_ struct{}, _ *struct{}) error {
 	return pdf.Run(x.db)
 }
+
+func (x *LastParty) CalculateFonMinus20(_ struct{}, party *data.Party) error {
+	return data.CalculateFonMinus20(x.db, party)
+}
+
+func (x *LastParty) CalculateSensMinus20(k [1]float64, party *data.Party) error {
+
+	return data.CalculateSensMinus20(x.db, k[0], party)
+}
+
+func (x *LastParty) CalculateSensPlus50(k [1]float64, party *data.Party) error {
+
+	return data.CalculateSensPlus50(x.db, k[0], party)
+}
+

@@ -131,6 +131,8 @@ SELECT *,
        party_id IN (SELECT party_id FROM last_party)                     AS last
 FROM party;
 
+
+DROP VIEW  IF EXISTS product_info_1;
 CREATE VIEW IF NOT EXISTS product_info_1 AS
 SELECT product_id,
        product.party_id,
@@ -187,6 +189,7 @@ SELECT product_id,
 FROM product
        INNER JOIN party ON party.party_id = product.party_id;
 
+DROP VIEW  IF EXISTS product_info_2;
 CREATE VIEW IF NOT EXISTS product_info_2 AS
 SELECT q.*,
 
@@ -224,6 +227,7 @@ FROM product_info_1 q
        INNER JOIN gas ON product_type.gas_name = gas.gas_name
        INNER JOIN units ON product_type.units_name = units.units_name;
 
+DROP VIEW  IF EXISTS product_info;
 CREATE VIEW IF NOT EXISTS product_info AS
 SELECT *,
        ok_d_not_measured AND

@@ -80,15 +80,11 @@ func Run(skipRunUIApp, createNewDB bool) error {
 		},
 		logFields: make(logrus.Fields),
 	}
-	if err := data.Init(x.dbProducts); err != nil {
-		return merry.Wrap(err)
-	}
 	x.cfg = cfg.OpenConfig(x.dbProducts)
-	if err := journal.Init(x.dbJournal); err != nil {
-		return merry.Wrap(err)
-	}
+
 	elco.Logger.AddHook(x)
 	logrus.AddHook(x)
+
 	x.portMeasurer = comport.NewPort("стенд", x.onComport)
 	x.portGas = comport.NewPort("пневмоблок", x.onComport)
 

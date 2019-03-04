@@ -30,6 +30,11 @@ func Open(createNew bool) (*sql.DB, error) {
 	conn.SetMaxIdleConns(1)
 	conn.SetMaxOpenConns(1)
 	conn.SetConnMaxLifetime(0)
+
+	if _, err := conn.Exec(SQLCreate); err != nil {
+		return nil, merry.Wrap(err)
+	}
+
 	logrus.Infoln("open sqlite database:", fileName)
 	return conn, nil
 }
