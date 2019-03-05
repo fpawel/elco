@@ -13,16 +13,6 @@ import (
 	"time"
 )
 
-type Comm struct {
-	Port   *Port
-	Config comm.Config
-	Ctx    context.Context
-}
-
-func (x Comm) GetResponse(request []byte, prs comm.ResponseParser) ([]byte, error) {
-	return x.Port.GetResponse(request, x.Config, x.Ctx, prs)
-}
-
 type Port struct {
 	config serial.Config
 	port   *serial.Port
@@ -57,30 +47,37 @@ func (x *Port) Config() serial.Config {
 	return x.config
 }
 
-func (x *Port) Open(serialPortName string, baud int, bounceTimeout time.Duration, ctx context.Context) (err error) {
+func (x *Port) Open(serialPortName string, baud int) error {
 	if x.Opened() {
 		return merry.New("already opened")
 	}
-	config := serial.Config{
+	x.config = serial.Config{
 		Name:        serialPortName,
 		Baud:        baud,
 		ReadTimeout: time.Millisecond,
 	}
 
-	if bounceTimeout == 0 {
-		x.port, err = openPort(serial.Config{
-			Name:        serialPortName,
-			Baud:        baud,
-			ReadTimeout: time.Millisecond,
-		})
-	} else {
-		x.port, err = openPortWithBounceTimeout(config, bounceTimeout, ctx)
+	port, err := openPort(x.config)
+	if err == nil {
+		x.port = port
 	}
-	if err != nil {
-		return
+	return err
+}
+
+func (x *Port) OpenWithDebounce(serialPortName string, baud int, bounceTimeout time.Duration, ctx context.Context) error {
+	if x.Opened() {
+		return merry.New("already opened")
 	}
-	x.config = config
-	return
+	x.config = serial.Config{
+		Name:        serialPortName,
+		Baud:        baud,
+		ReadTimeout: time.Millisecond,
+	}
+	port, err := openPortWithBounceTimeout(x.config, bounceTimeout, ctx)
+	if err == nil {
+		x.port = port
+	}
+	return err
 }
 
 func openPortWithBounceTimeout(config serial.Config, bounceTimeout time.Duration, ctx context.Context) (port *serial.Port, err error) {

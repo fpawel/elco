@@ -14,15 +14,11 @@ type LastParty struct {
 }
 
 func NewLastParty(db *reform.DB, dbx *sqlx.DB) *LastParty {
-	return &LastParty{db, dbx }
+	return &LastParty{db, dbx}
 }
 
 func (x *LastParty) Party(_ struct{}, r *data.Party) error {
-	if err := data.GetLastParty(x.db, r); err != nil {
-		return err
-	}
-	r.Last = true
-	return data.GetPartyProducts(x.db, r)
+	return data.GetLastPartyWithProductsInfo(x.db, data.ProductsFilter{}, r)
 }
 
 func (x *LastParty) SetProductSerialAtPlace(p [2]int, r *int64) (err error) {
@@ -135,16 +131,22 @@ func (x *LastParty) Pdf(_ struct{}, _ *struct{}) error {
 }
 
 func (x *LastParty) CalculateFonMinus20(_ struct{}, party *data.Party) error {
-	return data.CalculateFonMinus20(x.db, party)
+	if err := data.CalculateFonMinus20(x.db, x.dbx); err != nil {
+		return err
+	}
+	return data.GetLastPartyWithProductsInfo(x.db, data.ProductsFilter{}, party)
 }
 
 func (x *LastParty) CalculateSensMinus20(k [1]float64, party *data.Party) error {
-
-	return data.CalculateSensMinus20(x.db, k[0], party)
+	if err := data.CalculateSensMinus20(x.db, x.dbx, k[0]); err != nil {
+		return err
+	}
+	return data.GetLastPartyWithProductsInfo(x.db, data.ProductsFilter{}, party)
 }
 
 func (x *LastParty) CalculateSensPlus50(k [1]float64, party *data.Party) error {
-
-	return data.CalculateSensPlus50(x.db, k[0], party)
+	if err := data.CalculateSensPlus50(x.db, x.dbx, k[0]); err != nil {
+		return err
+	}
+	return data.GetLastPartyWithProductsInfo(x.db, data.ProductsFilter{}, party)
 }
-

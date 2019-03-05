@@ -195,7 +195,7 @@ func (x *D) readPlaceFirmware(place int) ([]byte, error) {
 				byte(count),
 			},
 		}
-		resp, err := x.commMeasurer(x.hardware.ctx).GetResponse(req.Bytes(), func(request, response []byte) error {
+		resp, err := x.measurerReader(x.hardware.ctx).GetResponse(req.Bytes(), func(request, response []byte) error {
 			if len(response) != 10+int(count) {
 				return comm.ErrProtocol.Here().WithMessagef("ожидалось %d байт ответа, получено %d",
 					10+int(count), len(response))
@@ -321,7 +321,7 @@ func (x *D) waitStatus45(block int, placesMask byte) error {
 }
 
 func (x *D) readStatus45(block int) ([]byte, error) {
-	return x.commMeasurer(x.hardware.ctx).GetResponse(modbus.Req{
+	return x.measurerReader(x.hardware.ctx).GetResponse(modbus.Req{
 		Addr:     modbus.Addr(block) + 101,
 		ProtoCmd: 0x45,
 	}.Bytes(), func(request, response []byte) error {
@@ -347,7 +347,7 @@ func (x *D) writePreparedDataToFlash(block int, placesMask byte, addr uint16, co
 	}
 	request := req.Bytes()
 
-	_, err := x.commMeasurer(x.hardware.ctx).GetResponse(request, func(request, response []byte) error {
+	_, err := x.measurerReader(x.hardware.ctx).GetResponse(request, func(request, response []byte) error {
 		if !compareBytes(response, req.Bytes()) {
 			return merry.New("запрос не равен ответу")
 		}
@@ -367,7 +367,7 @@ func (x *D) sendDataToWrite42(block, placeInBlock int, b []byte) error {
 		}, b...),
 	}
 	request := req.Bytes()
-	_, err := x.commMeasurer(x.hardware.ctx).GetResponse(request, func(request, response []byte) error {
+	_, err := x.measurerReader(x.hardware.ctx).GetResponse(request, func(request, response []byte) error {
 		if len(response) != 7 {
 			return merry.Errorf("длина ответа %d не равна 7", len(response))
 		}

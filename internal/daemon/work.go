@@ -7,7 +7,6 @@ import (
 	"github.com/fpawel/elco/internal/api"
 	"github.com/fpawel/elco/internal/api/notify"
 	"github.com/fpawel/elco/internal/data"
-	"github.com/fpawel/elco/pkg/serial-comm/comport"
 	"github.com/fpawel/elco/pkg/serial-comm/modbus"
 	"github.com/hako/durafmt"
 	"github.com/pkg/errors"
@@ -71,19 +70,13 @@ func (x *D) doSwitchGas(n int) error {
 		return merry.Errorf("wrong gas code: %d", n)
 	}
 
-	responseReader := comport.Comm{
-		Port:   x.portGas,
-		Config: x.cfg.Predefined().ComportGas,
-		Ctx:    x.hardware.ctx,
-	}
-
 	if !x.portGas.Opened() {
-		if err := x.portGas.Open(x.cfg.User().ComportGas, 9600, 0, context.Background()); err != nil {
+		if err := x.portGas.Open(x.cfg.User().ComportGas, 9600); err != nil {
 			return err
 		}
 	}
 
-	if _, err := responseReader.GetResponse(req.Bytes(), nil); err != nil {
+	if _, err := x.gasBlockReader().GetResponse(req.Bytes(), nil); err != nil {
 		return err
 	}
 
@@ -101,7 +94,7 @@ func (x *D) doSwitchGas(n int) error {
 
 	logrus.Warnf("установить расход % X", req.Bytes())
 
-	if _, err := responseReader.GetResponse(req.Bytes(), nil); err != nil {
+	if _, err := x.gasBlockReader().GetResponse(req.Bytes(), nil); err != nil {
 		return err
 	}
 
@@ -354,7 +347,7 @@ func GroupProductsByBlocks(ps []data.Product) (gs [][]*data.Product) {
 
 func (x *D) readBlockMeasure(block int, ctx context.Context) ([]float64, error) {
 
-	values, err := modbus.Read3BCDValues(x.commMeasurer(ctx), modbus.Addr(block+101), 0, 8)
+	values, err := modbus.Read3BCDValues(x.measurerReader(ctx), modbus.Addr(block+101), 0, 8)
 
 	switch err {
 
@@ -367,14 +360,6 @@ func (x *D) readBlockMeasure(block int, ctx context.Context) ([]float64, error) 
 
 	default:
 		return nil, merry.WithValue(err, "block", block)
-	}
-}
-
-func (x *D) commMeasurer(ctx context.Context) comport.Comm {
-	return comport.Comm{
-		Port:   x.portMeasurer,
-		Config: x.cfg.Predefined().ComportMeasurer,
-		Ctx:    ctx,
 	}
 }
 

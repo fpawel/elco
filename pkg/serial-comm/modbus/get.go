@@ -8,11 +8,11 @@ import (
 	"github.com/hashicorp/go-multierror"
 )
 
-type responseGetter interface {
+type ResponseReader interface {
 	GetResponse([]byte, comm.ResponseParser) ([]byte, error)
 }
 
-func read3(responseReader responseGetter, addr Addr, firstReg Var, regsCount uint16,
+func read3(responseReader ResponseReader, addr Addr, firstReg Var, regsCount uint16,
 	parseResponse comm.ResponseParser) ([]byte, error) {
 	req := Req{
 		Addr:     addr,
@@ -40,9 +40,9 @@ func read3(responseReader responseGetter, addr Addr, firstReg Var, regsCount uin
 	return response, nil
 }
 
-func Read3BCDValues(responseGetter responseGetter, addr Addr, var3 Var, count int) ([]float64, error) {
+func Read3BCDValues(responseReader ResponseReader, addr Addr, var3 Var, count int) ([]float64, error) {
 	var values []float64
-	_, err := read3(responseGetter, addr, var3, uint16(count*2),
+	_, err := read3(responseReader, addr, var3, uint16(count*2),
 		func(request, response []byte) error {
 			var err error
 			for i := 0; i < count; i++ {

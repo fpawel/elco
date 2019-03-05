@@ -1,75 +1,61 @@
 package data
 
 import (
+	"github.com/jmoiron/sqlx"
 	"gopkg.in/reform.v1"
 )
 
-func CalculateFonMinus20(db *reform.DB, party *Party) error {
+func CalculateFonMinus20(db *reform.DB, dbx *sqlx.DB) error {
+
+	party := new(Party)
 	if err := GetLastPartyWithProductsInfo(db, ProductsFilter{}, party); err != nil {
 		return err
 	}
-	for i, p := range party.Products{
+	for _, p := range party.Products {
 		t, err := p.TableFon()
 		if err != nil {
 			continue
 		}
-		a := NewApproximationTable(t)
-		var product Product
-		if err := db.FindByPrimaryKeyTo(&product, p.ProductID); err != nil {
+		if err := SetProductValue(dbx, p.ProductID, "i_f_minus20", NewApproximationTable(t).F(-20)); err != nil {
 			return err
 		}
-		product.IFMinus20.Valid = true
-		product.IFMinus20.Float64 = a.F(-20)
-		if err := db.Save(&product); err != nil {
-			return err
-		}
-		party.Products[i].IFMinus20 = product.IFMinus20
 	}
 	return nil
 }
 
-func CalculateSensMinus20(db *reform.DB, k float64, party *Party) error {
+func CalculateSensMinus20(db *reform.DB, dbx *sqlx.DB, k float64) error {
+	party := new(Party)
 	if err := GetLastPartyWithProductsInfo(db, ProductsFilter{}, party); err != nil {
 		return err
 	}
-	for i, p := range party.Products{
+	for _, p := range party.Products {
 		if !(p.IFPlus20.Valid && p.ISPlus20.Valid && p.IFMinus20.Valid) {
 			continue
 		}
-		var product Product
-		if err := db.FindByPrimaryKeyTo(&product, p.ProductID); err != nil {
+		ISMinus20 :=
+			p.IFMinus20.Float64 + (p.ISPlus20.Float64-p.IFPlus20.Float64)*k/100.
+		if err := SetProductValue(dbx, p.ProductID, "i_s_minus20", ISMinus20); err != nil {
 			return err
 		}
-		product.ISMinus20.Valid = true
-		product.ISMinus20.Float64 =
-			product.IFMinus20.Float64 + (product.ISPlus20.Float64 - product.IFPlus20.Float64) * k / 100.
-		if err := db.Save(&product); err != nil {
-			return err
-		}
-		party.Products[i].ISMinus20 = product.ISMinus20
 	}
 	return nil
 }
 
-func CalculateSensPlus50(db *reform.DB, k float64, party *Party) error {
+func CalculateSensPlus50(db *reform.DB, dbx *sqlx.DB, k float64) error {
+	party := new(Party)
 	if err := GetLastPartyWithProductsInfo(db, ProductsFilter{}, party); err != nil {
 		return err
 	}
-	for i, p := range party.Products{
+	for _, p := range party.Products {
 		if !(p.IFPlus20.Valid && p.ISPlus20.Valid && p.IFPlus50.Valid) {
 			continue
 		}
-		var product Product
-		if err := db.FindByPrimaryKeyTo(&product, p.ProductID); err != nil {
+		ISPlus50 :=
+			p.IFPlus50.Float64 + (p.ISPlus20.Float64-p.IFPlus20.Float64)*k/100.
+
+		if err := SetProductValue(dbx, p.ProductID, "i_s_plus50", ISPlus50); err != nil {
 			return err
 		}
-		product.ISPlus50.Valid = true
-		product.ISPlus50.Float64 =
-			product.IFPlus50.Float64 + (product.ISPlus20.Float64 - product.IFPlus20.Float64) * k / 100.
-		if err := db.Save(&product); err != nil {
-			return err
-		}
-		party.Products[i].ISPlus50 = product.ISPlus50
 	}
 	return nil
 }
