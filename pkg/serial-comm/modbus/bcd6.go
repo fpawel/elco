@@ -45,7 +45,7 @@ func PutBCD6(b []byte, x float64) {
 	x = math.Abs(x)
 	for i := byte(0); i < 6; i++ {
 		if x >= bcdComa[i] && x < bcdComa[i+1] {
-			b[0] = 6 - i
+			b[0] |= 6 - i
 			break
 		}
 	}
