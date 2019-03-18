@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/fpawel/goutils"
+	"github.com/fpawel/elco/pkg/serial-comm/modbus"
 	"github.com/lxn/walk"
 	. "github.com/lxn/walk/declarative"
 
@@ -18,7 +18,7 @@ var neIn, neFloat, neBCD, leCRC16In, leCRC16Out *walk.LineEdit
 var editMode bool
 
 func onCRC16() {
-	h, l := goutils.CRC16(parseBytes(leCRC16In.Text()))
+	h, l := modbus.CRC16(parseBytes(leCRC16In.Text()))
 	leCRC16Out.SetText(fmt.Sprintf("% X", []byte{h, l}))
 }
 
@@ -34,7 +34,7 @@ func parseBytes(str string) (b []byte) {
 }
 
 func updateBCD(value float64) {
-	neBCD.SetText(fmt.Sprintf("% X", goutils.BCD6(value)))
+	neBCD.SetText(fmt.Sprintf("% X", modbus.BCD6(value)))
 }
 
 func updateFloat(value float64) {
@@ -102,7 +102,7 @@ func neBCDChanged() {
 	if len(b) != 4 {
 		return
 	}
-	v, ok := goutils.ParseBCD6(parseBytes(neBCD.Text()))
+	v, ok := modbus.ParseBCD6(parseBytes(neBCD.Text()))
 	if ok {
 		neIn.SetText(fmt.Sprintf("%g", v))
 		updateFloat(float64(v))
