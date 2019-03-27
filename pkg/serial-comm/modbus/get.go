@@ -63,24 +63,19 @@ func Read3BCDValues(responseReader ResponseReader, addr Addr, var3 Var, count in
 
 }
 
-//func Read3(responseReader responseGetter, addr Addr, firstReg Var, regsCount uint16) ([]byte, error) {
-//	_, response, err := read3(responseReader, addr, firstReg, regsCount)
-//	return response, err
-//}
-//func Read3BCD(responseReader responseGetter, addr Addr, var3 Var) (float64, error) {
-//	request, response, err := read3(responseReader, addr, var3, 2)
-//	if err != nil {
-//		return 0, err
-//	}
-//	if v, ok := ParseBCD6(response[3:]); !ok {
-//		return 0, ProtocolError.Here().
-//			WithValue( "request", request).
-//			WithValue("response", response).
-//			WithMessagef("не правильный код BCD: % X", response[3:7])
-//	} else {
-//		return v, nil
-//	}
-//}
+func Read3BCD(responseReader ResponseReader, addr Addr, var3 Var) (result float64, err error) {
+
+	_, err = read3(responseReader, addr, var3, 2,
+		func(request []byte, response []byte) error {
+			var ok bool
+			if result, ok = ParseBCD6(response[3:]); !ok {
+				return merry.Errorf("не правильный код BCD: % X", response[3:7])
+			}
+			return nil
+		})
+	return
+}
+
 //func Write32FloatProto(r responseGetter, addr Addr, protocolCommandCode ProtoCmd,
 //	deviceCommandCode DevCmd, value float64) error {
 //	req := Write32BCDRequest(addr, protocolCommandCode, deviceCommandCode, value)
