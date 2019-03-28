@@ -36,17 +36,3 @@ func (x Req) checkResponse(response []byte) error {
 
 	return nil
 }
-
-func (x Req) CheckResponse16(response []byte) error {
-	if err := x.CheckResponse(response); err != nil {
-		return err
-	}
-	request := x.Bytes()
-	for i := 2; i < 6; i++ {
-		if request[i] != response[i] {
-			return errfmt.WithReqResp(ErrProtocol.Here(), request, response).
-				WithMessagef("ошибка формата ответа: [% X] != [% X]", request[2:6], response[2:6])
-		}
-	}
-	return nil
-}

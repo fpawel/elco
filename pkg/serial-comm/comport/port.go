@@ -57,6 +57,9 @@ func (x *Port) Open(serialPortName string, baud int) error {
 	if err == nil {
 		x.port = port
 	}
+	if err != nil {
+		err = merry.Append(err, serialPortName)
+	}
 	return err
 }
 
@@ -202,7 +205,7 @@ func (x *Port) GetResponse(request []byte, commConfig comm.Config, ctx context.C
 func (x Entry) String() string {
 	s := fmt.Sprintf("%s: %s: % X", x.Device, x.Port, x.Request)
 	if len(x.Response) > 0 {
-		s += fmt.Sprintf("-> % X", x.Response)
+		s += fmt.Sprintf(" -> % X", x.Response)
 	}
 	if x.Error != nil {
 		s += ": " + x.Error.Error()

@@ -76,23 +76,30 @@ func Read3BCD(responseReader ResponseReader, addr Addr, var3 Var) (result float6
 	return
 }
 
-//func Write32FloatProto(r responseGetter, addr Addr, protocolCommandCode ProtoCmd,
-//	deviceCommandCode DevCmd, value float64) error {
-//	req := Write32BCDRequest(addr, protocolCommandCode, deviceCommandCode, value)
-//	response, err := r.GetResponse(req.Bytes())
-//
-//	if err == nil {
-//		err = req.CheckResponse16(response)
-//	}
-//
-//	if err != nil {
-//		err =  merry.Wrap(err).
-//			WithValue( "request", req.Bytes()).
-//			WithValue("response", response).
-//			WithMessagef("не удалась команда %d(%X) с аргументом %v", deviceCommandCode, deviceCommandCode, value)
-//	}
-//	return err
-//}
+func Write32FloatProto(r ResponseReader, addr Addr, protocolCommandCode ProtoCmd,
+	deviceCommandCode DevCmd, value float64) error {
+	req := Write32BCDRequest(addr, protocolCommandCode, deviceCommandCode, value)
+
+	_, err := r.GetResponse(req.Bytes(), func(request, response []byte) error {
+		if err := req.CheckResponse(response); err != nil {
+			return err
+		}
+		for i := 2; i < 6; i++ {
+			if request[i] != response[i] {
+				return errfmt.WithReqResp(ErrProtocol.Here(), request, response).
+					WithMessagef("ошибка формата ответа: [% X] != [% X]", request[2:6], response[2:6])
+			}
+		}
+		return nil
+	})
+
+	if err != nil {
+		err = merry.Wrap(err).
+			Appendf("write32 %X, %v", deviceCommandCode, value)
+	}
+	return err
+}
+
 //func Write32Float(r responseGetter, addr Addr, deviceCommandCode DevCmd, value float64) error {
 //	return Write32FloatProto(r, addr, 0x10, deviceCommandCode, value)
 //}
