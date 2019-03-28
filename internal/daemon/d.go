@@ -8,6 +8,7 @@ import (
 	"github.com/ansel1/merry"
 	"github.com/fpawel/elco/internal/api"
 	"github.com/fpawel/elco/internal/api/notify"
+	"github.com/fpawel/elco/internal/assets"
 	"github.com/fpawel/elco/internal/cfg"
 	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/elco/internal/elco"
@@ -15,9 +16,9 @@ import (
 	"github.com/fpawel/elco/pkg/copydata"
 	"github.com/fpawel/elco/pkg/serial-comm/comport"
 	"github.com/fpawel/elco/pkg/winapp"
+	"github.com/getlantern/systray"
 	"github.com/go-logfmt/logfmt"
 	"github.com/jmoiron/sqlx"
-	"github.com/lxn/walk"
 	"github.com/lxn/win"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/powerman/rpc-codec/jsonrpc2"
@@ -88,14 +89,7 @@ func Run(skipRunUIApp, createNewDB bool) error {
 	x.portMeasurer = comport.NewPort("стенд", x.onComport)
 	x.portGas = comport.NewPort("пневмоблок", x.onComport)
 
-	notifyIcon, err := walk.NewNotifyIcon()
-	if err != nil {
-		return merry.WithMessage(err, "unable to create the notify icon")
-	}
-
-	if err := setupNotifyIcon(notifyIcon, x.w.CloseWindow); err != nil {
-		return merry.WithMessage(err, "unable to create the notify icon")
-	}
+	go runSysTray(x.w.CloseWindow)
 
 	for _, svcObj := range []interface{}{
 		api.NewPartiesCatalogue(x.dbProducts, x.dbxProducts),
@@ -151,8 +145,6 @@ func Run(skipRunUIApp, createNewDB bool) error {
 
 	wg.Wait()
 
-	logrus.Debugln("clean up notify icon on exit:", notifyIcon.Dispose())
-
 	winapp.EnumWindowsWithClassName(func(hWnd win.HWND, winClassName string) {
 		if winClassName == elco.PeerWindowClassName {
 			logrus.Debugln("close peer window:", hWnd, winClassName)
@@ -206,60 +198,6 @@ func runUIApp() error {
 	return exec.Command(fileName).Start()
 }
 
-func setupNotifyIcon(notifyIcon *walk.NotifyIcon, exitFunc func()) error {
-
-	appIconFileName, err := winapp.ProfileFileName(".elco", "assets", "appicon.ico")
-	if err != nil {
-		return merry.Wrap(err)
-	}
-
-	//We load our icon from a temp file.
-	appIcon, err := walk.NewIconFromFile(appIconFileName)
-	if err != nil {
-		return merry.Wrap(err)
-	}
-
-	// Set the icon and a tool tip text.
-	if err := notifyIcon.SetIcon(appIcon); err != nil {
-		return merry.Wrap(err)
-	}
-
-	if err := notifyIcon.SetToolTip("Производство ЭХЯ CO"); err != nil {
-		return merry.Wrap(err)
-	}
-
-	// When the left mouse button is pressed, bring up our balloon.
-	notifyIcon.MouseDown().Attach(func(x, y int, button walk.MouseButton) {
-		if button != walk.LeftButton {
-			return
-		}
-		logrus.Debugln("sys tray: clicked")
-		if err := runUIApp(); err != nil {
-			logrus.Panicln("unable to run gui aplication elcoui.exe:", err)
-		}
-	})
-
-	// We put an exit action into the context menu.
-	exitAction := walk.NewAction()
-	if err := exitAction.SetText("Выход"); err != nil {
-		return merry.Wrap(err)
-	}
-	exitAction.Triggered().Attach(func() {
-		logrus.Debugln("sys tray: \"Выход\" clicked")
-		exitFunc()
-	})
-
-	if err := notifyIcon.ContextMenu().Actions().Add(exitAction); err != nil {
-		return merry.Wrap(err)
-	}
-
-	// The notify icon is hidden initially, so we have to make it visible.
-	if err := notifyIcon.SetVisible(true); err != nil {
-		return merry.Wrap(err)
-	}
-	return nil
-}
-
 func (x *D) Levels() []logrus.Level {
 	return logrus.AllLevels
 }
@@ -310,4 +248,35 @@ func (x *D) Fire(entry *logrus.Entry) error {
 	entry.Data["entry_id"] = journalEntry.EntryID
 	notify.NewJournalEntry(x.w, journalEntry.EntryInfo(x.currentWork.Name))
 	return err
+}
+
+func runSysTray(onClose func()) {
+	systray.Run(func() {
+
+		appIconBytes, err := assets.Asset("assets/appicon.ico")
+		if err != nil {
+			logrus.Fatal(err)
+		}
+
+		systray.SetIcon(appIconBytes)
+		systray.SetTitle("Производство ЭХЯ CO")
+		systray.SetTooltip("Производство ЭХЯ CO")
+		mRunGUIApp := systray.AddMenuItem("Показать", "Показать окно приложения")
+		mQuitOrig := systray.AddMenuItem("Закрыть", "Закрыть приложение")
+
+		go func() {
+			for {
+				select {
+				case <-mRunGUIApp.ClickedCh:
+					if err := runUIApp(); err != nil {
+						logrus.Panicln("unable to run gui aplication elcoui.exe:", err)
+					}
+				case <-mQuitOrig.ClickedCh:
+					systray.Quit()
+					onClose()
+				}
+			}
+		}()
+	}, func() {
+	})
 }

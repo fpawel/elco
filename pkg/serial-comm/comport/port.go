@@ -39,10 +39,6 @@ func NewPort(device string, h Hook) *Port {
 	}
 }
 
-func (x *Port) SetHook(hook Hook) {
-	x.hook = hook
-}
-
 func (x *Port) Config() serial.Config {
 	return x.config
 }
