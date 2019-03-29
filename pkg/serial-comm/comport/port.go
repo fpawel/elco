@@ -32,9 +32,13 @@ type Entry struct {
 
 type Hook func(Entry)
 
-func NewPort(device string, h Hook) *Port {
+func NewPort(device string, config serial.Config, h Hook) *Port {
+	if config.ReadTimeout == 0 {
+		config.ReadTimeout = time.Millisecond
+	}
 	return &Port{
 		hook:   h,
+		config: config,
 		device: device,
 	}
 }
@@ -43,35 +47,26 @@ func (x *Port) Config() serial.Config {
 	return x.config
 }
 
-func (x *Port) Open(serialPortName string, baud int) error {
+func (x *Port) Open(name string) error {
 	if x.Opened() {
 		return merry.New("already opened")
 	}
-	x.config = serial.Config{
-		Name:        serialPortName,
-		Baud:        baud,
-		ReadTimeout: time.Millisecond,
-	}
-
+	x.config.Name = name
 	port, err := openPort(x.config)
 	if err == nil {
 		x.port = port
 	}
 	if err != nil {
-		err = merry.Append(err, serialPortName)
+		err = merry.Append(err, name)
 	}
 	return err
 }
 
-func (x *Port) OpenWithDebounce(serialPortName string, baud int, bounceTimeout time.Duration, ctx context.Context) error {
+func (x *Port) OpenWithDebounce(name string, bounceTimeout time.Duration, ctx context.Context) error {
 	if x.Opened() {
 		return merry.New("already opened")
 	}
-	x.config = serial.Config{
-		Name:        serialPortName,
-		Baud:        baud,
-		ReadTimeout: time.Millisecond,
-	}
+	x.config.Name = name
 	port, err := openPortWithBounceTimeout(x.config, bounceTimeout, ctx)
 	if err == nil {
 		x.port = port

@@ -95,7 +95,7 @@ func Write32FloatProto(r ResponseReader, addr Addr, protocolCommandCode ProtoCmd
 
 	if err != nil {
 		err = merry.Wrap(err).
-			Appendf("write32 %X, %v", deviceCommandCode, value)
+			Appendf("write32 %d, %v", deviceCommandCode, value)
 	}
 	return err
 }

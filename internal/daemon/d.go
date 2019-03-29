@@ -16,6 +16,7 @@ import (
 	"github.com/fpawel/elco/pkg/copydata"
 	"github.com/fpawel/elco/pkg/serial-comm/comport"
 	"github.com/fpawel/elco/pkg/winapp"
+	"github.com/fpawel/serial"
 	"github.com/getlantern/systray"
 	"github.com/go-logfmt/logfmt"
 	"github.com/jmoiron/sqlx"
@@ -86,8 +87,14 @@ func Run(skipRunUIApp, createNewDB bool) error {
 	elco.Logger.AddHook(x)
 	logrus.AddHook(x)
 
-	x.portMeasurer = comport.NewPort("стенд", x.onComport)
-	x.portGas = comport.NewPort("пневмоблок", x.onComport)
+	x.portMeasurer = comport.NewPort("стенд", serial.Config{
+		Baud:        115200,
+		ReadTimeout: time.Millisecond,
+	}, x.onComport)
+	x.portGas = comport.NewPort("пневмоблок", serial.Config{
+		Baud:        9600,
+		ReadTimeout: time.Millisecond,
+	}, x.onComport)
 
 	go runSysTray(x.w.CloseWindow)
 

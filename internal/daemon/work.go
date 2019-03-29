@@ -71,7 +71,7 @@ func (x *D) doSwitchGas(n int) error {
 	}
 
 	if !x.portGas.Opened() {
-		if err := x.portGas.Open(x.cfg.User().ComportGas, 9600); err != nil {
+		if err := x.portGas.Open(x.cfg.User().ComportGas); err != nil {
 			return err
 		}
 	}
