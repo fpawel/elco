@@ -156,7 +156,7 @@ func (x *D) runHardware(logWork bool, workName string, work WorkFunc) {
 			notify.ErrorOccurredf(x.w, "%s: %v", workName, errfmt.Format(err, false))
 		}
 
-		if err := x.portMeasurer.Open(x.cfg.User().ComportMeasurer, 115200); err != nil {
+		if err := x.portMeasurer.Open(x.cfg.User().ComportMeasurer); err != nil {
 			notifyErr("не удалось открыть СОМ порт", err)
 			return
 		}
