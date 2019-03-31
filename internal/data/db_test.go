@@ -5,6 +5,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
 	"gopkg.in/reform.v1"
+	"gopkg.in/reform.v1/dialects/sqlite3"
 	"io/ioutil"
 	"log"
 	"os"
@@ -26,12 +27,14 @@ func TestConcurrent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer dbConn.Close()
+	defer func() {
+		_ = dbConn.Close()
+	}()
 	dbConn.SetMaxIdleConns(1)
 	dbConn.SetMaxOpenConns(1)
 	dbConn.SetConnMaxLifetime(0)
 
-	db, err := Open(dbConn, nil)
+	db, err := Open(false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -42,7 +45,7 @@ func TestConcurrent(t *testing.T) {
 	for i := 0; i < 100; i++ {
 		i := i
 		go func() {
-			_, err := createNewPartyReform(db)
+			_, err := createNewPartyReform(reform.NewDB(db, sqlite3.Dialect, nil))
 			if err != nil {
 				t.Errorf("%d: %v", i, err)
 			}

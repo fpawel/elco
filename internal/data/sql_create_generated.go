@@ -100,22 +100,6 @@ CREATE TABLE IF NOT EXISTS product
     ON DELETE CASCADE
 );
 
-CREATE TRIGGER IF NOT EXISTS trigger_product_party_updated_at
-  AFTER INSERT
-  ON product
-  BEGIN
-    UPDATE party
-    SET updated_at = datetime('now')
-    WHERE party.party_id = new.party_id;
-  END;
-
-CREATE TRIGGER IF NOT EXISTS trigger_party_updated_at
-  BEFORE UPDATE
-  ON party
-  BEGIN
-    UPDATE party SET updated_at = (datetime('now')) WHERE party_id = old.party_id;
-  END;
-
 CREATE VIEW IF NOT EXISTS last_party AS
 SELECT *
 FROM party
