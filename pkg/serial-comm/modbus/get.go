@@ -12,7 +12,7 @@ type ResponseReader interface {
 	GetResponse([]byte, comm.ResponseParser) ([]byte, error)
 }
 
-func read3(responseReader ResponseReader, addr Addr, firstReg Var, regsCount uint16,
+func Read3(responseReader ResponseReader, addr Addr, firstReg Var, regsCount uint16,
 	parseResponse comm.ResponseParser) ([]byte, error) {
 	req := Req{
 		Addr:     addr,
@@ -42,7 +42,7 @@ func read3(responseReader ResponseReader, addr Addr, firstReg Var, regsCount uin
 
 func Read3BCDValues(responseReader ResponseReader, addr Addr, var3 Var, count int) ([]float64, error) {
 	var values []float64
-	_, err := read3(responseReader, addr, var3, uint16(count*2),
+	_, err := Read3(responseReader, addr, var3, uint16(count*2),
 		func(request, response []byte) error {
 			var err error
 			for i := 0; i < count; i++ {
@@ -65,7 +65,7 @@ func Read3BCDValues(responseReader ResponseReader, addr Addr, var3 Var, count in
 
 func Read3BCD(responseReader ResponseReader, addr Addr, var3 Var) (result float64, err error) {
 
-	_, err = read3(responseReader, addr, var3, 2,
+	_, err = Read3(responseReader, addr, var3, 2,
 		func(request []byte, response []byte) error {
 			var ok bool
 			if result, ok = ParseBCD6(response[3:]); !ok {
