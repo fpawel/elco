@@ -27,7 +27,22 @@ func GetResponse(request Request, ctx context.Context) ([]byte, error) {
 	if request.Config.MaxAttemptsRead < 1 {
 		request.Config.MaxAttemptsRead = 1
 	}
-	return request.getResponse(ctx)
+	response, err := request.getResponse(ctx)
+
+	if merry.Is(err, context.DeadlineExceeded) {
+		err = merry.WithMessagef(err, "нет ответа: % X", request.Bytes)
+	}
+
+	if merry.Is(err, ErrProtocol) {
+		if len(response) > 0 {
+			err = merry.Appendf(err, "% X -> % X", request.Bytes, response)
+		} else {
+			err = merry.Appendf(err, "% X", request.Bytes)
+		}
+
+	}
+
+	return response, err
 }
 
 var ErrProtocol = merry.New("protocol error")
@@ -38,6 +53,7 @@ type result struct {
 }
 
 func (x Request) getResponse(mainContext context.Context) ([]byte, error) {
+	var lastError error
 	for attempt := 0; attempt < x.Config.MaxAttemptsRead; attempt++ {
 		if err := x.write(); err != nil {
 			return nil, err
@@ -59,12 +75,15 @@ func (x Request) getResponse(mainContext context.Context) ([]byte, error) {
 				r.err = x.ResponseParser(x.Bytes, r.response)
 			}
 			if merry.Is(r.err, ErrProtocol) {
+				lastError = merry.WithValue(r.err, "attempt", attempt)
 				time.Sleep(x.Config.ReadByteTimeout())
 				continue
 			}
 			return r.response, r.err
 
 		case <-ctx.Done():
+
+			lastError = merry.WithValue(ctx.Err(), "attempt", attempt)
 
 			switch ctx.Err() {
 
@@ -75,15 +94,11 @@ func (x Request) getResponse(mainContext context.Context) ([]byte, error) {
 				return nil, merry.WithMessage(context.Canceled, "прервано")
 
 			default:
-				return nil, merry.WithValue(ctx.Err(), "attempt", attempt)
+				return nil, lastError
 			}
 		}
 	}
-
-	return nil, merry.WithMessage(context.DeadlineExceeded, "не отвечает").
-		WithValue("attempt", x.Config.MaxAttemptsRead).
-		WithValue("timeout", durafmt.Parse(x.Config.ReadTimeout())).
-		WithValue("read_byte_timeout", durafmt.Parse(x.Config.ReadByteTimeout()))
+	return nil, lastError
 
 }
 

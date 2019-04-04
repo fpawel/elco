@@ -1,11 +1,13 @@
 package modbus
 
 import (
+	"encoding/binary"
 	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/elco/pkg/errfmt"
 	"github.com/fpawel/elco/pkg/serial-comm/comm"
 	"github.com/hashicorp/go-multierror"
+	"math"
 )
 
 type ResponseReader interface {
@@ -95,9 +97,28 @@ func Write32FloatProto(r ResponseReader, addr Addr, protocolCommandCode ProtoCmd
 
 	if err != nil {
 		err = merry.Wrap(err).
-			Appendf("write32 %d, %v", deviceCommandCode, value)
+			Appendf("запись в 32-ой регистр %X, %v", deviceCommandCode, value)
 	}
 	return err
+}
+
+func ReadFloat32(responseReader ResponseReader, addr Addr, var3 Var) (result float32, err error) {
+	_, err = Read3(responseReader, addr, var3, 2,
+		func(_, response []byte) error {
+			bits := binary.LittleEndian.Uint32(response[3:7])
+			result = math.Float32frombits(bits)
+			return nil
+		})
+	return
+}
+
+func ReadUInt16(responseReader ResponseReader, addr Addr, var3 Var) (result uint16, err error) {
+	_, err = Read3(responseReader, addr, var3, 1,
+		func(_, response []byte) error {
+			result = binary.LittleEndian.Uint16(response[3:5])
+			return nil
+		})
+	return
 }
 
 //func Write32Float(r responseGetter, addr Addr, deviceCommandCode DevCmd, value float64) error {

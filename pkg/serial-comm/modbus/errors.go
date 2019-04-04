@@ -2,14 +2,13 @@ package modbus
 
 import (
 	"github.com/ansel1/merry"
-	"github.com/fpawel/elco/pkg/errfmt"
 	"github.com/fpawel/elco/pkg/serial-comm/comm"
 )
 
 var ErrProtocol = merry.WithMessage(comm.ErrProtocol, "modbus error")
 
 func (x Req) CheckResponse(response []byte) error {
-	return errfmt.WithReqResp(x.checkResponse(response), x.Bytes(), response)
+	return x.checkResponse(response)
 }
 
 func (x Req) checkResponse(response []byte) error {
@@ -27,7 +26,7 @@ func (x Req) checkResponse(response []byte) error {
 	}
 
 	if len(response) == 5 && byte(x.ProtoCmd)|0x80 == response[1] {
-		return ErrProtocol.Here().WithMessagef("прибор вернул код ошибки %d", response[2])
+		return ErrProtocol.Here().WithMessagef("код ошибки %X", response[2])
 	}
 	if response[1] != byte(x.ProtoCmd) {
 		return ErrProtocol.Here().WithMessagef("несовпадение кодов команд запроса [%d] и ответа [%d]",
