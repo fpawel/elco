@@ -168,7 +168,7 @@ func (x *D) onComport(w comport.Entry) {
 	if x.cfg.Predefined().VerboseLogging {
 		notify.ComportEntry(x.w, api.ComportEntry{
 			Port:  w.Port,
-			Error: w.Error != nil,
+			Error: false,
 			Msg:   w.String(),
 		})
 	}

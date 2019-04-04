@@ -27,7 +27,6 @@ type Entry struct {
 	Duration time.Duration
 	Port     string
 	Device   string
-	Error    error
 }
 
 type Hook func(Entry)
@@ -190,7 +189,6 @@ func (x *Port) GetResponse(request []byte, commConfig comm.Config, ctx context.C
 			Response: response,
 			Duration: duration,
 			Port:     x.config.Name,
-			Error:    err,
 			Device:   x.device,
 		})
 	}
@@ -201,9 +199,6 @@ func (x Entry) String() string {
 	s := fmt.Sprintf("%s: %s: % X", x.Device, x.Port, x.Request)
 	if len(x.Response) > 0 {
 		s += fmt.Sprintf(" -> % X", x.Response)
-	}
-	if x.Error != nil {
-		s += ": " + x.Error.Error()
 	}
 	s += ": " + durafmt.Parse(x.Duration).String()
 	return s
