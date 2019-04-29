@@ -30,18 +30,8 @@ func GetResponse(request Request, ctx context.Context) ([]byte, error) {
 	response, err := request.getResponse(ctx)
 
 	if merry.Is(err, context.DeadlineExceeded) {
-		err = merry.WithMessagef(err, "нет ответа: % X", request.Bytes)
+		err = merry.WithMessage(err, "нет ответа")
 	}
-
-	if merry.Is(err, ErrProtocol) {
-		if len(response) > 0 {
-			err = merry.Appendf(err, "% X -> % X", request.Bytes, response)
-		} else {
-			err = merry.Appendf(err, "% X", request.Bytes)
-		}
-
-	}
-
 	return response, err
 }
 

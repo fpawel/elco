@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/ansel1/merry"
-	"github.com/fpawel/elco/pkg/errfmt"
 	"github.com/fpawel/elco/pkg/serial-comm/comm"
 	"github.com/fpawel/serial"
 	"github.com/hako/durafmt"
@@ -178,10 +177,13 @@ func (x *Port) GetResponse(request []byte, commConfig comm.Config, ctx context.C
 	}
 
 	if err != nil {
-		err = errfmt.WithReqResp(err, request, response).
+		err = merry.WithValue(err, "request", fmt.Sprintf("% X", request)).
 			WithValue("port", x.config.Name).
 			WithValue("device", x.device).
 			WithValue("duration", durafmt.Parse(duration))
+		if len(response) > 0 {
+			err = merry.WithValue(err, "response", fmt.Sprintf("% X", response))
+		}
 	}
 
 	if x.hook != nil {

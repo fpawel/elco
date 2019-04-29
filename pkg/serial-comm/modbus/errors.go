@@ -13,6 +13,10 @@ func (x Req) CheckResponse(response []byte) error {
 
 func (x Req) checkResponse(response []byte) error {
 
+	if len(response) == 0 {
+		return ErrProtocol.Here().WithMessage("нет ответа")
+	}
+
 	if len(response) < 4 {
 		return ErrProtocol.Here().WithMessage("длина ответа меньше 4")
 	}

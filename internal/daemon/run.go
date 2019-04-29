@@ -7,7 +7,6 @@ import (
 	"github.com/fpawel/elco/internal/api/notify"
 	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/elco/internal/journal"
-	"github.com/fpawel/elco/pkg/errfmt"
 	"github.com/hashicorp/go-multierror"
 	"github.com/sirupsen/logrus"
 	"sync"
@@ -149,11 +148,11 @@ func (x *D) runHardware(logWork bool, workName string, work WorkFunc) {
 		}()
 
 		notifyErr := func(what string, err error) {
-			logrus.WithFields(errfmt.Values(err)).Errorln(err.Error())
+			logrus.WithFields(errValues(err)).Errorln(err.Error())
 			if merry.Is(err, context.Canceled) {
 				return
 			}
-			notify.ErrorOccurredf(x.w, "%s: %v", workName, errfmt.Format(err, false))
+			notify.ErrorOccurredf(x.w, "%s: %v", workName, errFormat(err, false))
 		}
 
 		if err := x.portMeasurer.Open(x.cfg.User().ComportMeasurer); err != nil {
@@ -200,5 +199,39 @@ func (x *D) closeHardware() (mulErr error) {
 				"закрыть СОМ порт газового блока по завершении: %s", err.Error()))
 		}
 	}
+	return
+}
+
+func errFormat(err error, includeStack bool) string {
+	if err == nil {
+		return ""
+	}
+	s := err.Error()
+	for k, v := range merry.Values(err) {
+		k := fmt.Sprintf("%v", k)
+		switch k {
+		case "stack", "msg", "message", "time", "level", "work":
+			continue
+		default:
+			s += "\n" + fmt.Sprintf("%s: %v", k, v)
+		}
+	}
+	if includeStack {
+		s += "\n" + merry.Stacktrace(err)
+	}
+	return s
+}
+
+func errValues(err error) (m logrus.Fields) {
+	for k, v := range merry.Values(err) {
+		if len(m) == 0 {
+			m = logrus.Fields{}
+		}
+		m[fmt.Sprintf("%v", k)] = fmt.Sprintf("%v", v)
+	}
+	if len(m) == 0 {
+		m = logrus.Fields{}
+	}
+	m["stack"] = merry.Stacktrace(err)
 	return
 }
