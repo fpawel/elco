@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"github.com/ansel1/merry"
-	"github.com/fpawel/elco/pkg/errfmt"
 	"github.com/fpawel/elco/pkg/serial-comm/comm"
 	"github.com/hashicorp/go-multierror"
 	"math"
@@ -36,10 +35,7 @@ func Read3(responseReader ResponseReader, addr Addr, firstReg Var, regsCount uin
 		}
 		return nil
 	})
-	if err != nil {
-		return response, errfmt.WithReqResp(err, request, response)
-	}
-	return response, nil
+	return response, err
 }
 
 func Read3BCDValues(responseReader ResponseReader, addr Addr, var3 Var, count int) ([]float64, error) {
@@ -88,7 +84,7 @@ func Write32FloatProto(r ResponseReader, addr Addr, protocolCommandCode ProtoCmd
 		}
 		for i := 2; i < 6; i++ {
 			if request[i] != response[i] {
-				return errfmt.WithReqResp(ErrProtocol.Here(), request, response).
+				return ErrProtocol.Here().
 					WithMessagef("ошибка формата ответа: [% X] != [% X]", request[2:6], response[2:6])
 			}
 		}
