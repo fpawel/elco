@@ -1,5 +1,10 @@
 package modbus
 
+import (
+	"github.com/ansel1/merry"
+	"github.com/fpawel/elco/pkg/serial-comm/comm"
+)
+
 type ProtoCmd byte
 type Addr byte
 
@@ -15,6 +20,10 @@ type DevCmd uint16
 
 type Coefficient uint16
 
+type ResponseReader interface {
+	GetResponse([]byte, comm.ResponseParser) ([]byte, error)
+}
+
 func (x Req) Bytes() (b []byte) {
 	b = make([]byte, 4+len(x.Data))
 	b[0] = byte(x.Addr)
@@ -23,6 +32,18 @@ func (x Req) Bytes() (b []byte) {
 	n := 2 + len(x.Data)
 	b[n], b[n+1] = CRC16(b[:n])
 	return
+}
+
+func (x Req) GetResponse(responseReader ResponseReader, parseResponse comm.ResponseParser) ([]byte, error) {
+	return responseReader.GetResponse(x.Bytes(), func(request, response []byte) error {
+		if err := x.checkResponse(response); err != nil {
+			return err
+		}
+		if parseResponse != nil {
+			return parseResponse(request, response)
+		}
+		return nil
+	})
 }
 
 func Write32BCDRequest(addr Addr, protocolCommandCode ProtoCmd, deviceCommandCode DevCmd,
@@ -46,7 +67,7 @@ func NewSwitchGasOven(n byte) Req {
 }
 
 func (x *Req) ParseBCDValue(b []byte) (v float64, err error) {
-	if err = x.CheckResponse(b); err != nil {
+	if err = x.checkResponse(b); err != nil {
 		return
 	}
 	if len(b) != 9 {
@@ -58,7 +79,35 @@ func (x *Req) ParseBCDValue(b []byte) (v float64, err error) {
 		err = ErrProtocol.Here().WithMessagef("не правильный код BCD [% X]", b[3:7])
 	}
 	return
+}
 
+func (x Req) checkResponse(response []byte) error {
+
+	if len(response) == 0 {
+		return ErrProtocol.Here().WithMessage("нет ответа")
+	}
+
+	if len(response) < 4 {
+		return ErrProtocol.Here().WithMessage("длина ответа меньше 4")
+	}
+
+	if h, l := CRC16(response); h != 0 || l != 0 {
+		return ErrProtocol.Here().WithMessage("CRC16 не ноль")
+	}
+	if response[0] != byte(x.Addr) {
+		return ErrProtocol.Here().WithMessagef("несовпадение адресов запроса [%d] и ответа [%d]",
+			x.Addr, response[0])
+	}
+
+	if len(response) == 5 && byte(x.ProtoCmd)|0x80 == response[1] {
+		return ErrProtocol.Here().WithMessagef("код ошибки %X", response[2])
+	}
+	if response[1] != byte(x.ProtoCmd) {
+		return ErrProtocol.Here().WithMessagef("несовпадение кодов команд запроса [%d] и ответа [%d]",
+			x.ProtoCmd, response[1])
+	}
+
+	return nil
 }
 
 func uint16b(v uint16) (b []byte) {
@@ -67,3 +116,5 @@ func uint16b(v uint16) (b []byte) {
 	b[1] = byte(v)
 	return
 }
+
+var ErrProtocol = merry.WithMessage(comm.ErrProtocol, "modbus error")

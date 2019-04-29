@@ -2,8 +2,10 @@ package comm
 
 import (
 	"context"
+	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/hako/durafmt"
+	"github.com/powerman/structlog"
 	"io"
 	"time"
 )
@@ -31,6 +33,8 @@ func GetResponse(request Request, ctx context.Context) ([]byte, error) {
 
 	if merry.Is(err, context.DeadlineExceeded) {
 		err = merry.WithMessage(err, "нет ответа")
+	} else if merry.Is(err, context.Canceled) {
+		err = merry.WithMessage(err, "прервано")
 	}
 	return response, err
 }
@@ -43,8 +47,19 @@ type result struct {
 }
 
 func (x Request) getResponse(mainContext context.Context) ([]byte, error) {
+
 	var lastError error
+
 	for attempt := 0; attempt < x.Config.MaxAttemptsRead; attempt++ {
+
+		logArgs := []interface{}{
+			"попытка", attempt + 1,
+		}
+
+		log := structlog.New()
+
+		t := time.Now()
+
 		if err := x.write(); err != nil {
 			return nil, err
 		}
@@ -57,23 +72,34 @@ func (x Request) getResponse(mainContext context.Context) ([]byte, error) {
 
 		case r := <-c:
 
+			logArgs = append(logArgs,
+				"duration", durafmt.Parse(time.Since(t)),
+				"ответ", r.response)
+
 			if r.err != nil {
-				return nil, merry.WithValue(r.err, "attempt", attempt)
+				return nil, log.Err(r.err, logArgs...)
 			}
 
 			if x.ResponseParser != nil {
 				r.err = x.ResponseParser(x.Bytes, r.response)
 			}
 			if merry.Is(r.err, ErrProtocol) {
-				lastError = merry.WithValue(r.err, "attempt", attempt)
+				lastError = log.Err(r.err, logArgs...)
 				time.Sleep(x.Config.ReadByteTimeout())
 				continue
 			}
-			return r.response, r.err
+			if r.err != nil {
+				return r.response, log.Err(r.err, logArgs...)
+			}
+
+			return r.response, nil
 
 		case <-ctx.Done():
 
-			lastError = merry.WithValue(ctx.Err(), "attempt", attempt)
+			logArgs = append(logArgs,
+				"duration", durafmt.Parse(time.Since(t)))
+
+			lastError = log.Err(ctx.Err(), logArgs...)
 
 			switch ctx.Err() {
 
@@ -81,7 +107,7 @@ func (x Request) getResponse(mainContext context.Context) ([]byte, error) {
 				continue
 
 			case context.Canceled:
-				return nil, merry.WithMessage(context.Canceled, "прервано")
+				return nil, context.Canceled
 
 			default:
 				return nil, lastError
@@ -106,8 +132,12 @@ func (x Request) write() error {
 
 	if writtenCount != len(x.Bytes) {
 
-		return merry.Errorf("записано %d из %d байт, %s", writtenCount, len(x.Bytes),
-			durafmt.Parse(time.Since(t)))
+		return structlog.New().Err(merry.New("не все байты были записаны"),
+			structlog.KeyTime, time.Now().Format("15:04:05"),
+			structlog.KeyStack, structlog.Auto,
+			"число_записаных_байт", writtenCount,
+			"общее_число_байт", len(x.Bytes),
+			"продолжительность_записи", durafmt.Parse(time.Since(t)))
 	}
 	return err
 }
@@ -157,7 +187,12 @@ func (x Request) read(bytesToReadCount int) ([]byte, error) {
 		return nil, merry.Wrap(err)
 	}
 	if readCount != bytesToReadCount {
-		return nil, merry.Errorf("await %d bytes, %d read", bytesToReadCount, readCount)
+		return nil, structlog.New().Err(merry.New("не все байты были считаны"),
+			structlog.KeyTime, time.Now().Format("15:04:05"),
+			structlog.KeyStack, structlog.Auto,
+			"ожидаемое_число_байт", bytesToReadCount,
+			"число_считаных_байт", readCount,
+			"ответ", fmt.Sprintf("% X", b[:readCount]))
 	}
 	return b, nil
 }

@@ -195,7 +195,9 @@ func (x *D) readPlaceFirmware(place int) ([]byte, error) {
 				byte(count),
 			},
 		}
-		resp, err := x.measurerReader(x.hardware.ctx).GetResponse(req.Bytes(), func(request, response []byte) error {
+		reader := x.measurerReader(x.hardware.ctx)
+
+		resp, err := req.GetResponse(reader, func(request, response []byte) error {
 			if len(response) != 10+int(count) {
 				return comm.ErrProtocol.Here().WithMessagef("ожидалось %d байт ответа, получено %d",
 					10+int(count), len(response))
@@ -321,10 +323,13 @@ func (x *D) waitStatus45(block int, placesMask byte) error {
 }
 
 func (x *D) readStatus45(block int) ([]byte, error) {
-	return x.measurerReader(x.hardware.ctx).GetResponse(modbus.Req{
+	reader := x.measurerReader(x.hardware.ctx)
+	request := modbus.Req{
 		Addr:     modbus.Addr(block) + 101,
 		ProtoCmd: 0x45,
-	}.Bytes(), func(request, response []byte) error {
+	}
+
+	return request.GetResponse(reader, func(request, response []byte) error {
 		if len(response) != 12 {
 			return comm.ErrProtocol.Here().WithMessagef("ожидалось 12 байт ответа, получено %d", len(response))
 		}
@@ -345,10 +350,10 @@ func (x *D) writePreparedDataToFlash(block int, placesMask byte, addr uint16, co
 			byte(count),
 		},
 	}
-	request := req.Bytes()
+	reader := x.measurerReader(x.hardware.ctx)
 
-	_, err := x.measurerReader(x.hardware.ctx).GetResponse(request, func(request, response []byte) error {
-		if !compareBytes(response, req.Bytes()) {
+	_, err := req.GetResponse(reader, func(request, response []byte) error {
+		if !compareBytes(response, request) {
 			return merry.New("запрос не равен ответу")
 		}
 		return nil
@@ -366,12 +371,12 @@ func (x *D) sendDataToWrite42(block, placeInBlock int, b []byte) error {
 			byte(len(b)),
 		}, b...),
 	}
-	request := req.Bytes()
-	_, err := x.measurerReader(x.hardware.ctx).GetResponse(request, func(request, response []byte) error {
+	reader := x.measurerReader(x.hardware.ctx)
+	_, err := req.GetResponse(reader, func(request, response []byte) error {
 		if len(response) != 7 {
 			return merry.Errorf("длина ответа %d не равна 7", len(response))
 		}
-		if !compareBytes(response[:5], req.Bytes()[:5]) {
+		if !compareBytes(response[:5], request[:5]) {
 			return merry.Errorf("% X != % X", response[:5], request[:5])
 		}
 		return nil

@@ -90,11 +90,11 @@ func Run(skipRunUIApp, createNewDB bool) error {
 	x.portMeasurer = comport.NewPort("стенд", serial.Config{
 		Baud:        115200,
 		ReadTimeout: time.Millisecond,
-	}, x.onComport)
+	})
 	x.portGas = comport.NewPort("пневмоблок", serial.Config{
 		Baud:        9600,
 		ReadTimeout: time.Millisecond,
-	}, x.onComport)
+	})
 
 	go runSysTray(x.w.CloseWindow)
 
@@ -162,16 +162,6 @@ func Run(skipRunUIApp, createNewDB bool) error {
 	logrus.Infoln("close journal data base on exit:", dbJournalConn.Close())
 	logrus.Infoln("save config on exit:", x.cfg.Save())
 	return nil
-}
-
-func (x *D) onComport(w comport.Entry) {
-	if x.cfg.Predefined().VerboseLogging {
-		notify.ComportEntry(x.w, api.ComportEntry{
-			Port:  w.Port,
-			Error: false,
-			Msg:   w.String(),
-		})
-	}
 }
 
 func (x *D) serveRPC(ln net.Listener, ctx context.Context) {

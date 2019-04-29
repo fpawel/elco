@@ -7,6 +7,7 @@ import (
 	"github.com/fpawel/elco/pkg/serial-comm/comm"
 	"github.com/fpawel/serial"
 	"github.com/hako/durafmt"
+	"github.com/powerman/structlog"
 	"strings"
 	"sync"
 	"time"
@@ -16,7 +17,6 @@ type Port struct {
 	config serial.Config
 	port   *serial.Port
 
-	hook   Hook
 	device string
 }
 
@@ -28,14 +28,11 @@ type Entry struct {
 	Device   string
 }
 
-type Hook func(Entry)
-
-func NewPort(device string, config serial.Config, h Hook) *Port {
+func NewPort(device string, config serial.Config) *Port {
 	if config.ReadTimeout == 0 {
 		config.ReadTimeout = time.Millisecond
 	}
 	return &Port{
-		hook:   h,
 		config: config,
 		device: device,
 	}
@@ -160,6 +157,14 @@ func (x *Port) BytesToReadCount() (int, error) {
 
 func (x *Port) GetResponse(request []byte, commConfig comm.Config, ctx context.Context, prs comm.ResponseParser) ([]byte, error) {
 	//x.Port.GetResponse(request, x.Config)
+	logArgs := []interface{}{
+		"port", x.config.Name,
+		"baud", x.config.Baud,
+		"device", x.device,
+		"запрос", request,
+	}
+
+	log := structlog.New()
 
 	t := time.Now()
 	response, err := comm.GetResponse(comm.Request{
@@ -169,30 +174,27 @@ func (x *Port) GetResponse(request []byte, commConfig comm.Config, ctx context.C
 		BytesToReadCounter: x,
 		ResponseParser:     prs,
 	}, ctx)
+
 	duration := time.Since(t)
+
+	logArgs = append(logArgs,
+		structlog.KeyTime, time.Now().Format("15:04:05"),
+		"duration", durafmt.Parse(duration),
+		"ответ", response,
+	)
 
 	if err == context.DeadlineExceeded {
 		err = merry.WithMessage(context.DeadlineExceeded, "не отвечает")
 	}
 
-	if err != nil {
-		err = merry.WithValue(err, "request", fmt.Sprintf("% X", request)).
-			WithValue("port", x.config.Name).
-			WithValue("device", x.device).
-			WithValue("duration", durafmt.Parse(duration))
-		if len(response) > 0 {
-			err = merry.WithValue(err, "response", fmt.Sprintf("% X", response))
-		}
-	}
+	if err == nil {
+		log.Debug("связь установлена", logArgs...)
+	} else {
+		logArgs = append(logArgs,
+			"config", commConfig,
+		)
 
-	if x.hook != nil {
-		go x.hook(Entry{
-			Request:  request,
-			Response: response,
-			Duration: duration,
-			Port:     x.config.Name,
-			Device:   x.device,
-		})
+		log.PrintErr(err, logArgs...)
 	}
 	return response, err
 }

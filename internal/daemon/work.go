@@ -76,7 +76,7 @@ func (x *D) doSwitchGas(n int) error {
 		}
 	}
 
-	if _, err := x.gasBlockReader().GetResponse(req.Bytes(), nil); err != nil {
+	if _, err := req.GetResponse(x.gasBlockReader(), nil); err != nil {
 		return err
 	}
 
@@ -92,9 +92,9 @@ func (x *D) doSwitchGas(n int) error {
 		req.Data[3] = 0xD5
 	}
 
-	logrus.Warnf("установить расход % X", req.Bytes())
+	logrus.Warnf("установить расход % X", req.Data)
 
-	if _, err := x.gasBlockReader().GetResponse(req.Bytes(), nil); err != nil {
+	if _, err := req.GetResponse(x.gasBlockReader(), nil); err != nil {
 		return err
 	}
 
