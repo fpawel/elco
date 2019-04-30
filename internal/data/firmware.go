@@ -5,7 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"github.com/ansel1/merry"
-	"github.com/fpawel/elco/pkg/serial-comm/modbus"
+	"github.com/fpawel/comm/modbus"
 	"math"
 	"strconv"
 	"time"

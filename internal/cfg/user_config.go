@@ -2,7 +2,7 @@ package cfg
 
 import (
 	"encoding/json"
-	"github.com/fpawel/elco/pkg/serial-comm/comport"
+	"github.com/fpawel/comm/comport"
 	"github.com/fpawel/elco/pkg/winapp"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -94,13 +94,13 @@ func (x *UserConfig) setValue(section, property, value string) error {
 	case "Comport":
 		switch property {
 		case "MeasurerComm":
-			if err := comport.CheckPortAvailable(value); err != nil {
+			if err := comport.CheckPortNameIsValid(value); err != nil {
 				return errors.Errorf("%q: %+v", value, err)
 			}
 			x.ComportMeasurer = value
 			return nil
 		case "Gas":
-			if err := comport.CheckPortAvailable(value); err != nil {
+			if err := comport.CheckPortNameIsValid(value); err != nil {
 				return errors.Errorf("%q: %+v", value, err)
 			}
 			x.ComportGas = value

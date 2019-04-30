@@ -2,7 +2,7 @@ package cfg
 
 import (
 	"database/sql"
-	"github.com/fpawel/elco/pkg/serial-comm/comm"
+	"github.com/fpawel/comm"
 	"gopkg.in/reform.v1"
 	"sync"
 )

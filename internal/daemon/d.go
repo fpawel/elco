@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/Microsoft/go-winio"
 	"github.com/ansel1/merry"
+	"github.com/fpawel/comm/comport"
 	"github.com/fpawel/elco/internal/api"
 	"github.com/fpawel/elco/internal/api/notify"
 	"github.com/fpawel/elco/internal/assets"
@@ -14,9 +15,7 @@ import (
 	"github.com/fpawel/elco/internal/elco"
 	"github.com/fpawel/elco/internal/journal"
 	"github.com/fpawel/elco/pkg/copydata"
-	"github.com/fpawel/elco/pkg/serial-comm/comport"
 	"github.com/fpawel/elco/pkg/winapp"
-	"github.com/fpawel/serial"
 	"github.com/getlantern/systray"
 	"github.com/go-logfmt/logfmt"
 	"github.com/jmoiron/sqlx"
@@ -43,8 +42,8 @@ type D struct {
 	ctx           context.Context
 	hardware      hardware
 	logFields     logrus.Fields
-	portMeasurer  *comport.Port
-	portGas       *comport.Port
+	portMeasurer  *comport.Reader
+	portGas       *comport.Reader
 	muCurrentWork sync.Mutex
 	currentWork   *journal.Work
 }
@@ -87,14 +86,15 @@ func Run(skipRunUIApp, createNewDB bool) error {
 	elco.Logger.AddHook(x)
 	logrus.AddHook(x)
 
-	x.portMeasurer = comport.NewPort("стенд", serial.Config{
+	x.portMeasurer = comport.NewReader(comport.Config{
 		Baud:        115200,
 		ReadTimeout: time.Millisecond,
-	})
-	x.portGas = comport.NewPort("пневмоблок", serial.Config{
+	}, "приборы")
+
+	x.portGas = comport.NewReader(comport.Config{
 		Baud:        9600,
 		ReadTimeout: time.Millisecond,
-	})
+	}, "газовый блок")
 
 	go runSysTray(x.w.CloseWindow)
 
