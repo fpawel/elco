@@ -22,6 +22,7 @@ import (
 	"github.com/lxn/win"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/powerman/rpc-codec/jsonrpc2"
+	"github.com/powerman/structlog"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/reform.v1"
 	"gopkg.in/reform.v1/dialects/sqlite3"
@@ -34,14 +35,16 @@ import (
 )
 
 type D struct {
-	dbProducts    *reform.DB
-	dbxProducts   *sqlx.DB
-	dbJournal     *reform.DB
-	w             *copydata.NotifyWindow // окно для отправки сообщений WM_COPYDATA дельфи-приложению
-	cfg           *cfg.Config
-	ctx           context.Context
-	hardware      hardware
-	logFields     logrus.Fields
+	dbProducts  *reform.DB
+	dbxProducts *sqlx.DB
+	dbJournal   *reform.DB
+	w           *copydata.NotifyWindow // окно для отправки сообщений WM_COPYDATA дельфи-приложению
+	cfg         *cfg.Config
+	ctx         context.Context
+	hardware    hardware
+
+	log *structlog.Logger
+
 	portMeasurer  *comport.Reader
 	portGas       *comport.Reader
 	muCurrentWork sync.Mutex
@@ -69,6 +72,7 @@ func Run(skipRunUIApp, createNewDB bool) error {
 	}
 
 	x := &D{
+		log:         structlog.New(),
 		dbProducts:  reform.NewDB(dbProductsConn, sqlite3.Dialect, nil),
 		dbxProducts: sqlx.NewDb(dbProductsConn, "sqlite3"),
 		dbJournal:   reform.NewDB(dbJournalConn, sqlite3.Dialect, nil),
@@ -79,7 +83,6 @@ func Run(skipRunUIApp, createNewDB bool) error {
 			skipDelay: func() {},
 			ctx:       context.Background(),
 		},
-		logFields: make(logrus.Fields),
 	}
 	x.cfg = cfg.OpenConfig(x.dbProducts)
 
@@ -89,12 +92,12 @@ func Run(skipRunUIApp, createNewDB bool) error {
 	x.portMeasurer = comport.NewReader(comport.Config{
 		Baud:        115200,
 		ReadTimeout: time.Millisecond,
-	}, "приборы")
+	})
 
 	x.portGas = comport.NewReader(comport.Config{
 		Baud:        9600,
 		ReadTimeout: time.Millisecond,
-	}, "газовый блок")
+	})
 
 	go runSysTray(x.w.CloseWindow)
 
@@ -201,12 +204,6 @@ func (x *D) Levels() []logrus.Level {
 
 func (x *D) Fire(entry *logrus.Entry) error {
 
-	for k, v := range x.logFields {
-		if len(entry.Data) == 0 {
-			entry.Data = logrus.Fields{}
-		}
-		entry.Data[k] = v
-	}
 	x.muCurrentWork.Lock()
 	currentWork := x.currentWork
 	x.muCurrentWork.Unlock()

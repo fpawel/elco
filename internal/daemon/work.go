@@ -4,12 +4,14 @@ import (
 	"context"
 	"fmt"
 	"github.com/ansel1/merry"
+	"github.com/fpawel/comm"
 	"github.com/fpawel/comm/modbus"
 	"github.com/fpawel/elco/internal/api"
 	"github.com/fpawel/elco/internal/api/notify"
 	"github.com/fpawel/elco/internal/data"
 	"github.com/hako/durafmt"
 	"github.com/pkg/errors"
+	"github.com/powerman/structlog"
 	"github.com/sirupsen/logrus"
 	"sort"
 	"time"
@@ -76,7 +78,9 @@ func (x *D) doSwitchGas(n int) error {
 		}
 	}
 
-	if _, err := req.GetResponse(x.gasBlockReader(), nil); err != nil {
+	log := comm.LogWithKeys(x.log, "пневмоблок", n)
+
+	if _, err := req.GetResponse(log, x.gasBlockReader(), nil); err != nil {
 		return err
 	}
 
@@ -92,9 +96,9 @@ func (x *D) doSwitchGas(n int) error {
 		req.Data[3] = 0xD5
 	}
 
-	logrus.Warnf("установить расход % X", req.Data)
+	log = comm.LogWithKeys(x.log, "пневмоблок", "расход")
 
-	if _, err := req.GetResponse(x.gasBlockReader(), nil); err != nil {
+	if _, err := req.GetResponse(log, x.gasBlockReader(), nil); err != nil {
 		return err
 	}
 
@@ -162,7 +166,9 @@ func (x *D) doDelay(what string, duration time.Duration) error {
 
 			block := products[0].Place / 8
 
-			_, err := x.readBlockMeasure(block, ctx)
+			_, err := x.readBlockMeasure(
+				comm.LogWithKeys(x.log, "фоновый_опрос", fmt.Sprintf("%s %s", what, durafmt.Parse(duration))),
+				block, ctx)
 
 			if err == nil {
 				continue
@@ -281,12 +287,14 @@ func (x *D) doReadAndSaveProductsCurrents(field string) error {
 	}
 	logrus.Infof("снятие %q: %s", field, formatProducts(productsToWork))
 
+	log := comm.LogWithKeys(x.log, "снятие", field)
+
 	blockProducts := GroupProductsByBlocks(productsToWork)
 	for _, products := range blockProducts {
 		block := products[0].Place / 8
 
-		values, err := x.readBlockMeasure(block, x.hardware.ctx)
-		for ; err != nil; values, err = x.readBlockMeasure(block, x.hardware.ctx) {
+		values, err := x.readBlockMeasure(log, block, x.hardware.ctx)
+		for ; err != nil; values, err = x.readBlockMeasure(log, block, x.hardware.ctx) {
 			if merry.Is(err, context.Canceled) {
 				return err
 			}
@@ -298,20 +306,16 @@ func (x *D) doReadAndSaveProductsCurrents(field string) error {
 
 		for _, p := range products {
 			n := p.Place % 8
-
-			logrus.WithFields(logrus.Fields{
-				"product_id": p.ProductID,
-				"place":      data.FormatPlace(p.Place),
-				"value":      values[n],
-				"field":      field,
-			}).Info("сохранение")
-
-			if err := data.SetProductValue(x.dbxProducts, p.ProductID, field, values[n]); err != nil {
-				return merry.WithValue(err, "product_id", p.ProductID).
-					WithValue("place", data.FormatPlace(p.Place)).
-					WithValue("value", values[n]).
-					WithValue("field", field).Append("сохранение")
+			args := []interface{}{
+				"product_id", p.ProductID,
+				"place", data.FormatPlace(p.Place),
+				"field", field,
+				"value", values[n],
 			}
+			if err := data.SetProductValue(x.dbxProducts, p.ProductID, field, values[n]); err != nil {
+				return log.Err(merry.Append(err, "не удалось сохранить"), args...)
+			}
+			log.Info("сохраненено", args...)
 		}
 	}
 
@@ -345,9 +349,11 @@ func GroupProductsByBlocks(ps []data.Product) (gs [][]*data.Product) {
 	return
 }
 
-func (x *D) readBlockMeasure(block int, ctx context.Context) ([]float64, error) {
+func (x *D) readBlockMeasure(logger *structlog.Logger, block int, ctx context.Context) ([]float64, error) {
 
-	values, err := modbus.Read3BCDValues(x.measurerReader(ctx), modbus.Addr(block+101), 0, 8)
+	log := comm.LogWithKeys(logger, "блок", block)
+
+	values, err := modbus.Read3BCDValues(log, x.measurerReader(ctx), modbus.Addr(block+101), 0, 8)
 
 	switch err {
 

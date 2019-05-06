@@ -4,10 +4,12 @@ import (
 	"context"
 	"fmt"
 	"github.com/ansel1/merry"
+	"github.com/fpawel/comm"
 	"github.com/fpawel/elco/internal/api/notify"
 	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/elco/internal/journal"
 	"github.com/hashicorp/go-multierror"
+	"github.com/powerman/structlog"
 	"github.com/sirupsen/logrus"
 	"sync"
 	"time"
@@ -88,7 +90,8 @@ func (x *D) SkipDelay() {
 }
 
 func (x *D) RunReadCurrent() {
-	x.runHardware(false, "опрос блоков измерительных", func() error {
+
+	x.runHardware(false, "опрос", func() error {
 		for {
 			var checkedBlocks []int
 			if err := data.GetCheckedBlocks(x.dbxProducts, &checkedBlocks); err != nil {
@@ -98,7 +101,8 @@ func (x *D) RunReadCurrent() {
 				return merry.New("необходимо выбрать блок для опроса")
 			}
 			for _, block := range checkedBlocks {
-				if _, err := x.readBlockMeasure(block, x.hardware.ctx); err != nil {
+
+				if _, err := x.readBlockMeasure(x.log, block, x.hardware.ctx); err != nil {
 					return err
 				}
 			}
@@ -117,9 +121,8 @@ func (x *D) runHardware(logWork bool, workName string, work WorkFunc) {
 
 	x.hardware.WaitGroup.Add(1)
 
-	x.logFields = logrus.Fields{
-		"work": workName,
-	}
+	x.log = comm.NewLogWithKeys("работа", workName)
+
 	var currentWork *journal.Work
 
 	if logWork {
@@ -145,6 +148,7 @@ func (x *D) runHardware(logWork bool, workName string, work WorkFunc) {
 				x.muCurrentWork.Unlock()
 			}
 			x.hardware.WaitGroup.Done()
+			x.log = structlog.New()
 		}()
 
 		notifyErr := func(what string, err error) {
@@ -173,9 +177,6 @@ func (x *D) runHardware(logWork bool, workName string, work WorkFunc) {
 
 		if err := x.closeHardware(); err != nil {
 			notifyErr("не удалось остановить работу оборудования по завершении настройки:", err)
-		}
-		for k := range x.logFields {
-			delete(x.logFields, k)
 		}
 	}()
 }

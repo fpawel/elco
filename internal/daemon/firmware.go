@@ -11,6 +11,7 @@ import (
 	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/elco/pkg/intrng"
 	"github.com/hako/durafmt"
+	"github.com/powerman/structlog"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/reform.v1"
 	"sort"
@@ -126,15 +127,10 @@ func (x *D) writeBlock(products []*data.Product, placeBytes map[int][]byte) erro
 
 		placeInBlock := p.Place % 8
 
-		x.logFields["адрес_начала_куска"] = addr1
-		x.logFields["адрес_конца_куска"] = addr2
-		x.logFields["количество_байт_куска"] = addr2 + 1 - addr1
-		x.logFields["количество_байт_куска"] = addr2 + 1 - addr1
-		defer delete(x.logFields, "адрес_начала_куска")
-		defer delete(x.logFields, "адрес_конца_куска")
-		defer delete(x.logFields, "количество_байт_куска")
-
-		//logrus.Infof("место %s: прошивка куска % X...% X", data.FormatPlace(p.Place), addr1, addr2)
+		x.log.Debug(fmt.Sprintf("запись флэш %d байт", addr2+1-addr1),
+			structlog.KeyTime, time.Now().Format("15:04:05.000"),
+			"адрес", fmt.Sprintf("%X...%X", addr1, addr2),
+			"место", data.FormatPlace(p.Place))
 
 		if err := x.sendDataToWrite42(block, placeInBlock, b[addr1:addr2+1]); err != nil {
 			return err
@@ -197,12 +193,20 @@ func (x *D) readPlaceFirmware(place int) ([]byte, error) {
 		}
 		reader := x.measurerReader(x.hardware.ctx)
 
-		resp, err := req.GetResponse(reader, func(request, response []byte) error {
+		log := comm.NewLogWithKeys(
+			"считывание_прошивки", fmt.Sprintf("%X...%X", c.addr1, c.addr2),
+			"блок", block,
+			"место", placeInBlock,
+			"тип_микросхемы", x.cfg.User().ChipType,
+			"количество_байт", count,
+		)
+
+		resp, err := req.GetResponse(log, reader, func(request, response []byte) (string, error) {
 			if len(response) != 10+int(count) {
-				return comm.ErrProtocol.Here().WithMessagef("ожидалось %d байт ответа, получено %d",
+				return "", comm.ErrProtocol.Here().WithMessagef("ожидалось %d байт ответа, получено %d",
 					10+int(count), len(response))
 			}
-			return nil
+			return "", nil
 		})
 		if err != nil {
 			return nil, err
@@ -225,15 +229,17 @@ func (x *D) writePlaceFirmware(place int, bytes []byte) error {
 	placeInBlock := place % 8
 	placesMask := byte(1) << byte(placeInBlock)
 	startTime := time.Now()
-	doAddresses := func(addr1, addr2 uint16) error {
-		x.logFields["адрес_начала_куска"] = addr1
-		x.logFields["адрес_конца_куска"] = addr2
-		x.logFields["количество_байт_куска"] = addr2 + 1 - addr1
-		defer delete(x.logFields, "адрес_начала_куска")
-		defer delete(x.logFields, "адрес_конца_куска")
-		defer delete(x.logFields, "количество_байт_куска")
 
-		//logrus.WithFields(logrus.Fields{}).Infof("запись куска прошивки ЭХЯ: %d...%d, %d байт", addr1, addr2, addr2+1-addr1)
+	x.log.Debug(fmt.Sprintf("запись флэш %d байт", len(bytes)),
+		structlog.KeyTime, time.Now().Format("15:04:05.000"),
+		"место", data.FormatPlace(place))
+
+	doAddresses := func(addr1, addr2 uint16) error {
+
+		x.log.Debug(fmt.Sprintf("запись флэш %d байт", addr2+1-addr1),
+			structlog.KeyTime, time.Now().Format("15:04:05.000"),
+			"место", data.FormatPlace(place),
+			"адрес", fmt.Sprintf("%X...%X", addr1, addr2))
 
 		if err := x.sendDataToWrite42(block, placeInBlock, bytes[addr1:addr2+1]); err != nil {
 			return err
@@ -329,11 +335,15 @@ func (x *D) readStatus45(block int) ([]byte, error) {
 		ProtoCmd: 0x45,
 	}
 
-	return request.GetResponse(reader, func(request, response []byte) error {
+	log := comm.LogWithKeys(structlog.New(),
+		"действие", "запрос_статуса_записи_флэш",
+		"блок", block)
+
+	return request.GetResponse(log, reader, func(request, response []byte) (string, error) {
 		if len(response) != 12 {
-			return comm.ErrProtocol.Here().WithMessagef("ожидалось 12 байт ответа, получено %d", len(response))
+			return "", comm.ErrProtocol.Here().WithMessagef("ожидалось 12 байт ответа, получено %d", len(response))
 		}
-		return nil
+		return "", nil
 	})
 }
 
@@ -352,11 +362,18 @@ func (x *D) writePreparedDataToFlash(block int, placesMask byte, addr uint16, co
 	}
 	reader := x.measurerReader(x.hardware.ctx)
 
-	_, err := req.GetResponse(reader, func(request, response []byte) error {
+	log := comm.LogWithKeys(structlog.New(),
+		"действие", "запись_во_флеш_ранее_подготовленных_данных",
+		"блок", block,
+		"маска_мест", fmt.Sprintf("%b", placesMask),
+		"адрес", fmt.Sprintf("%X", addr),
+		"количество_байт", count)
+
+	_, err := req.GetResponse(log, reader, func(request, response []byte) (string, error) {
 		if !compareBytes(response, request) {
-			return merry.New("запрос не равен ответу")
+			return "", merry.New("запрос не равен ответу")
 		}
-		return nil
+		return "", nil
 	})
 	return err
 }
@@ -371,15 +388,19 @@ func (x *D) sendDataToWrite42(block, placeInBlock int, b []byte) error {
 			byte(len(b)),
 		}, b...),
 	}
+	log := comm.LogWithKeys(structlog.New(),
+		"действие", "отправка_данных_для_записи_флэш",
+		"блок", block, "место", placeInBlock, "количество_байт", len(b))
+
 	reader := x.measurerReader(x.hardware.ctx)
-	_, err := req.GetResponse(reader, func(request, response []byte) error {
+	_, err := req.GetResponse(log, reader, func(request, response []byte) (string, error) {
 		if len(response) != 7 {
-			return merry.Errorf("длина ответа %d не равна 7", len(response))
+			return "", merry.Errorf("длина ответа %d не равна 7", len(response))
 		}
 		if !compareBytes(response[:5], request[:5]) {
-			return merry.Errorf("% X != % X", response[:5], request[:5])
+			return "", merry.Errorf("% X != % X", response[:5], request[:5])
 		}
-		return nil
+		return "", nil
 	})
 
 	return err
