@@ -5,7 +5,7 @@ import (
 	"github.com/ansel1/merry"
 	"github.com/fpawel/elco/internal/elco"
 	_ "github.com/mattn/go-sqlite3"
-	"github.com/sirupsen/logrus"
+	"github.com/powerman/structlog"
 	"os"
 	"path/filepath"
 )
@@ -30,7 +30,6 @@ func Open(createNew bool) (*sql.DB, error) {
 	conn.SetMaxIdleConns(1)
 	conn.SetMaxOpenConns(1)
 	conn.SetConnMaxLifetime(0)
-
 
 	if _, err = conn.Exec(SQLCreate); err != nil {
 		return nil, merry.Wrap(err)
@@ -63,6 +62,6 @@ WHERE NOT EXISTS(SELECT product_id FROM product WHERE party.party_id = product.p
 `); err != nil {
 		return nil, merry.Wrap(err)
 	}
-	logrus.Infoln("open sqlite database:", fileName)
+	structlog.New().Info("open sqlite db", "file", fileName)
 	return conn, nil
 }

@@ -15,11 +15,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	panicStr, err := supervisor.ExecuteProcess(exeFileName, os.Args[1:]...)
-	if err != nil {
-		log.Fatal(err)
-	}
-	if len(panicStr) > 0 {
+	if panicStr := supervisor.ExecuteProcess(exeFileName, os.Args[1:]...); len(panicStr) > 0 {
 		w := copydata.NewNotifyWindow(elco.ServerWindowClassName, elco.PeerWindowClassName)
 		notify.HostApplicationPanic(w, panicStr)
 		w.CloseWindow()

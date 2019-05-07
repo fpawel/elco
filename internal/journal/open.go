@@ -5,7 +5,7 @@ import (
 	"github.com/ansel1/merry"
 	"github.com/fpawel/elco/internal/elco"
 	_ "github.com/mattn/go-sqlite3"
-	"github.com/sirupsen/logrus"
+	"github.com/powerman/structlog"
 	"os"
 	"path/filepath"
 )
@@ -35,6 +35,6 @@ func Open(createNew bool) (*sql.DB, error) {
 		return nil, merry.Wrap(err)
 	}
 
-	logrus.Infoln("open sqlite database:", fileName)
+	structlog.New().Info("open sqlite db", "file", fileName)
 	return conn, nil
 }

@@ -3,11 +3,8 @@ package supervisor
 import (
 	"bytes"
 	"fmt"
-	"github.com/ansel1/merry"
-	"github.com/fatih/color"
 	"github.com/fpawel/elco/pkg/panichook"
 	"github.com/fpawel/elco/pkg/winapp"
-	"github.com/go-logfmt/logfmt"
 	"log"
 	"os"
 	"os/exec"
@@ -15,21 +12,31 @@ import (
 	"time"
 )
 
-func ExecuteProcess(exeFileName string, args ...string) (string, error) {
+// ExecuteProcess запускает exeFileName
+// В каталоге исполняемого файла создаётся папка logs.
+// Стандартный вывод запущенного процесса добавляется в конец файла logs\[2006-01-02].log
+// Возвращаемое значение - сообщение о панике, либо пустая строка
+func ExecuteProcess(exeFileName string, args ...string) string {
+
+	log.SetFlags(log.Ltime)
+
 	exeDir := filepath.Dir(exeFileName)
 	t := time.Now()
 	logDir := filepath.Join(exeDir, "logs")
-	err := winapp.EnsuredDirectory(logDir)
-	if err != nil {
-		return "", merry.Wrap(err)
-	}
-	logFileName := filepath.Join(logDir, fmt.Sprintf("%s.log", t.Format("2006-01-02")))
-	logFile, err := os.OpenFile(logFileName, os.O_CREATE|os.O_APPEND, 0666)
+
 	if err := winapp.EnsuredDirectory(logDir); err != nil {
-		return "", merry.WithMessage(err, logFileName)
+		log.Fatal(err)
+	}
+
+	logFileName := filepath.Join(logDir, fmt.Sprintf("%s.log", t.Format("2006-01-02")))
+	log.Println("log file:", logFileName)
+
+	logFile, err := os.OpenFile(logFileName, os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		log.Fatal(err)
 	}
 	defer func() {
-		log.Println("close log file:", logFileName, logFile.Close())
+		log.Println("close log file: ", logFileName, logFile.Close())
 	}()
 
 	cmd := exec.Command(exeFileName, args...)
@@ -38,25 +45,28 @@ func ExecuteProcess(exeFileName string, args ...string) (string, error) {
 	cmd.Stdout = &redirectOutput{logFile: logFile, panicBuffer: panicBuffer}
 
 	if err := cmd.Start(); err != nil {
-		return "", merry.Wrap(err)
+		log.Fatal(err)
 	}
-	if err := cmd.Wait(); err != nil {
-		panicStr := panicBuffer.String()
-		panicParsed := bytes.NewBuffer(nil)
-		if err := panichook.DumpCrash(panicBuffer, panicParsed); err != nil {
-			return "", merry.Wrap(err)
-		}
-		parsedStr := panicParsed.String()
-		log.Println(panicStr)
-		log.Println(parsedStr)
 
-		if _, err := fmt.Fprintf(logFile, "time=%s level=panic msg=%q source=%q",
-			time.Now().Format("15:04:05.000"), parsedStr, panicStr); err != nil {
-			return "", merry.Wrap(err)
-		}
-		return parsedStr + "\n\n" + panicStr, nil
+	err = cmd.Wait()
+	if err == nil {
+		return ""
 	}
-	return "", nil
+
+	log.SetOutput(redirectOutput2{logFile: logFile})
+	log.Println(err)
+	panicParsed := bytes.NewBuffer(nil)
+
+	panicBufferStr := panicBuffer.String()
+
+	if err := panichook.DumpCrash(panicBuffer, panicParsed); err != nil {
+		log.Println("panichook.DumpCrash:", err)
+	}
+
+	panicParsedStr := panicParsed.String()
+
+	log.Println(panicParsedStr)
+	return panicBufferStr + "\n\n" + panicParsedStr
 }
 
 type redirectOutput struct {
@@ -66,34 +76,52 @@ type redirectOutput struct {
 }
 
 func (x *redirectOutput) Write(p []byte) (int, error) {
+
+	_, _ = fmt.Fprint(x.logFile, time.Now().Format("15:04:05"), " ")
+	nResult, err := x.logFile.Write(p)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if !x.panic {
+		Foreground(Green, true)
+		fmt.Print(time.Now().Format("15:04:05"), " ")
+		defer ResetColor()
+	}
+
 	if bytes.HasPrefix(p, []byte("panic:")) {
 		x.panic = true
 	}
-	line := string(p)
-	if x.panic {
-		return x.panicBuffer.Write(p)
-	}
 
-	br := bytes.NewReader(p)
-	d := logfmt.NewDecoder(br)
-	c := color.New(color.FgHiWhite, color.Bold)
-	for d.ScanRecord() {
-		for d.ScanKeyval() {
-			k, v := string(d.Key()), string(d.Value())
-			if k == "level" {
-				switch v {
-				case "fatal", "error", "panic":
-					c = color.New(color.FgRed, color.Bold)
-				case "warn", "warning":
-					c = color.New(color.FgHiMagenta, color.Bold)
-				case "info":
-					color.New(color.FgHiCyan)
-				}
+	if x.panic {
+		_, _ = x.panicBuffer.Write(p)
+		Foreground(Red, true)
+	} else {
+		fields := bytes.Fields(p)
+		if len(fields) > 1 {
+			switch string(fields[1]) {
+			case "ERR":
+				Foreground(Yellow, true)
+			case "WRN":
+				Foreground(Cyan, true)
+			case "inf":
+				Foreground(White, true)
+			default:
+				Foreground(White, false)
 			}
 		}
 	}
-	if n, err := x.logFile.Write(p); err != nil {
-		return n, err
-	}
-	return c.Print(line)
+
+	_, _ = os.Stderr.Write(p)
+	return nResult, nil
+}
+
+type redirectOutput2 struct {
+	logFile *os.File
+}
+
+func (x redirectOutput2) Write(p []byte) (int, error) {
+	_, _ = os.Stderr.Write(p)
+	_, _ = fmt.Fprint(x.logFile, time.Now().Format("15:04:05"), " ")
+	return x.logFile.Write(p)
 }

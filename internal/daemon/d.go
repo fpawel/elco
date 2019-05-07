@@ -1,9 +1,7 @@
 package daemon
 
 import (
-	"bytes"
 	"context"
-	"fmt"
 	"github.com/Microsoft/go-winio"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/comm/comport"
@@ -17,19 +15,16 @@ import (
 	"github.com/fpawel/elco/pkg/copydata"
 	"github.com/fpawel/elco/pkg/winapp"
 	"github.com/getlantern/systray"
-	"github.com/go-logfmt/logfmt"
 	"github.com/jmoiron/sqlx"
 	"github.com/lxn/win"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/powerman/rpc-codec/jsonrpc2"
 	"github.com/powerman/structlog"
-	"github.com/sirupsen/logrus"
 	"gopkg.in/reform.v1"
 	"gopkg.in/reform.v1/dialects/sqlite3"
 	"net"
 	"net/rpc"
 	"os/exec"
-	"path/filepath"
 	"sync"
 	"time"
 )
@@ -86,9 +81,6 @@ func Run(skipRunUIApp, createNewDB bool) error {
 	}
 	x.cfg = cfg.OpenConfig(x.dbProducts)
 
-	elco.Logger.AddHook(x)
-	logrus.AddHook(x)
-
 	x.portMeasurer = comport.NewReader(comport.Config{
 		Baud:        115200,
 		ReadTimeout: time.Millisecond,
@@ -132,10 +124,10 @@ func Run(skipRunUIApp, createNewDB bool) error {
 
 	if !skipRunUIApp {
 		if err := runUIApp(); err != nil {
-			return merry.WithMessage(err, "unable to execute gui application")
+			return merry.WithMessage(err, "не удалось выполнить elcoui.exe")
 		}
 	} else {
-		logrus.Warn("skip running ui flag set")
+		x.log.Debug("elcoui.exe не будет запущен, поскольку установлен соответствующий флаг")
 	}
 	notify.StartServerApplication(x.w, "")
 
@@ -151,19 +143,19 @@ func Run(skipRunUIApp, createNewDB bool) error {
 
 	cancel()
 
-	logrus.Debugln("close pipe listener on exit:", ln.Close())
+	x.log.ErrIfFail(ln.Close, "defer", "close pipe listener")
 
 	wg.Wait()
 
 	winapp.EnumWindowsWithClassName(func(hWnd win.HWND, winClassName string) {
 		if winClassName == elco.PeerWindowClassName {
-			logrus.Debugln("close peer window:", hWnd, winClassName)
-			win.PostMessage(hWnd, win.WM_CLOSE, 0, 0)
+			r := win.PostMessage(hWnd, win.WM_CLOSE, 0, 0)
+			x.log.Debug("close peer window", "syscall", r)
 		}
 	})
-	logrus.Infoln("close products data base on exit:", dbProductsConn.Close())
-	logrus.Infoln("close journal data base on exit:", dbJournalConn.Close())
-	logrus.Infoln("save config on exit:", x.cfg.Save())
+	x.log.ErrIfFail(dbProductsConn.Close, "defer", "close products db")
+	x.log.ErrIfFail(dbJournalConn.Close, "defer", "close journal db")
+	x.log.ErrIfFail(x.cfg.Save, "defer", "save config")
 	return nil
 }
 
@@ -174,9 +166,10 @@ func (x *D) serveRPC(ln net.Listener, ctx context.Context) {
 		case nil:
 			go jsonrpc2.ServeConnContext(ctx, conn)
 		case winio.ErrPipeListenerClosed:
+			x.log.Debug("rpc pipe was closed")
 			return
 		default:
-			logrus.Errorln("rpc pipe error:", err)
+			x.log.PrintErr(merry.Append(err, "rpc pipe error"))
 			return
 		}
 	}
@@ -198,58 +191,12 @@ func runUIApp() error {
 	return exec.Command(fileName).Start()
 }
 
-func (x *D) Levels() []logrus.Level {
-	return logrus.AllLevels
-}
-
-func (x *D) Fire(entry *logrus.Entry) error {
-
-	x.muCurrentWork.Lock()
-	currentWork := x.currentWork
-	x.muCurrentWork.Unlock()
-	if currentWork == nil {
-		return nil
-	}
-	c := entry.Caller
-
-	journalEntry := journal.Entry{
-		Message:   entry.Message,
-		Level:     entry.Level.String(),
-		WorkID:    currentWork.WorkID,
-		CreatedAt: time.Now(),
-		Line:      int64(c.Line),
-		File:      filepath.Base(c.File),
-	}
-
-	sb := bytes.NewBuffer(nil)
-	d := logfmt.NewEncoder(sb)
-	for k, v := range entry.Data {
-		switch k {
-		case "stack":
-			journalEntry.Stack = fmt.Sprintf("%v", v)
-		case "msg", "message", "time", "level", "work":
-		default:
-			_ = d.EncodeKeyval(k, v)
-		}
-	}
-	if sb.Len() > 0 {
-		if len(journalEntry.Message) > 0 {
-			journalEntry.Message += " "
-		}
-		journalEntry.Message += sb.String()
-	}
-	err := x.dbJournal.Save(&journalEntry)
-	entry.Data["entry_id"] = journalEntry.EntryID
-	notify.NewJournalEntry(x.w, journalEntry.EntryInfo(x.currentWork.Name))
-	return err
-}
-
 func runSysTray(onClose func()) {
 	systray.Run(func() {
 
 		appIconBytes, err := assets.Asset("assets/appicon.ico")
 		if err != nil {
-			logrus.Fatal(err)
+			panic(err)
 		}
 
 		systray.SetIcon(appIconBytes)
@@ -263,7 +210,7 @@ func runSysTray(onClose func()) {
 				select {
 				case <-mRunGUIApp.ClickedCh:
 					if err := runUIApp(); err != nil {
-						logrus.Panicln("unable to run gui aplication elcoui.exe:", err)
+						panic(merry.Append(err, "не удалось запустить elcoui.exe"))
 					}
 				case <-mQuitOrig.ClickedCh:
 					systray.Quit()

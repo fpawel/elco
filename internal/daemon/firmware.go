@@ -12,7 +12,6 @@ import (
 	"github.com/fpawel/elco/pkg/intrng"
 	"github.com/hako/durafmt"
 	"github.com/powerman/structlog"
-	"github.com/sirupsen/logrus"
 	"gopkg.in/reform.v1"
 	"sort"
 	"time"
@@ -38,7 +37,11 @@ func (x *D) writePartyFirmware() error {
 		return merry.New("не выбрано ни одного прибора")
 	}
 
-	logrus.Info(formatProducts(products))
+	log := x.log.New()
+
+	log.Info("запись партии",
+		structlog.KeyTime, time.Now().Format("15:04:05"),
+		"ЭХЯ", formatProducts(products))
 
 	placeBytes := map[int][]byte{}
 
@@ -48,9 +51,12 @@ func (x *D) writePartyFirmware() error {
 			return err
 		}
 	}
-	logrus.Infof("запись партии завершена: %s, %s",
-		formatProducts(products),
-		durafmt.Parse(time.Since(startTime)))
+
+	log.Info("Запись партии завершена успешно. Будет выполнена проверка.",
+		structlog.KeyTime, time.Now().Format("15:04:05"),
+		"ЭХЯ", formatProducts(products),
+		"duration", durafmt.Parse(time.Since(startTime)),
+	)
 
 	startTime = time.Now()
 	for _, products := range blockProducts {
@@ -64,8 +70,12 @@ func (x *D) writePartyFirmware() error {
 				durafmt.Parse(time.Since(startTime)))
 		}
 	}
-	logrus.Infof("считывание партии завершено: %s, %s",
-		formatProducts(products), durafmt.Parse(time.Since(startTime)))
+
+	log.Info("Проерка записи партии выполнена успешно.",
+		structlog.KeyTime, time.Now().Format("15:04:05"),
+		"ЭХЯ", formatProducts(products),
+		"duration", durafmt.Parse(time.Since(startTime)),
+	)
 
 	if err = data.GetPartyProducts(x.dbProducts, &party); err != nil {
 		return err
@@ -123,14 +133,21 @@ func (x *D) writeBlock(products []*data.Product, placeBytes map[int][]byte) erro
 		placeBytes[p.Place] = firmware.Bytes()
 	}
 
+	log := comm.LogWithKeys(x.log,
+		"блок", block,
+		"маска_мест", fmt.Sprintf("%08b", placesMask),
+		"выбранные_места", intrng.Format(placesInBlock),
+	)
+
 	doAddresses := func(p *data.Product, b data.FirmwareBytes, addr1, addr2 uint16) error {
 
 		placeInBlock := p.Place % 8
 
-		x.log.Debug(fmt.Sprintf("запись флэш %d байт", addr2+1-addr1),
-			structlog.KeyTime, time.Now().Format("15:04:05.000"),
-			"адрес", fmt.Sprintf("%X...%X", addr1, addr2),
-			"место", data.FormatPlace(p.Place))
+		log.Debug(fmt.Sprintf("запись %d байт", addr2+1-addr1),
+			structlog.KeyTime, time.Now().Format("15:04:05"),
+			"диапазон", fmt.Sprintf("%X...%X", addr1, addr2),
+			"место", data.FormatPlace(p.Place),
+			"количество_байт", addr2-addr1+1)
 
 		if err := x.sendDataToWrite42(block, placeInBlock, b[addr1:addr2+1]); err != nil {
 			return err
@@ -138,6 +155,7 @@ func (x *D) writeBlock(products []*data.Product, placeBytes map[int][]byte) erro
 		return nil
 	}
 
+	log.Info("начата запись блока")
 	for i, c := range firmwareAddresses {
 		for _, p := range products {
 			if err := doAddresses(p, placeBytes[p.Place], c.addr1, c.addr2); err != nil {
@@ -163,9 +181,9 @@ func (x *D) writeBlock(products []*data.Product, placeBytes map[int][]byte) erro
 		}
 	}
 
-	logrus.WithField("places_mask", fmt.Sprintf("%08b", placesMask)).
-		Infof("запись блока %d %s завершена: %s",
-			block, intrng.Format(placesInBlock), durafmt.Parse(time.Since(startTime)))
+	log.Info("запись блока завершена",
+		structlog.KeyTime, time.Now().Format("15:04:05"),
+		"duration", durafmt.Parse(time.Since(startTime)))
 	return nil
 }
 
@@ -177,6 +195,14 @@ func (x *D) readPlaceFirmware(place int) ([]byte, error) {
 	for i := range b {
 		b[i] = 0xff
 	}
+
+	log := comm.LogWithKeys(x.log,
+		"место", data.FormatPlace(place),
+		"тип_микросхемы", x.cfg.User().ChipType,
+	)
+
+	log.Info("начато считывание прошивки места")
+
 	for i, c := range firmwareAddresses {
 		count := c.addr2 - c.addr1 + 1
 		req := modbus.Req{
@@ -193,11 +219,8 @@ func (x *D) readPlaceFirmware(place int) ([]byte, error) {
 		}
 		reader := x.measurerReader(x.hardware.ctx)
 
-		log := comm.NewLogWithKeys(
-			"считывание_прошивки", fmt.Sprintf("%X...%X", c.addr1, c.addr2),
-			"блок", block,
-			"место", placeInBlock,
-			"тип_микросхемы", x.cfg.User().ChipType,
+		log := comm.LogWithKeys(log,
+			"диапазон", fmt.Sprintf("%X...%X", c.addr1, c.addr2),
 			"количество_байт", count,
 		)
 
@@ -219,8 +242,10 @@ func (x *D) readPlaceFirmware(place int) ([]byte, error) {
 				time.Millisecond)
 		}
 	}
-	logrus.Infof("считана прошивка метса %s: %d байт: %s",
-		data.FormatPlace(place), len(b), durafmt.Parse(time.Since(startTime)))
+	log.Info("завершено считывание прошивки места",
+		structlog.KeyTime, time.Now().Format("15:04:05"),
+		"duration", durafmt.Parse(time.Since(startTime)),
+		"количество_считаных_байт", len(b))
 	return b, nil
 }
 
@@ -230,16 +255,19 @@ func (x *D) writePlaceFirmware(place int, bytes []byte) error {
 	placesMask := byte(1) << byte(placeInBlock)
 	startTime := time.Now()
 
-	x.log.Debug(fmt.Sprintf("запись флэш %d байт", len(bytes)),
-		structlog.KeyTime, time.Now().Format("15:04:05.000"),
-		"место", data.FormatPlace(place))
+	log := comm.LogWithKeys(x.log,
+		"место", data.FormatPlace(place),
+		"тип_микросхемы", x.cfg.User().ChipType,
+	)
+
+	log.Info("начата запись прошивки места", structlog.KeyTime, time.Now().Format("15:04:05"))
 
 	doAddresses := func(addr1, addr2 uint16) error {
 
-		x.log.Debug(fmt.Sprintf("запись флэш %d байт", addr2+1-addr1),
-			structlog.KeyTime, time.Now().Format("15:04:05.000"),
-			"место", data.FormatPlace(place),
-			"адрес", fmt.Sprintf("%X...%X", addr1, addr2))
+		log.Debug("запись флэш",
+			structlog.KeyTime, time.Now().Format("15:04:05"),
+			"диапазон", fmt.Sprintf("%X...%X", addr1, addr2),
+			"количество_байт", addr2+1-addr1)
 
 		if err := x.sendDataToWrite42(block, placeInBlock, bytes[addr1:addr2+1]); err != nil {
 			return err
@@ -261,7 +289,9 @@ func (x *D) writePlaceFirmware(place int, bytes []byte) error {
 			return err
 		}
 	}
-	//logrus.Info("запись прошивки ЭХЯ выполнена успешно")
+	log.Info("выполнена запись прошивки места",
+		structlog.KeyTime, time.Now().Format("15:04:05"),
+		"duration", durafmt.Parse(time.Since(startTime)))
 
 	var p data.Product
 	switch err := data.GetLastPartyProductAtPlace(x.dbProducts, place, &p); err {
@@ -275,8 +305,7 @@ func (x *D) writePlaceFirmware(place int, bytes []byte) error {
 	default:
 		return err
 	}
-	logrus.Infof("запись места: %s, %s", data.FormatPlace(place),
-		durafmt.Parse(time.Since(startTime)))
+
 	return nil
 }
 
@@ -335,7 +364,7 @@ func (x *D) readStatus45(block int) ([]byte, error) {
 		ProtoCmd: 0x45,
 	}
 
-	log := comm.LogWithKeys(structlog.New(),
+	log := comm.LogWithKeys(x.log,
 		"действие", "запрос_статуса_записи_флэш",
 		"блок", block)
 
@@ -362,10 +391,10 @@ func (x *D) writePreparedDataToFlash(block int, placesMask byte, addr uint16, co
 	}
 	reader := x.measurerReader(x.hardware.ctx)
 
-	log := comm.LogWithKeys(structlog.New(),
-		"действие", "запись_во_флеш_ранее_подготовленных_данных",
+	log := comm.LogWithKeys(x.log,
+		"действие", "запись_флеш",
 		"блок", block,
-		"маска_мест", fmt.Sprintf("%b", placesMask),
+		"маска", fmt.Sprintf("%08b", placesMask),
 		"адрес", fmt.Sprintf("%X", addr),
 		"количество_байт", count)
 
@@ -388,7 +417,7 @@ func (x *D) sendDataToWrite42(block, placeInBlock int, b []byte) error {
 			byte(len(b)),
 		}, b...),
 	}
-	log := comm.LogWithKeys(structlog.New(),
+	log := comm.LogWithKeys(x.log,
 		"действие", "отправка_данных_для_записи_флэш",
 		"блок", block, "место", placeInBlock, "количество_байт", len(b))
 
