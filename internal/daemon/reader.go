@@ -8,13 +8,13 @@ import (
 	"github.com/powerman/structlog"
 )
 
-type responseReader struct {
+type reader struct {
 	*comport.Reader
 	Config comm.Config
 	Ctx    context.Context
 }
 
-func (x responseReader) GetResponse(logger *structlog.Logger, request []byte, responseParser comm.ResponseParser) ([]byte, error) {
+func (x reader) GetResponse(logger *structlog.Logger, request []byte, responseParser comm.ResponseParser) ([]byte, error) {
 	return x.Reader.GetResponse(comm.Request{
 		Logger:         logger,
 		Bytes:          request,
@@ -24,7 +24,7 @@ func (x responseReader) GetResponse(logger *structlog.Logger, request []byte, re
 }
 
 func (x *D) gasBlockReader() modbus.ResponseReader {
-	return responseReader{
+	return reader{
 		Reader: x.portGas,
 		Config: x.cfg.Predefined().ComportGas,
 		Ctx:    x.hardware.ctx,
@@ -32,7 +32,7 @@ func (x *D) gasBlockReader() modbus.ResponseReader {
 }
 
 func (x *D) measurerReader(ctx context.Context) modbus.ResponseReader {
-	return responseReader{
+	return reader{
 		Reader: x.portMeasurer,
 		Config: x.cfg.Predefined().ComportMeasurer,
 		Ctx:    ctx,

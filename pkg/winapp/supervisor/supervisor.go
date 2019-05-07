@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"time"
 )
 
@@ -57,7 +58,7 @@ func ExecuteProcess(exeFileName string, args ...string) string {
 	log.Println(err)
 	panicParsed := bytes.NewBuffer(nil)
 
-	panicBufferStr := panicBuffer.String()
+	panicMsg := parsePanicMsg(panicBuffer.String())
 
 	if err := panichook.DumpCrash(panicBuffer, panicParsed); err != nil {
 		log.Println("panichook.DumpCrash:", err)
@@ -66,7 +67,7 @@ func ExecuteProcess(exeFileName string, args ...string) string {
 	panicParsedStr := panicParsed.String()
 
 	log.Println(panicParsedStr)
-	return panicBufferStr + "\n\n" + panicParsedStr
+	return panicMsg + "\n\n" + panicParsedStr
 }
 
 type redirectOutput struct {
@@ -77,6 +78,8 @@ type redirectOutput struct {
 
 func (x *redirectOutput) Write(p []byte) (int, error) {
 
+	defer ResetColor()
+
 	_, _ = fmt.Fprint(x.logFile, time.Now().Format("15:04:05"), " ")
 	nResult, err := x.logFile.Write(p)
 	if err != nil {
@@ -86,7 +89,6 @@ func (x *redirectOutput) Write(p []byte) (int, error) {
 	if !x.panic {
 		Foreground(Green, true)
 		fmt.Print(time.Now().Format("15:04:05"), " ")
-		defer ResetColor()
 	}
 
 	if bytes.HasPrefix(p, []byte("panic:")) {
@@ -101,9 +103,9 @@ func (x *redirectOutput) Write(p []byte) (int, error) {
 		if len(fields) > 1 {
 			switch string(fields[1]) {
 			case "ERR":
-				Foreground(Yellow, true)
+				Foreground(Red, true)
 			case "WRN":
-				Foreground(Cyan, true)
+				Foreground(Yellow, true)
 			case "inf":
 				Foreground(White, true)
 			default:
@@ -116,12 +118,21 @@ func (x *redirectOutput) Write(p []byte) (int, error) {
 	return nResult, nil
 }
 
+func parsePanicMsg(s string) string {
+	xs := regexPanicMsg.FindStringSubmatch(s)
+	if len(xs) > 1 {
+		return xs[1]
+	}
+	return ""
+}
+
+var regexPanicMsg = regexp.MustCompile(`panic:\s*([^\n]+)\n`)
+
 type redirectOutput2 struct {
 	logFile *os.File
 }
 
 func (x redirectOutput2) Write(p []byte) (int, error) {
 	_, _ = os.Stderr.Write(p)
-	_, _ = fmt.Fprint(x.logFile, time.Now().Format("15:04:05"), " ")
 	return x.logFile.Write(p)
 }

@@ -152,18 +152,25 @@ func (x *D) runHardware(logWork bool, workName string, work WorkFunc) {
 		}()
 
 		notifyErr := func(what string, err error) {
+			if merry.Is(err, context.Canceled) {
+				x.log.Warn("выполнение прервано")
+				return
+			}
 			var kvs []interface{}
 			for k, v := range merry.Values(err) {
-				if fmt.Sprintf("%v", k) != "stack" {
+				strK := fmt.Sprintf("%v", k)
+				if strK != "stack" && strK != "msg" && strK != "message" {
 					kvs = append(kvs, k, v)
 				}
 			}
-			kvs = append(kvs, "stack", merry.Stacktrace(err))
-			x.log.PrintErr(err, kvs...)
 
 			if merry.Is(err, context.Canceled) {
+				x.log.Warn("выполнение прервано", kvs...)
 				return
 			}
+			kvs = append(kvs, "stack", merryStacktrace(err))
+			x.log.PrintErr(err, kvs...)
+
 			notify.ErrorOccurredf(x.w, "%s: %v", workName, err)
 		}
 
