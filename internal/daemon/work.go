@@ -52,7 +52,7 @@ func (x *D) switchGas(n int) error {
 
 func (x *D) doSwitchGas(n int) error {
 
-	req := modbus.Req{
+	req := modbus.Request{
 		Addr:     5,
 		ProtoCmd: 0x10,
 		Data: []byte{
@@ -84,7 +84,7 @@ func (x *D) doSwitchGas(n int) error {
 		return err
 	}
 
-	req = modbus.Req{
+	req = modbus.Request{
 		Addr:     1,
 		ProtoCmd: 6,
 		Data: []byte{
@@ -353,7 +353,7 @@ func (x *D) readBlockMeasure(logger *structlog.Logger, block int, ctx context.Co
 
 	log := comm.LogWithKeys(logger, "блок", block)
 
-	values, err := modbus.Read3BCDValues(log, x.measurerReader(ctx), modbus.Addr(block+101), 0, 8)
+	values, err := modbus.Read3BCDs(log, x.measurerReader(ctx), modbus.Addr(block+101), 0, 8)
 
 	switch err {
 

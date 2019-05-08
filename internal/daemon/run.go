@@ -55,7 +55,6 @@ func (x *D) RunReadPlaceFirmware(place int) {
 }
 
 func (x *D) RunWritePartyFirmware() {
-	panic("ups")
 	x.runHardware(true, "Прошивка партии", x.writePartyFirmware)
 }
 
@@ -121,7 +120,7 @@ func (x *D) runHardware(logWork bool, workName string, work WorkFunc) {
 
 	x.hardware.WaitGroup.Add(1)
 
-	x.log = comm.NewLogWithKeys("работа", "`"+workName+"`")
+	x.log = comm.NewLogWithKeys("работа", workName)
 
 	var currentWork *journal.Work
 

@@ -11,7 +11,6 @@ import (
 	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/elco/pkg/intrng"
 	"github.com/hako/durafmt"
-	"github.com/powerman/structlog"
 	"gopkg.in/reform.v1"
 	"sort"
 	"time"
@@ -40,7 +39,6 @@ func (x *D) writePartyFirmware() error {
 	log := x.log.New()
 
 	log.Info("запись партии",
-		structlog.KeyTime, time.Now().Format("15:04:05"),
 		"ЭХЯ", formatProducts(products))
 
 	placeBytes := map[int][]byte{}
@@ -53,7 +51,6 @@ func (x *D) writePartyFirmware() error {
 	}
 
 	log.Info("Запись партии завершена успешно. Будет выполнена проверка.",
-		structlog.KeyTime, time.Now().Format("15:04:05"),
 		"ЭХЯ", formatProducts(products),
 		"duration", durafmt.Parse(time.Since(startTime)),
 	)
@@ -72,7 +69,6 @@ func (x *D) writePartyFirmware() error {
 	}
 
 	log.Info("Проерка записи партии выполнена успешно.",
-		structlog.KeyTime, time.Now().Format("15:04:05"),
 		"ЭХЯ", formatProducts(products),
 		"duration", durafmt.Parse(time.Since(startTime)),
 	)
@@ -144,7 +140,6 @@ func (x *D) writeBlock(products []*data.Product, placeBytes map[int][]byte) erro
 		placeInBlock := p.Place % 8
 
 		log.Debug(fmt.Sprintf("запись %d байт", addr2+1-addr1),
-			structlog.KeyTime, time.Now().Format("15:04:05"),
 			"диапазон", fmt.Sprintf("%X...%X", addr1, addr2),
 			"место", data.FormatPlace(p.Place),
 			"количество_байт", addr2-addr1+1)
@@ -182,7 +177,6 @@ func (x *D) writeBlock(products []*data.Product, placeBytes map[int][]byte) erro
 	}
 
 	log.Info("запись блока завершена",
-		structlog.KeyTime, time.Now().Format("15:04:05"),
 		"duration", durafmt.Parse(time.Since(startTime)))
 	return nil
 }
@@ -205,7 +199,7 @@ func (x *D) readPlaceFirmware(place int) ([]byte, error) {
 
 	for i, c := range firmwareAddresses {
 		count := c.addr2 - c.addr1 + 1
-		req := modbus.Req{
+		req := modbus.Request{
 			Addr:     modbus.Addr(block) + 101,
 			ProtoCmd: 0x44,
 			Data: []byte{
@@ -243,7 +237,6 @@ func (x *D) readPlaceFirmware(place int) ([]byte, error) {
 		}
 	}
 	log.Info("завершено считывание прошивки места",
-		structlog.KeyTime, time.Now().Format("15:04:05"),
 		"duration", durafmt.Parse(time.Since(startTime)),
 		"количество_считаных_байт", len(b))
 	return b, nil
@@ -260,12 +253,11 @@ func (x *D) writePlaceFirmware(place int, bytes []byte) error {
 		"тип_микросхемы", x.cfg.User().ChipType,
 	)
 
-	log.Info("начата запись прошивки места", structlog.KeyTime, time.Now().Format("15:04:05"))
+	log.Info("начата запись прошивки места")
 
 	doAddresses := func(addr1, addr2 uint16) error {
 
 		log.Debug("запись флэш",
-			structlog.KeyTime, time.Now().Format("15:04:05"),
 			"диапазон", fmt.Sprintf("%X...%X", addr1, addr2),
 			"количество_байт", addr2+1-addr1)
 
@@ -290,7 +282,6 @@ func (x *D) writePlaceFirmware(place int, bytes []byte) error {
 		}
 	}
 	log.Info("выполнена запись прошивки места",
-		structlog.KeyTime, time.Now().Format("15:04:05"),
 		"duration", durafmt.Parse(time.Since(startTime)))
 
 	var p data.Product
@@ -359,7 +350,7 @@ func (x *D) waitStatus45(block int, placesMask byte) error {
 
 func (x *D) readStatus45(block int) ([]byte, error) {
 	reader := x.measurerReader(x.hardware.ctx)
-	request := modbus.Req{
+	request := modbus.Request{
 		Addr:     modbus.Addr(block) + 101,
 		ProtoCmd: 0x45,
 	}
@@ -377,7 +368,7 @@ func (x *D) readStatus45(block int) ([]byte, error) {
 }
 
 func (x *D) writePreparedDataToFlash(block int, placesMask byte, addr uint16, count int) error {
-	req := modbus.Req{
+	req := modbus.Request{
 		Addr:     modbus.Addr(block) + 101,
 		ProtoCmd: 0x43,
 		Data: []byte{
@@ -408,7 +399,7 @@ func (x *D) writePreparedDataToFlash(block int, placesMask byte, addr uint16, co
 }
 
 func (x *D) sendDataToWrite42(block, placeInBlock int, b []byte) error {
-	req := modbus.Req{
+	req := modbus.Request{
 		Addr:     modbus.Addr(block) + 101,
 		ProtoCmd: 0x42,
 		Data: append([]byte{
