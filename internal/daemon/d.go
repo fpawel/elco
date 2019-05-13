@@ -24,7 +24,9 @@ import (
 	"gopkg.in/reform.v1/dialects/sqlite3"
 	"net"
 	"net/rpc"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"sync"
 	"time"
 )
@@ -184,11 +186,12 @@ func mustPipeListener() net.Listener {
 }
 
 func runUIApp() error {
-	fileName, err := winapp.CurrentDirOrProfileFileName(".elco", "elcoui.exe")
+	fileName := filepath.Join(filepath.Dir(os.Args[0]), "elcoui.exe")
+	err := exec.Command(fileName).Start()
 	if err != nil {
-		return merry.Wrap(err)
+		return merry.Append(err, fileName)
 	}
-	return exec.Command(fileName).Start()
+	return nil
 }
 
 func runSysTray(onClose func()) {

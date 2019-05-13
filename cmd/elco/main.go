@@ -10,7 +10,6 @@ import (
 	"github.com/fpawel/elco/pkg/winapp"
 	"github.com/lxn/win"
 	"github.com/powerman/structlog"
-	"github.com/sirupsen/logrus"
 	"log"
 	"os"
 	"path/filepath"
@@ -53,32 +52,17 @@ func main() {
 
 	createNewDB := false
 	hideCon := false
-	logLevelStr := "info"
 	skipRunUIApp := false
 
 	flag.BoolVar(&createNewDB, "new-db", false, "create new data base")
 	flag.BoolVar(&hideCon, "hide-con", false, "hide console window")
 	flag.BoolVar(&skipRunUIApp, "skip-run-ui", false, "skip running ui")
-	flag.StringVar(&logLevelStr, "log-level", "info", "use log level")
 
 	flag.Parse()
 
 	if hideCon {
 		win.ShowWindow(win.GetConsoleWindow(), win.SW_HIDE)
 	}
-
-	// Log as JSON instead of the default ASCII formatter.
-	//logrus.SetFormatter(&logrus.JSONFormatter{})
-
-	logLevel, err := logrus.ParseLevel(logLevelStr)
-	if err != nil {
-		logrus.Fatal(err)
-	}
-	elco.Logger.SetLevel(logLevel)
-	logrus.SetLevel(logLevel)
-	logrus.SetFormatter(elco.Logger.Formatter)
-	logrus.SetOutput(elco.Logger.Out)
-	logrus.SetReportCaller(true)
 
 	if err := assets.Ensure(); err != nil {
 		log.Fatal(err)

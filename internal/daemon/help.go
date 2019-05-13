@@ -38,12 +38,17 @@ func merryStacktrace(e error) string {
 	s := merry.Stack(e)
 	if len(s) > 0 {
 		buf := bytes.Buffer{}
-		for _, fp := range s {
+		for i, fp := range s {
 			fnc := runtime.FuncForPC(fp)
 			if fnc != nil {
 				f, l := fnc.FileLine(fp)
 				name := filepath.Base(fnc.Name())
-				buf.WriteString(fmt.Sprintf("\t%s:%d %s\n", f, l, name))
+				ident := " "
+				if i > 0 {
+					ident = "\t"
+				}
+
+				buf.WriteString(fmt.Sprintf("%s%s:%d %s\n", ident, f, l, name))
 			}
 		}
 		return buf.String()
