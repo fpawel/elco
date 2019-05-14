@@ -11,7 +11,6 @@ import (
 	"github.com/fpawel/elco/internal/cfg"
 	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/elco/internal/elco"
-	"github.com/fpawel/elco/internal/journal"
 	"github.com/fpawel/elco/pkg/copydata"
 	"github.com/fpawel/elco/pkg/winapp"
 	"github.com/getlantern/systray"
@@ -34,7 +33,6 @@ import (
 type D struct {
 	dbProducts  *reform.DB
 	dbxProducts *sqlx.DB
-	dbJournal   *reform.DB
 	w           *copydata.NotifyWindow // окно для отправки сообщений WM_COPYDATA дельфи-приложению
 	cfg         *cfg.Config
 	ctx         context.Context
@@ -45,7 +43,6 @@ type D struct {
 	portMeasurer  *comport.Reader
 	portGas       *comport.Reader
 	muCurrentWork sync.Mutex
-	currentWork   *journal.Work
 }
 
 type hardware struct {
@@ -63,17 +60,10 @@ func Run(skipRunUIApp, createNewDB bool) error {
 		return merry.WithMessage(err, "не удалось открыть файл данных")
 	}
 
-	dbJournalConn, err := journal.Open(createNewDB)
-	if err != nil {
-		return merry.WithMessage(err, "не удалось открыть журнал")
-	}
-
 	x := &D{
 		log:         structlog.New(),
 		dbProducts:  reform.NewDB(dbProductsConn, sqlite3.Dialect, nil),
 		dbxProducts: sqlx.NewDb(dbProductsConn, "sqlite3"),
-		dbJournal:   reform.NewDB(dbJournalConn, sqlite3.Dialect, nil),
-		w:           copydata.NewNotifyWindow(elco.ServerWindowClassName, elco.PeerWindowClassName),
 		hardware: hardware{
 			Continue:  func() {},
 			cancel:    func() {},
@@ -81,6 +71,12 @@ func Run(skipRunUIApp, createNewDB bool) error {
 			ctx:       context.Background(),
 		},
 	}
+
+	x.w = copydata.NewNotifyWindow(
+		elco.ServerWindowClassName,
+		elco.PeerWindowClassName,
+		x.log, notify.FormatMsg)
+
 	x.cfg = cfg.OpenConfig(x.dbProducts)
 
 	x.portMeasurer = comport.NewReader(comport.Config{
@@ -101,7 +97,6 @@ func Run(skipRunUIApp, createNewDB bool) error {
 		api.NewProductTypes(x.dbProducts),
 		api.NewProductFirmware(x.dbProducts, x),
 		api.NewSetsSvc(x.cfg),
-		api.NewJournal(x.dbJournal, sqlx.NewDb(dbJournalConn, "sqlite3")),
 		&api.RunnerSvc{Runner: x},
 	} {
 		if err := rpc.Register(svcObj); err != nil {
@@ -156,7 +151,6 @@ func Run(skipRunUIApp, createNewDB bool) error {
 		}
 	})
 	x.log.ErrIfFail(dbProductsConn.Close, "defer", "close products db")
-	x.log.ErrIfFail(dbJournalConn.Close, "defer", "close journal db")
 	x.log.ErrIfFail(x.cfg.Save, "defer", "save config")
 	return nil
 }

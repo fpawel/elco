@@ -11,12 +11,6 @@ type DelayInfo struct {
 	What        string
 }
 
-type ComportEntry struct {
-	Port  string
-	Error bool
-	Msg   string
-}
-
 type GetCheckBlocksArg struct {
 	Check []bool
 }

@@ -7,11 +7,9 @@ import (
 	"github.com/fpawel/comm"
 	"github.com/fpawel/elco/internal/api/notify"
 	"github.com/fpawel/elco/internal/data"
-	"github.com/fpawel/elco/internal/journal"
 	"github.com/hashicorp/go-multierror"
 	"github.com/powerman/structlog"
 	"sync"
-	"time"
 )
 
 func (x *D) RunReadAndSaveProductCurrents(field string) {
@@ -55,6 +53,7 @@ func (x *D) RunReadPlaceFirmware(place int) {
 }
 
 func (x *D) RunWritePartyFirmware() {
+	panic("UPPPSSSS!!")
 	x.runHardware(true, "Прошивка партии", x.writePartyFirmware)
 }
 
@@ -122,30 +121,10 @@ func (x *D) runHardware(logWork bool, workName string, work WorkFunc) {
 
 	x.log = comm.NewLogWithKeys("работа", workName)
 
-	var currentWork *journal.Work
-
-	if logWork {
-		currentWork = &journal.Work{
-			Name:      workName,
-			CreatedAt: time.Now(),
-		}
-		if err := x.dbJournal.Save(currentWork); err != nil {
-			panic(err)
-		}
-	}
-	x.muCurrentWork.Lock()
-	x.currentWork = currentWork
-	x.muCurrentWork.Unlock()
-
 	go func() {
 		notify.WorkStarted(x.w, workName)
 		defer func() {
 			notify.WorkStoppedf(x.w, "выполнение окончено: %s", workName)
-			if logWork {
-				x.muCurrentWork.Lock()
-				x.currentWork = nil
-				x.muCurrentWork.Unlock()
-			}
 			x.hardware.WaitGroup.Done()
 			x.log = structlog.New()
 		}()

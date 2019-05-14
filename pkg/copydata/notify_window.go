@@ -6,21 +6,31 @@ import (
 	"github.com/fpawel/elco/pkg/winapp"
 	"github.com/fpawel/goutils"
 	"github.com/lxn/win"
+	"github.com/powerman/structlog"
 )
 
 type NotifyWindow struct {
 	hWnd, hWndPeer      win.HWND
 	peerWindowClassName string
+	log                 *structlog.Logger
+	formatMsg           formatMsgFunc
 }
 
-func NewNotifyWindow(windowClassName, peerWindowClassName string) *NotifyWindow {
+type formatMsgFunc = func(uintptr) string
+
+func NewNotifyWindow(windowClassName, peerWindowClassName string, log *structlog.Logger, formatMsg formatMsgFunc) *NotifyWindow {
 	return &NotifyWindow{
 		peerWindowClassName: peerWindowClassName,
 		hWnd:                winapp.NewWindowWithClassName(windowClassName, win.DefWindowProc),
+		log:                 log,
+		formatMsg:           formatMsg,
 	}
 }
 
 func (x *NotifyWindow) CloseWindowR() bool {
+	if x.log != nil {
+		x.log.Debug("close")
+	}
 	return win.SendMessage(x.hWnd, win.WM_CLOSE, 0, 0) == 0
 }
 
@@ -43,6 +53,9 @@ func (x *NotifyWindow) Notify(msg uintptr, a ...interface{}) {
 }
 
 func (x *NotifyWindow) NotifyStr(msg uintptr, s string) {
+	if x.log != nil {
+		x.log.Debug(s, x.peerWindowClassName, fmt.Sprintf("%d:%s", msg, x.formatMsg(msg)))
+	}
 	x.sendMsg(msg, goutils.UTF16FromString(s))
 }
 

@@ -4,7 +4,6 @@ import (
 	"github.com/fpawel/elco/internal/api"
 	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/elco/internal/elco"
-	"github.com/fpawel/elco/internal/journal"
 	"github.com/fpawel/elco/pkg/delphirpc"
 	"github.com/fpawel/elco/pkg/winapp"
 	"log"
@@ -21,7 +20,6 @@ func main() {
 		r.TypeOf((*api.PlaceFirmware)(nil)),
 		r.TypeOf((*api.SettingsSvc)(nil)),
 		r.TypeOf((*api.RunnerSvc)(nil)),
-		r.TypeOf((*api.Journal)(nil)),
 	}
 	m := map[string]string{
 		"ProductInfo": "Product",
@@ -81,10 +79,6 @@ func main() {
 			r.TypeOf((*data.Party)(nil)).Elem(),
 		},
 		{
-			"ComportEntry",
-			r.TypeOf((*api.ComportEntry)(nil)).Elem(),
-		},
-		{
 			"StartServerApplication",
 			r.TypeOf((*string)(nil)).Elem(),
 		},
@@ -92,12 +86,14 @@ func main() {
 			"ReadFirmware",
 			r.TypeOf((*data.FirmwareInfo)(nil)).Elem(),
 		},
+
 		{
-			"NewJournalEntry",
-			r.TypeOf((*journal.EntryInfo)(nil)).Elem(),
+			"Panic",
+			r.TypeOf((*string)(nil)).Elem(),
 		},
+
 		{
-			"HostApplicationPanic",
+			"WriteConsole",
 			r.TypeOf((*string)(nil)).Elem(),
 		},
 	})

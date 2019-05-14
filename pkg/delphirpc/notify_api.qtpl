@@ -20,6 +20,17 @@ const (
     {% endfor %}
 )
 
+var
+    msgName = map[msg]string{
+        {% for _,m := range x.services%}msg{%s m.serviceName %}:"{%s m.serviceName %}",
+        {% endfor %}
+    }
+
+func FormatMsg(msgCode uintptr) string {
+    s,_ := msgName[msg(msgCode)]
+    return s
+}
+
 {% for _,m := range x.services %}func {%s m.serviceName %}(w W, arg {%s m.goType %}) {
     w.{%s m.notifyFunc %}( uintptr(msg{%s m.serviceName %}), {%s= m.instructionArg %} )
 }
