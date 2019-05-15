@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/fpawel/elco/pkg/serial-comm/modbus"
+	"github.com/fpawel/comm/modbus"
 	"github.com/lxn/walk"
 	. "github.com/lxn/walk/declarative"
 
@@ -117,7 +117,7 @@ func main() {
 		Size:     Size{600, 450},
 		Layout:   Grid{},
 		AssignTo: &mw,
-		Font:     Font{PointSize: 14},
+		Font:     Font{PointSize: 12, Family: "Segoe UI"},
 
 		Children: []Widget{
 			ScrollView{
