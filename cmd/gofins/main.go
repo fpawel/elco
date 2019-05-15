@@ -12,7 +12,7 @@ func main() {
 
 	area := flag.Int("area", int(fins.MemoryAreaDMWord), "область")
 	addr := flag.Int("addr", 8, "адрес")
-	count := flag.Int("count", 2, "количество байт")
+	count := flag.Int("count", 2, "количество слов")
 	timeout := flag.Int("timeout", 100, "таймаут, мс")
 
 	flag.Parse()
