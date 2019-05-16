@@ -41,7 +41,7 @@ func (x *D) switchGas(n int) error {
 		s += fmt.Sprintf("Подайте ПГС%d", n)
 	}
 	s += " вручную."
-	notify.Warning(x.w, s)
+	notify.Warning(x.notifyWindow, s)
 	if merry.Is(x.hardware.ctx.Err(), context.Canceled) {
 		return err
 	}
@@ -134,14 +134,14 @@ func (x *D) doDelay(what string, duration time.Duration) error {
 		logrus.Warnf("%s %s: задержка прервана: %s", what, durafmt.Parse(duration), durafmt.Parse(time.Since(t)))
 	}
 
-	notify.Delay(x.w, api.DelayInfo{
+	notify.Delay(x.notifyWindow, api.DelayInfo{
 		Run:         true,
 		What:        what,
 		TimeSeconds: int(duration.Seconds()),
 	})
 
 	defer func() {
-		notify.Delay(x.w, api.DelayInfo{Run: false})
+		notify.Delay(x.notifyWindow, api.DelayInfo{Run: false})
 	}()
 	for {
 		productsWithSerials, err := data.GetLastPartyProducts(x.dbProducts,
@@ -182,7 +182,7 @@ func (x *D) doDelay(what string, duration time.Duration) error {
 				return x.hardware.ctx.Err()
 			}
 
-			notify.Warningf(x.w, "фоновый опрос: блок измерения %d: %v", block+1, err)
+			notify.Warningf(x.notifyWindow, "фоновый опрос: блок измерения %d: %v", block+1, err)
 
 			if merry.Is(x.hardware.ctx.Err(), context.Canceled) {
 				return err
@@ -196,7 +196,7 @@ func (x *D) doDelay(what string, duration time.Duration) error {
 }
 
 func (x *D) setupTemperature(temperature data.Temperature) error {
-	notify.Warningf(x.w, `Установите в термокамере температуру %v⁰C. Нажмите \"Ok\" чтобы перейти к выдержке на температуре %v⁰C.`,
+	notify.Warningf(x.notifyWindow, `Установите в термокамере температуру %v⁰C. Нажмите \"Ok\" чтобы перейти к выдержке на температуре %v⁰C.`,
 		temperature, temperature)
 	duration := time.Minute * time.Duration(x.cfg.Predefined().HoldTemperatureMinutes)
 	return x.delay(fmt.Sprintf("выдержка термокамеры: %v⁰C", temperature), duration)
@@ -246,7 +246,7 @@ func (x *D) determineMainError() error {
 	for i, pt := range data.MainErrorPoints {
 		what := fmt.Sprintf("%d: ПГС%d: снятие основной погрешности", i+1, pt.Code())
 
-		notify.Status(x.w, what)
+		notify.Status(x.notifyWindow, what)
 
 		if err := x.blowGas(pt.Code()); err != nil {
 			return err
@@ -298,7 +298,7 @@ func (x *D) doReadAndSaveProductsCurrents(field string) error {
 			if merry.Is(err, context.Canceled) {
 				return err
 			}
-			notify.Warning(x.w, fmt.Sprintf("блок измерения %d: %v", block+1, err))
+			notify.Warning(x.notifyWindow, fmt.Sprintf("блок измерения %d: %v", block+1, err))
 			if x.hardware.ctx.Err() == context.Canceled {
 				return err
 			}
@@ -326,7 +326,7 @@ func (x *D) doReadAndSaveProductsCurrents(field string) error {
 	if err := data.GetPartyProducts(x.dbProducts, &party); err != nil {
 		return err
 	}
-	notify.LastPartyChanged(x.w, party)
+	notify.LastPartyChanged(x.notifyWindow, party)
 
 	return nil
 
@@ -358,7 +358,7 @@ func (x *D) readBlockMeasure(logger *structlog.Logger, block int, ctx context.Co
 	switch err {
 
 	case nil:
-		notify.ReadCurrent(x.w, api.ReadCurrent{
+		notify.ReadCurrent(x.notifyWindow, api.ReadCurrent{
 			Block:  block,
 			Values: values,
 		})

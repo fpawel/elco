@@ -17,6 +17,8 @@ const (
 	msgWorkStarted
 	msgWorkStopped
 	msgStatus
+	msgTraceTemperatureInfo
+	msgTraceTemperatureError
 	msgWarning
 	msgDelay
 	msgLastPartyChanged
@@ -33,6 +35,8 @@ var msgName = map[msg]string{
 	msgWorkStarted:            "WorkStarted",
 	msgWorkStopped:            "WorkStopped",
 	msgStatus:                 "Status",
+	msgTraceTemperatureInfo:   "TraceTemperatureInfo",
+	msgTraceTemperatureError:  "TraceTemperatureError",
 	msgWarning:                "Warning",
 	msgDelay:                  "Delay",
 	msgLastPartyChanged:       "LastPartyChanged",
@@ -80,6 +84,18 @@ func Status(w W, arg string) {
 }
 func Statusf(w W, format string, a ...interface{}) {
 	w.Notifyf(uintptr(msgStatus), format, a...)
+}
+func TraceTemperatureInfo(w W, arg string) {
+	w.NotifyStr(uintptr(msgTraceTemperatureInfo), arg)
+}
+func TraceTemperatureInfof(w W, format string, a ...interface{}) {
+	w.Notifyf(uintptr(msgTraceTemperatureInfo), format, a...)
+}
+func TraceTemperatureError(w W, arg string) {
+	w.NotifyStr(uintptr(msgTraceTemperatureError), arg)
+}
+func TraceTemperatureErrorf(w W, format string, a ...interface{}) {
+	w.Notifyf(uintptr(msgTraceTemperatureError), format, a...)
 }
 func Warning(w W, arg string) {
 	w.NotifyStr(uintptr(msgWarning), arg)

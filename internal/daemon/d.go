@@ -31,12 +31,12 @@ import (
 )
 
 type D struct {
-	dbProducts  *reform.DB
-	dbxProducts *sqlx.DB
-	w           *copydata.NotifyWindow // окно для отправки сообщений WM_COPYDATA дельфи-приложению
-	cfg         *cfg.Config
-	ctx         context.Context
-	hardware    hardware
+	dbProducts   *reform.DB
+	dbxProducts  *sqlx.DB
+	notifyWindow *copydata.NotifyWindow // окно для отправки сообщений WM_COPYDATA дельфи-приложению
+	cfg          *cfg.Config
+	ctx          context.Context
+	hardware     hardware
 
 	log *structlog.Logger
 
@@ -72,7 +72,7 @@ func Run(skipRunUIApp, createNewDB bool) error {
 		},
 	}
 
-	x.w = copydata.NewNotifyWindow(
+	x.notifyWindow = copydata.NewNotifyWindow(
 		elco.ServerWindowClassName,
 		elco.PeerWindowClassName,
 		x.log, notify.FormatMsg)
@@ -89,7 +89,7 @@ func Run(skipRunUIApp, createNewDB bool) error {
 		ReadTimeout: time.Millisecond,
 	})
 
-	go runSysTray(x.w.CloseWindow)
+	go runSysTray(x.notifyWindow.CloseWindow)
 
 	for _, svcObj := range []interface{}{
 		api.NewPartiesCatalogue(x.dbProducts, x.dbxProducts),
@@ -115,7 +115,7 @@ func Run(skipRunUIApp, createNewDB bool) error {
 	// цикл RPC сервера
 	go func() {
 		defer wg.Done()
-		defer x.w.CloseWindow()
+		defer x.notifyWindow.CloseWindow()
 		x.serveRPC(ln, x.ctx)
 	}()
 
@@ -126,7 +126,11 @@ func Run(skipRunUIApp, createNewDB bool) error {
 	} else {
 		x.log.Debug("elcoui.exe не будет запущен, поскольку установлен соответствующий флаг")
 	}
-	notify.StartServerApplication(x.w, "")
+	notify.StartServerApplication(x.notifyWindow, "")
+
+	go traceTemperature(func() cfg.FinsNetwork {
+		return x.cfg.Predefined().FinsNetwork
+	})
 
 	// цикл оконных сообщений
 	for {

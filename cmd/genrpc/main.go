@@ -66,6 +66,17 @@ func main() {
 			"Status",
 			r.TypeOf((*string)(nil)).Elem(),
 		},
+
+		{
+			"TraceTemperatureInfo",
+			r.TypeOf((*string)(nil)).Elem(),
+		},
+
+		{
+			"TraceTemperatureError",
+			r.TypeOf((*string)(nil)).Elem(),
+		},
+
 		{
 			"Warning",
 			r.TypeOf((*string)(nil)).Elem(),

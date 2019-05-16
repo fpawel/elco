@@ -46,7 +46,7 @@ func (x *D) RunReadPlaceFirmware(place int) {
 		if err != nil {
 			return err
 		}
-		notify.ReadFirmware(x.w, data.FirmwareBytes(b).FirmwareInfo(place, units, gases))
+		notify.ReadFirmware(x.notifyWindow, data.FirmwareBytes(b).FirmwareInfo(place, units, gases))
 		return nil
 	})
 	return
@@ -65,7 +65,7 @@ func (x *D) RunTemperature(workCheck [3]bool) {
 	x.runHardware(true, "Снятие термокомпенсации", func() error {
 		for i, temperature := range []data.Temperature{20, -20, 50} {
 			if workCheck[i] {
-				notify.Statusf(x.w, "%v⁰C: снятие термокомпенсации", temperature)
+				notify.Statusf(x.notifyWindow, "%v⁰C: снятие термокомпенсации", temperature)
 				if err := x.determineTemperature(temperature); err != nil {
 					return err
 				}
@@ -122,9 +122,9 @@ func (x *D) runHardware(logWork bool, workName string, work WorkFunc) {
 	x.log = comm.NewLogWithKeys("работа", workName)
 
 	go func() {
-		notify.WorkStarted(x.w, workName)
+		notify.WorkStarted(x.notifyWindow, workName)
 		defer func() {
-			notify.WorkStoppedf(x.w, "выполнение окончено: %s", workName)
+			notify.WorkStoppedf(x.notifyWindow, "выполнение окончено: %s", workName)
 			x.hardware.WaitGroup.Done()
 			x.log = structlog.New()
 		}()
@@ -149,7 +149,7 @@ func (x *D) runHardware(logWork bool, workName string, work WorkFunc) {
 			kvs = append(kvs, "stack", merryStacktrace(err))
 			x.log.PrintErr(err, kvs...)
 
-			notify.ErrorOccurredf(x.w, "%s: %v", workName, err)
+			notify.ErrorOccurredf(x.notifyWindow, "%s: %v", workName, err)
 		}
 
 		if err := x.portMeasurer.Open(x.cfg.User().ComportMeasurer); err != nil {
@@ -160,10 +160,10 @@ func (x *D) runHardware(logWork bool, workName string, work WorkFunc) {
 		switch err := work(); err {
 		case nil:
 			x.log.Info("выполнено успешно")
-			notify.WorkCompletef(x.w, "%s: выполнено успешно", workName)
+			notify.WorkCompletef(x.notifyWindow, "%s: выполнено успешно", workName)
 		case context.Canceled:
 			x.log.Warn("выполнение прервано")
-			notify.WorkCompletef(x.w, "%s: выполнение прервано", workName)
+			notify.WorkCompletef(x.notifyWindow, "%s: выполнение прервано", workName)
 		default:
 			notifyErr("выполнено с ошибкой:", err)
 		}

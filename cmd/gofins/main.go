@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"encoding/binary"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -10,13 +12,7 @@ import (
 
 func main() {
 
-	area := flag.Int("area", int(fins.MemoryAreaDMWord), "область")
-	addr := flag.Int("addr", 8, "адрес")
-	count := flag.Int("count", 2, "количество слов")
-	timeout := flag.Int("timeout", 100, "таймаут, мс")
-
 	flag.Parse()
-
 	c := newConfig()
 	fmt.Printf("%+v\n", c)
 	cli, err := fins.NewClient(c.Client.Address(), c.Server.Address())
@@ -25,13 +21,23 @@ func main() {
 	}
 	defer cli.Close()
 
-	cli.SetTimeoutMs(uint(*timeout))
+	cli.SetTimeoutMs(100)
 
-	xs, err := cli.ReadBytes(byte(*area), uint16(*addr), uint16(*count))
+	fmt.Println(finsReadFloat(cli, 2))
+	fmt.Println(finsReadFloat(cli, 8))
+}
+
+func finsReadFloat(finsClient *fins.Client, addr int) (float64, error) {
+	xs, err := finsClient.ReadBytes(fins.MemoryAreaDMWord, uint16(addr), 2)
 	if err != nil {
-		panic(err)
+		return 0, err
 	}
-	fmt.Printf("% X", xs)
+	buf := bytes.NewBuffer([]byte{xs[1], xs[0], xs[3], xs[2]})
+	var v float32
+	if err := binary.Read(buf, binary.LittleEndian, &v); err != nil {
+		return 0, err
+	}
+	return float64(v), nil
 }
 
 type config struct {

@@ -76,7 +76,7 @@ func (x *D) writePartyFirmware() error {
 	if err = data.GetPartyProducts(x.dbProducts, &party); err != nil {
 		return err
 	}
-	notify.LastPartyChanged(x.w, party)
+	notify.LastPartyChanged(x.notifyWindow, party)
 	return nil
 }
 
