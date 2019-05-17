@@ -14,3 +14,8 @@ type DelayInfo struct {
 type GetCheckBlocksArg struct {
 	Check []bool
 }
+
+type Ktx500Info struct {
+	Temperature, Destination float64
+	On, CoolOn               bool
+}

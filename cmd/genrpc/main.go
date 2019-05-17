@@ -68,12 +68,12 @@ func main() {
 		},
 
 		{
-			"TraceTemperatureInfo",
-			r.TypeOf((*string)(nil)).Elem(),
+			"Ktx500Info",
+			r.TypeOf((*api.Ktx500Info)(nil)).Elem(),
 		},
 
 		{
-			"TraceTemperatureError",
+			"Ktx500Error",
 			r.TypeOf((*string)(nil)).Elem(),
 		},
 

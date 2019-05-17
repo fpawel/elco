@@ -6,8 +6,9 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/l1va/gofins/fins"
+	"github.com/fpawel/gofins/fins"
 	"io/ioutil"
+	"math"
 )
 
 func main() {
@@ -24,7 +25,32 @@ func main() {
 	cli.SetTimeoutMs(100)
 
 	fmt.Println(finsReadFloat(cli, 2))
+
+	setPoint, err := finsReadFloat(cli, 8)
+	fmt.Println("setPoint", setPoint, err)
+
+	fmt.Println(finsWriteFloat(cli, 8, -33.44))
 	fmt.Println(finsReadFloat(cli, 8))
+	fmt.Println(finsWriteFloat(cli, 8, setPoint))
+	fmt.Println(finsReadFloat(cli, 8))
+
+	fmt.Println(cli.ResetBit(fins.MemoryAreaWRBit, 0, 0))
+	fmt.Println(cli.SetBit(fins.MemoryAreaWRBit, 0, 10))
+}
+
+func finsWriteFloat(finsClient *fins.Client, addr int, value float64) error {
+
+	buf := bytes.NewBuffer(nil)
+	_ = binary.Write(buf, binary.LittleEndian, math.Float32bits(float32(value)))
+	b := buf.Bytes()
+	words := []uint16{
+		binary.LittleEndian.Uint16([]byte{b[0], b[1]}),
+		binary.LittleEndian.Uint16([]byte{b[2], b[3]}),
+	}
+
+	fmt.Printf("% X - % X - %v\n", b, words, value)
+
+	return finsClient.WriteWords(fins.MemoryAreaDMWord, uint16(addr), words)
 }
 
 func finsReadFloat(finsClient *fins.Client, addr int) (float64, error) {

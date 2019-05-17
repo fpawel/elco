@@ -11,6 +11,7 @@ import (
 	"github.com/fpawel/elco/internal/cfg"
 	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/elco/internal/elco"
+	"github.com/fpawel/elco/internal/ktx500"
 	"github.com/fpawel/elco/pkg/copydata"
 	"github.com/fpawel/elco/pkg/winapp"
 	"github.com/getlantern/systray"
@@ -128,7 +129,7 @@ func Run(skipRunUIApp, createNewDB bool) error {
 	}
 	notify.StartServerApplication(x.notifyWindow, "")
 
-	go traceTemperature(func() cfg.FinsNetwork {
+	go ktx500.TraceTemperature(func() cfg.FinsNetwork {
 		return x.cfg.Predefined().FinsNetwork
 	})
 
