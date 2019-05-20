@@ -1,0 +1,17 @@
+{
+    "Client": {
+        "IP": "192.168.250.3",
+        "Port": 9600,
+        "Network": 0,
+        "Node": 254,
+        "Unit": 0
+    },
+    "Server": {
+        "IP": "192.168.250.1",
+        "Port": 9600,
+        "Network": 0,
+        "Node": 1,
+        "Unit": 0
+    },
+    "TimeoutMS": 100
+}
