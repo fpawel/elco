@@ -48,10 +48,11 @@ type PredefinedConfig struct {
 }
 
 type FinsNetwork struct {
-	TimeoutMS int           `toml:"timeout_ms" comment:"таймаут считывания, мс"`
-	PollSec   time.Duration `toml:"poll_sec" comment:"пауза опроса, с"`
-	Server    FinsConfig    `toml:"server" comment:"параметры ссервера omron fins"`
-	Client    FinsConfig    `toml:"client" comment:"параметры клиента omron fins"`
+	MaxAttemptsRead int           `toml:"max_attempts_read" comment:"число попыток получения ответа"`
+	TimeoutMS       int           `toml:"timeout_ms" comment:"таймаут считывания, мс"`
+	PollSec         time.Duration `toml:"poll_sec" comment:"пауза опроса, с"`
+	Server          FinsConfig    `toml:"server" comment:"параметры ссервера omron fins"`
+	Client          FinsConfig    `toml:"client" comment:"параметры клиента omron fins"`
 }
 
 type FinsConfig struct {
@@ -163,8 +164,9 @@ func DefaultPredefinedConfig() PredefinedConfig {
 		StatusTimeoutSeconds: 3,
 		ReadRangeDelayMillis: 10,
 		FinsNetwork: FinsNetwork{
-			PollSec:   2,
-			TimeoutMS: 1000,
+			MaxAttemptsRead: 15,
+			PollSec:         2,
+			TimeoutMS:       500,
 			Server: FinsConfig{
 				IP:   "192.168.250.1",
 				Port: 9600,

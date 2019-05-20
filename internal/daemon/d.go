@@ -129,9 +129,11 @@ func Run(skipRunUIApp, createNewDB bool) error {
 	}
 	notify.StartServerApplication(x.notifyWindow, "")
 
-	go ktx500.TraceTemperature(func() cfg.FinsNetwork {
+	ktx500.GetConfig = func() cfg.FinsNetwork {
 		return x.cfg.Predefined().FinsNetwork
-	})
+	}
+
+	go ktx500.TraceTemperature()
 
 	// цикл оконных сообщений
 	for {
