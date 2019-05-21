@@ -2,17 +2,20 @@ package cfg
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/fpawel/comm/comport"
 	"github.com/fpawel/elco/pkg/winapp"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"io/ioutil"
+	"strconv"
 )
 
 type UserConfig struct {
-	ComportMeasurer string
-	ComportGas      string
-	ChipType        int
+	ComportMeasurer    string
+	ComportGas         string
+	ChipType           int
+	AmbientTemperature float64
 }
 
 func (x *UserConfig) Sections() []ConfigSection {
@@ -52,7 +55,7 @@ func (x *UserConfig) Sections() []ConfigSection {
 		},
 		{
 			Name: "Hardware",
-			Hint: "Стенд",
+			Hint: "Оборудование",
 			Properties: []ConfigProperty{
 				{
 					Hint:      "Тип микросхемм",
@@ -60,6 +63,12 @@ func (x *UserConfig) Sections() []ConfigSection {
 					ValueType: VtString,
 					Value:     chipType,
 					List:      []string{"24LC16", "24LC64", "24W256"},
+				},
+				{
+					Hint:      "Температура окружающей среды,\"С",
+					Name:      "AmbientTemperature",
+					ValueType: VtFloat,
+					Value:     fmt.Sprintf("%v", x.AmbientTemperature),
 				},
 			},
 		},
@@ -71,6 +80,11 @@ func (x *UserConfig) setValue(section, property, value string) error {
 	switch section {
 	case "Hardware":
 		switch property {
+		case "AmbientTemperature":
+			var err error
+			x.AmbientTemperature, err = strconv.ParseFloat(value, 64)
+			return err
+
 		case "ChipType":
 
 			switch value {

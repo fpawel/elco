@@ -15,13 +15,10 @@ import (
 	"github.com/fpawel/elco/pkg/copydata"
 	"github.com/fpawel/elco/pkg/winapp"
 	"github.com/getlantern/systray"
-	"github.com/jmoiron/sqlx"
 	"github.com/lxn/win"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/powerman/rpc-codec/jsonrpc2"
 	"github.com/powerman/structlog"
-	"gopkg.in/reform.v1"
-	"gopkg.in/reform.v1/dialects/sqlite3"
 	"net"
 	"net/rpc"
 	"os"
@@ -32,10 +29,7 @@ import (
 )
 
 type D struct {
-	dbProducts   *reform.DB
-	dbxProducts  *sqlx.DB
 	notifyWindow *copydata.NotifyWindow // окно для отправки сообщений WM_COPYDATA дельфи-приложению
-	cfg          *cfg.Config
 	ctx          context.Context
 	hardware     hardware
 
@@ -56,15 +50,8 @@ type hardware struct {
 
 func Run(skipRunUIApp, createNewDB bool) error {
 
-	dbProductsConn, err := data.Open(createNewDB)
-	if err != nil {
-		return merry.WithMessage(err, "не удалось открыть файл данных")
-	}
-
 	x := &D{
-		log:         structlog.New(),
-		dbProducts:  reform.NewDB(dbProductsConn, sqlite3.Dialect, nil),
-		dbxProducts: sqlx.NewDb(dbProductsConn, "sqlite3"),
+		log: structlog.New(),
 		hardware: hardware{
 			Continue:  func() {},
 			cancel:    func() {},
@@ -72,13 +59,13 @@ func Run(skipRunUIApp, createNewDB bool) error {
 			ctx:       context.Background(),
 		},
 	}
+	cfg.OpenConfig()
+	data.Open(createNewDB)
 
 	x.notifyWindow = copydata.NewNotifyWindow(
 		elco.ServerWindowClassName,
 		elco.PeerWindowClassName,
 		x.log, notify.FormatMsg)
-
-	x.cfg = cfg.OpenConfig(x.dbProducts)
 
 	x.portMeasurer = comport.NewReader(comport.Config{
 		Baud:        115200,
@@ -93,11 +80,12 @@ func Run(skipRunUIApp, createNewDB bool) error {
 	go runSysTray(x.notifyWindow.CloseWindow)
 
 	for _, svcObj := range []interface{}{
-		api.NewPartiesCatalogue(x.dbProducts, x.dbxProducts),
-		api.NewLastParty(x.dbProducts, x.dbxProducts),
-		api.NewProductTypes(x.dbProducts),
-		api.NewProductFirmware(x.dbProducts, x),
-		api.NewSetsSvc(x.cfg),
+		new(api.PartiesCatalogueSvc),
+		new(api.LastPartySvc),
+		new(api.ProductTypesSvc),
+		api.NewProductFirmware(x),
+		new(api.SettingsSvc),
+		new(api.PdfSvc),
 		&api.RunnerSvc{Runner: x},
 	} {
 		if err := rpc.Register(svcObj); err != nil {
@@ -129,10 +117,6 @@ func Run(skipRunUIApp, createNewDB bool) error {
 	}
 	notify.StartServerApplication(x.notifyWindow, "")
 
-	ktx500.GetConfig = func() cfg.FinsNetwork {
-		return x.cfg.Predefined().FinsNetwork
-	}
-
 	go ktx500.TraceTemperature()
 
 	// цикл оконных сообщений
@@ -157,8 +141,8 @@ func Run(skipRunUIApp, createNewDB bool) error {
 			x.log.Debug("close peer window", "syscall", r)
 		}
 	})
-	x.log.ErrIfFail(dbProductsConn.Close, "defer", "close products db")
-	x.log.ErrIfFail(x.cfg.Save, "defer", "save config")
+	x.log.ErrIfFail(data.Close, "defer", "close products db")
+	x.log.ErrIfFail(cfg.Cfg.Save, "defer", "save config")
 	return nil
 }
 

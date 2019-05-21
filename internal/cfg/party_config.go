@@ -5,21 +5,13 @@ import (
 	"fmt"
 	"github.com/fpawel/elco/internal/data"
 	"github.com/pkg/errors"
-	"gopkg.in/reform.v1"
 	"strconv"
 	"strings"
 )
 
-func PartyConfigProperties(db *reform.DB) ([]ConfigProperty, error) {
-	var party data.Party
-	if err := data.GetLastParty(db, &party); err != nil {
-		return nil, err
-	}
-
-	productTypesNames, err := data.ListProductTypeNames(db)
-	if err != nil {
-		return nil, err
-	}
+func PartyConfigProperties() ([]ConfigProperty, error) {
+	party := data.GetLastParty()
+	productTypesNames := data.ProductTypeNames()
 
 	f := func(v sql.NullFloat64) string {
 		if v.Valid {
@@ -132,44 +124,41 @@ func PartyConfigProperties(db *reform.DB) ([]ConfigProperty, error) {
 	}, nil
 }
 
-func SetPartyConfigValue(db *reform.DB, property, value string) (err error) {
+func SetPartyConfigValue(property, value string) (err error) {
 
-	var party data.Party
-	if err := data.GetLastParty(db, &party); err != nil {
-		return err
-	}
+	party := data.GetLastParty()
 
 	switch property {
 
 	case "ProductType":
 		party.ProductTypeName = value
-		return db.Save(&party)
+		return data.DB.Save(&party)
 
 	case "Gas1":
 		party.Concentration1, err = parseFloat(value)
 		if err == nil {
-			err = db.Save(&party)
+			err = data.DB.Save(&party)
 		}
 		return
 
 	case "Gas2":
 		party.Concentration2, err = parseFloat(value)
 		if err == nil {
-			err = db.Save(&party)
+			err = data.DB.Save(&party)
 		}
 		return
 
 	case "Gas3":
 		party.Concentration3, err = parseFloat(value)
 		if err == nil {
-			err = db.Save(&party)
+			err = data.DB.Save(&party)
 		}
 		return
 
 	case "Note":
 		party.Note.String = strings.TrimSpace(value)
 		party.Note.Valid = len(party.Note.String) > 0
-		err = db.Save(&party)
+		err = data.DB.Save(&party)
 		return
 
 	case "PointsMethod":
@@ -177,7 +166,7 @@ func SetPartyConfigValue(db *reform.DB, property, value string) (err error) {
 		if err != nil {
 			return err
 		}
-		err = db.Save(&party)
+		err = data.DB.Save(&party)
 		return
 
 	default:
@@ -222,7 +211,7 @@ func SetPartyConfigValue(db *reform.DB, property, value string) (err error) {
 				v.Valid = true
 			}
 			f()
-			return db.Save(&party)
+			return data.DB.Save(&party)
 		}
 	}
 	return errors.Errorf("%q: wrong party property", property)

@@ -6,7 +6,6 @@ import (
 	"github.com/ansel1/merry"
 	"github.com/fpawel/elco/pkg/winapp"
 	"github.com/jung-kurt/gofpdf"
-	"gopkg.in/reform.v1"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -20,15 +19,15 @@ const (
 	lineSpace1 = 4
 )
 
-func Run(db *reform.DB) error {
+func Run() error {
 
 	dir, err := prepareDir()
 	if err != nil {
 		return err
 	}
-	_ = summary(db, dir)
-	_ = passportSou(db, dir)
-	err = passportDax(db, dir)
+	_ = summary(dir)
+	_ = passportSou(dir)
+	err = passportDax(dir)
 	if err != nil {
 		_ = exec.Command("Explorer.exe", dir).Start()
 	}

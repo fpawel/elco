@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"github.com/fpawel/comm"
 	"github.com/fpawel/gofins/fins"
-	"gopkg.in/reform.v1"
 	"sync"
 	"time"
 )
@@ -34,7 +33,6 @@ type Config struct {
 	mu sync.Mutex
 	u  *UserConfig
 	p  PredefinedConfig
-	db *reform.DB
 }
 
 type PredefinedConfig struct {
@@ -77,6 +75,8 @@ type ConfigSections struct {
 	Sections []ConfigSection
 }
 
+var Cfg *Config
+
 func (x FinsNetwork) NewFinsClient() (*fins.Client, error) {
 	c, err := fins.NewClient(x.Client.Address(), x.Server.Address())
 	if err != nil {
@@ -90,11 +90,10 @@ func (x FinsConfig) Address() fins.Address {
 	return fins.NewAddress(x.IP, x.Port, x.Network, x.Node, x.Unit)
 }
 
-func OpenConfig(db *reform.DB) *Config {
-	return &Config{
-		p:  DefaultPredefinedConfig(),
-		u:  openUserConfig(),
-		db: db,
+func OpenConfig() {
+	Cfg = &Config{
+		p: DefaultPredefinedConfig(),
+		u: openUserConfig(),
 	}
 }
 
@@ -126,7 +125,7 @@ func (x *Config) Sections() (ConfigSections, error) {
 	x.mu.Lock()
 	defer x.mu.Unlock()
 	r := ConfigSections{}
-	c, err := PartyConfigProperties(x.db)
+	c, err := PartyConfigProperties()
 	if err != nil {
 		return r, err
 	}
@@ -140,7 +139,7 @@ func (x *Config) Sections() (ConfigSections, error) {
 
 func (x *Config) SetValue(section, property, value string) error {
 	if section == "Party" {
-		return SetPartyConfigValue(x.db, property, value)
+		return SetPartyConfigValue(property, value)
 	}
 	x.mu.Lock()
 	defer x.mu.Unlock()

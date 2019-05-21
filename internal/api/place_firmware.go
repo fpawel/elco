@@ -4,15 +4,13 @@ import (
 	"github.com/ansel1/merry"
 	"github.com/fpawel/elco/internal/data"
 	"github.com/pkg/errors"
-	"gopkg.in/reform.v1"
 	"strconv"
 	"strings"
 	"time"
 )
 
 type PlaceFirmware struct {
-	db *reform.DB
-	f  FirmwareRunner
+	f FirmwareRunner
 }
 
 type FirmwareRunner interface {
@@ -32,14 +30,14 @@ type TempValues struct {
 	Values []string
 }
 
-func NewProductFirmware(db *reform.DB, f FirmwareRunner) *PlaceFirmware {
-	return &PlaceFirmware{db, f}
+func NewProductFirmware(f FirmwareRunner) *PlaceFirmware {
+	return &PlaceFirmware{f}
 }
 
 func (x *PlaceFirmware) StoredFirmwareInfo(productID [1]int64, r *data.FirmwareInfo) error {
 
 	var p data.Product
-	if err := x.db.SelectOneTo(&p, `WHERE product_id = ?`, productID[0]); err != nil {
+	if err := data.DB.SelectOneTo(&p, `WHERE product_id = ?`, productID[0]); err != nil {
 		return err
 	}
 	if len(p.Firmware) == 0 {
@@ -48,21 +46,13 @@ func (x *PlaceFirmware) StoredFirmwareInfo(productID [1]int64, r *data.FirmwareI
 	if len(p.Firmware) < data.FirmwareSize {
 		return merry.New("не верный формат \"прошивки\"")
 	}
-	gases, err := data.ListGases(x.db)
-	if err != nil {
-		return err
-	}
-	units, err := data.ListUnits(x.db)
-	if err != nil {
-		return err
-	}
-	*r = data.FirmwareBytes(p.Firmware).FirmwareInfo(p.Place, units, gases)
+	*r = data.FirmwareBytes(p.Firmware).FirmwareInfo(p.Place)
 	return nil
 }
 
 func (x *PlaceFirmware) CalculateFirmwareInfo(productID [1]int64, r *data.FirmwareInfo) (err error) {
 	var p data.ProductInfo
-	if err := x.db.SelectOneTo(&p, `WHERE product_id = ?`, productID[0]); err != nil {
+	if err := data.DB.SelectOneTo(&p, `WHERE product_id = ?`, productID[0]); err != nil {
 		return err
 	}
 	*r = p.FirmwareInfo()
@@ -89,14 +79,8 @@ func (x *PlaceFirmware) RunWritePlaceFirmware(v FirmwareInfo2, _ *struct{}) (err
 		CreatedAt: time.Date(v.Year, time.Month(v.Month), v.Day, v.Hour, v.Minute, v.Second, 0, time.Local),
 	}
 
-	gases, err := data.ListGases(x.db)
-	if err != nil {
-		return err
-	}
-	units, err := data.ListUnits(x.db)
-	if err != nil {
-		return err
-	}
+	gases := data.Gases()
+	units := data.ListUnits()
 
 	ok := false
 

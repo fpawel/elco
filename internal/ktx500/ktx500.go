@@ -17,16 +17,20 @@ import (
 )
 
 var (
-	log       = structlog.New()
-	GetConfig func() cfg.FinsNetwork
+	log = structlog.New()
+	Err = merry.New("КТХ-500")
 )
 
+func newErr(err error) merry.Error {
+	return Err.Here().WithCause(err)
+}
+
 func read(f func(*fins.Client) error) (err error) {
-	config := GetConfig()
+	config := cfg.Cfg.Predefined().FinsNetwork
 
 	client, err := config.NewFinsClient()
 	if err != nil {
-		return merry.Append(err, "установка соединения")
+		return newErr(err).Append("установка соединения")
 	}
 	defer client.Close()
 
@@ -41,11 +45,11 @@ func read(f func(*fins.Client) error) (err error) {
 }
 
 func write(what string, f func(*fins.Client) error) (err error) {
-	config := GetConfig()
+	config := cfg.Cfg.Predefined().FinsNetwork
 
 	client, err := config.NewFinsClient()
 	if err != nil {
-		return merry.Append(err, "установка соединения")
+		return newErr(err).Append("установка соединения")
 	}
 	defer client.Close()
 
@@ -76,7 +80,7 @@ func ReadTemperature() (temperature float64, err error) {
 func readTemperature(c *fins.Client) (float64, error) {
 	temperature, err := finsReadFloat(c, 2)
 	if err != nil {
-		return 0, merry.Append(err, "запрос температуры")
+		return 0, newErr(err).Append("запрос температуры")
 	}
 	return temperature, nil
 }
@@ -93,7 +97,7 @@ func WriteOnOff(value bool) error {
 	})
 }
 
-func WriteCoolOnOff(c *fins.Client, value bool) error {
+func WriteCoolOnOff(value bool) error {
 	return write(fmt.Sprintf("включение компрессора: %v", value), func(c *fins.Client) error {
 		return c.BitTwiddle(fins.MemoryAreaWRBit, 0, 10, value)
 	})
@@ -110,17 +114,17 @@ func readInfo(x *api.Ktx500Info) error {
 
 		destination, err := finsReadFloat(c, 8)
 		if err != nil {
-			return merry.Append(err, "запрос уставки")
+			return newErr(err).Append("запрос уставки")
 		}
 
 		on, err = c.ReadBits(fins.MemoryAreaWRBit, 0, 0, 1)
 		if err != nil {
-			return merry.Append(err, "запрос состояния термокамеры")
+			return newErr(err).Append("запрос состояния термокамеры")
 		}
 
 		coolOn, err = c.ReadBits(fins.MemoryAreaWRBit, 0, 10, 1)
 		if err != nil {
-			return merry.Append(err, "запрос состояния компрессора")
+			return newErr(err).Append("запрос состояния компрессора")
 		}
 
 		*x = api.Ktx500Info{
@@ -150,11 +154,11 @@ func TraceTemperature() {
 		}
 		errStr = err.Error()
 		notify.Ktx500Error(w, errStr)
-		log.PrintErr(merry.Append(err, "КТХ-500"))
+		log.PrintErr(err)
 	}
 
 	for {
-		time.Sleep(time.Second * GetConfig().PollSec)
+		time.Sleep(time.Second * cfg.Cfg.Predefined().FinsNetwork.PollSec)
 
 		var y api.Ktx500Info
 		err = readInfo(&y)

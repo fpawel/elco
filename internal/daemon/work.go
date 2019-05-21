@@ -8,11 +8,14 @@ import (
 	"github.com/fpawel/comm/modbus"
 	"github.com/fpawel/elco/internal/api"
 	"github.com/fpawel/elco/internal/api/notify"
+	"github.com/fpawel/elco/internal/cfg"
 	"github.com/fpawel/elco/internal/data"
+	"github.com/fpawel/elco/internal/ktx500"
 	"github.com/hako/durafmt"
 	"github.com/pkg/errors"
 	"github.com/powerman/structlog"
 	"github.com/sirupsen/logrus"
+	"math"
 	"sort"
 	"time"
 )
@@ -73,7 +76,7 @@ func (x *D) doSwitchGas(n int) error {
 	}
 
 	if !x.portGas.Opened() {
-		if err := x.portGas.Open(x.cfg.User().ComportGas); err != nil {
+		if err := x.portGas.Open(cfg.Cfg.User().ComportGas); err != nil {
 			return err
 		}
 	}
@@ -109,7 +112,7 @@ func (x *D) blowGas(nGas int) error {
 	if err := x.switchGas(nGas); err != nil {
 		return err
 	}
-	timeMinutes := x.cfg.Predefined().BlowGasMinutes
+	timeMinutes := cfg.Cfg.Predefined().BlowGasMinutes
 	return x.delay(fmt.Sprintf("продувка ПГС%d", nGas), time.Minute*time.Duration(timeMinutes))
 }
 
@@ -144,13 +147,10 @@ func (x *D) doDelay(what string, duration time.Duration) error {
 		notify.Delay(x.notifyWindow, api.DelayInfo{Run: false})
 	}()
 	for {
-		productsWithSerials, err := data.GetLastPartyProducts(x.dbProducts,
-			data.ProductsFilter{
-				WithSerials:    true,
-				WithProduction: true})
-		if err != nil {
-			return err
-		}
+		productsWithSerials := data.GetLastPartyProducts(data.ProductsFilter{
+			WithSerials:    true,
+			WithProduction: true})
+
 		if len(productsWithSerials) == 0 {
 			return merry.New("фоновый опрос: не выбрано ни одного прибора")
 		}
@@ -195,10 +195,67 @@ func (x *D) doDelay(what string, duration time.Duration) error {
 	}
 }
 
+func (x *D) doSetupTemperature(destinationTemperature float64) error {
+	// запись уставки
+	if err := ktx500.WriteDestination(destinationTemperature); err != nil {
+		return err
+	}
+	// включение термокамеры
+	if err := ktx500.WriteOnOff(true); err != nil {
+		return err
+	}
+
+	// установка компрессора
+	if err := ktx500.WriteCoolOnOff(destinationTemperature < cfg.Cfg.User().AmbientTemperature); err != nil {
+		return err
+	}
+
+	productsWithSerials := data.GetLastPartyProducts(data.ProductsFilter{
+		WithSerials:    true,
+		WithProduction: true})
+
+	if len(productsWithSerials) == 0 {
+		return merry.New("фоновый опрос: не выбрано ни одного прибора")
+	}
+
+	for {
+		for _, products := range GroupProductsByBlocks(productsWithSerials) {
+			currentTemperature, err := ktx500.ReadTemperature()
+			if err != nil {
+				return err
+			}
+			if math.Abs(currentTemperature-destinationTemperature) < 2 {
+				return nil
+			}
+
+			block := products[0].Place / 8
+			if _, err = x.readBlockMeasure(
+				comm.LogWithKeys(x.log, "фоновый_опрос",
+					fmt.Sprintf("установка температуры %v⁰C", destinationTemperature)),
+				block, x.hardware.ctx); err != nil {
+				return err
+			}
+		}
+	}
+}
+
 func (x *D) setupTemperature(temperature data.Temperature) error {
-	notify.Warningf(x.notifyWindow, `Установите в термокамере температуру %v⁰C. Нажмите \"Ok\" чтобы перейти к выдержке на температуре %v⁰C.`,
-		temperature, temperature)
-	duration := time.Minute * time.Duration(x.cfg.Predefined().HoldTemperatureMinutes)
+
+	err := x.doSetupTemperature(float64(temperature))
+	if err != nil {
+		if !merry.Is(err, ktx500.Err) {
+			return err
+		}
+		notify.Warningf(x.notifyWindow, `Не удалось установить температуру: %v⁰C: %v`, temperature, err)
+		if merry.Is(x.hardware.ctx.Err(), context.Canceled) {
+			return err
+		}
+
+		logrus.Warnf("установка тепературы %v⁰C, фоновый опрос: проигнорирована ошибка связи с термокамерой: %v",
+			temperature, err)
+	}
+
+	duration := time.Minute * time.Duration(cfg.Cfg.Predefined().HoldTemperatureMinutes)
 	return x.delay(fmt.Sprintf("выдержка термокамеры: %v⁰C", temperature), duration)
 }
 
@@ -207,6 +264,23 @@ func (x *D) determineTemperature(temperature data.Temperature) error {
 	if err := x.setupTemperature(temperature); err != nil {
 		return err
 	}
+
+	defer func() {
+
+		// выключение термокамеры
+		x.log.ErrIfFail(func() error {
+			return ktx500.WriteOnOff(false)
+		})
+		// выключение компрессора
+		x.log.ErrIfFail(func() error {
+			return ktx500.WriteCoolOnOff(false)
+		})
+		// выключение газового блока
+		x.log.ErrIfFail(func() error {
+			return x.switchGas(0)
+		})
+
+	}()
 
 	if err := x.blowGas(1); err != nil {
 		return err
@@ -232,10 +306,6 @@ func (x *D) determineTemperature(temperature data.Temperature) error {
 		if err := x.readAndSaveProductsCurrents("i13"); err != nil {
 			return merry.WithMessagef(err, "снятие возврата НКУ")
 		}
-	}
-
-	if err := x.switchGas(0); err != nil {
-		return err
 	}
 
 	return nil
@@ -275,13 +345,11 @@ func (x *D) readAndSaveProductsCurrents(field string) error {
 
 func (x *D) doReadAndSaveProductsCurrents(field string) error {
 
-	productsToWork, err := data.GetLastPartyProducts(x.dbProducts, data.ProductsFilter{
+	productsToWork := data.GetLastPartyProducts(data.ProductsFilter{
 		WithSerials:    true,
 		WithProduction: true,
 	})
-	if err != nil {
-		return err
-	}
+
 	if len(productsToWork) == 0 {
 		return merry.New("не выбрано ни одного прибора в данной партии")
 	}
@@ -312,22 +380,14 @@ func (x *D) doReadAndSaveProductsCurrents(field string) error {
 				"field", field,
 				"value", values[n],
 			}
-			if err := data.SetProductValue(x.dbxProducts, p.ProductID, field, values[n]); err != nil {
+			if err := data.SetProductValue(p.ProductID, field, values[n]); err != nil {
 				return log.Err(merry.Append(err, "не удалось сохранить"), args...)
 			}
 			log.Info("сохраненено", args...)
 		}
 	}
-
-	var party data.Party
-	if err := data.GetLastParty(x.dbProducts, &party); err != nil {
-		return err
-	}
-	if err := data.GetPartyProducts(x.dbProducts, &party); err != nil {
-		return err
-	}
+	party := data.GetLastPartyWithProductsInfo(data.ProductsFilter{})
 	notify.LastPartyChanged(x.notifyWindow, party)
-
 	return nil
 
 }

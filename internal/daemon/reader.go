@@ -5,6 +5,7 @@ import (
 	"github.com/fpawel/comm"
 	"github.com/fpawel/comm/comport"
 	"github.com/fpawel/comm/modbus"
+	"github.com/fpawel/elco/internal/cfg"
 	"github.com/powerman/structlog"
 )
 
@@ -26,7 +27,7 @@ func (x reader) GetResponse(logger *structlog.Logger, request []byte, responsePa
 func (x *D) gasBlockReader() modbus.ResponseReader {
 	return reader{
 		Reader: x.portGas,
-		Config: x.cfg.Predefined().ComportGas,
+		Config: cfg.Cfg.Predefined().ComportGas,
 		Ctx:    x.hardware.ctx,
 	}
 }
@@ -34,7 +35,7 @@ func (x *D) gasBlockReader() modbus.ResponseReader {
 func (x *D) measurerReader(ctx context.Context) modbus.ResponseReader {
 	return reader{
 		Reader: x.portMeasurer,
-		Config: x.cfg.Predefined().ComportMeasurer,
+		Config: cfg.Cfg.Predefined().ComportMeasurer,
 		Ctx:    ctx,
 	}
 }

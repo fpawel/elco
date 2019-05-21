@@ -4,20 +4,16 @@ import (
 	"fmt"
 	"github.com/fpawel/elco/internal/data"
 	"github.com/jung-kurt/gofpdf"
-	"gopkg.in/reform.v1"
 	"strconv"
 	"time"
 )
 
-func summary(db *reform.DB, dir string) error {
+func summary(dir string) error {
 
-	var party data.Party
-	if err := data.GetLastPartyWithProductsInfo(db, data.ProductsFilter{true, true}, &party); err != nil {
-		return err
-	}
+	party := data.GetLastPartyWithProductsInfo(data.ProductsFilter{true, true})
 
 	var productType data.ProductType
-	if err := db.FindByPrimaryKeyTo(&productType, party.ProductTypeName); err != nil {
+	if err := data.DB.FindByPrimaryKeyTo(&productType, party.ProductTypeName); err != nil {
 		return err
 	}
 

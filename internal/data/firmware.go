@@ -239,7 +239,7 @@ func (x FirmwareBytes) ProductType() string {
 	return string(x[offset:n])
 }
 
-func (x FirmwareBytes) FirmwareInfo(place int, units []Units, gases []Gas) FirmwareInfo {
+func (x FirmwareBytes) FirmwareInfo(place int) FirmwareInfo {
 	r := FirmwareInfo{
 		Place:       place,
 		TempPoints:  x.TempPoints(),
@@ -250,13 +250,13 @@ func (x FirmwareBytes) FirmwareInfo(place int, units []Units, gases []Gas) Firmw
 		ScaleEnd:    formatBCD(x[0x0606:0x060A], -1),
 		Sensitivity: formatFloat(math.Float64frombits(binary.LittleEndian.Uint64(x[0x0720:])), 3),
 	}
-	for _, a := range units {
+	for _, a := range ListUnits() {
 		if a.Code == x[0x060A] {
 			r.Units = a.UnitsName
 			break
 		}
 	}
-	for _, a := range gases {
+	for _, a := range Gases() {
 		if a.Code == x[0x0600] {
 			r.Gas = a.GasName
 			break

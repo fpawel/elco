@@ -6,6 +6,7 @@ import (
 	"github.com/ansel1/merry"
 	"github.com/fpawel/comm"
 	"github.com/fpawel/elco/internal/api/notify"
+	"github.com/fpawel/elco/internal/cfg"
 	"github.com/fpawel/elco/internal/data"
 	"github.com/hashicorp/go-multierror"
 	"github.com/powerman/structlog"
@@ -38,22 +39,13 @@ func (x *D) RunReadPlaceFirmware(place int) {
 		if err != nil {
 			return err
 		}
-		gases, err := data.ListGases(x.dbProducts)
-		if err != nil {
-			return err
-		}
-		units, err := data.ListUnits(x.dbProducts)
-		if err != nil {
-			return err
-		}
-		notify.ReadFirmware(x.notifyWindow, data.FirmwareBytes(b).FirmwareInfo(place, units, gases))
+		notify.ReadFirmware(x.notifyWindow, data.FirmwareBytes(b).FirmwareInfo(place))
 		return nil
 	})
 	return
 }
 
 func (x *D) RunWritePartyFirmware() {
-	panic("UPPPSSSS!!")
 	x.runHardware(true, "Прошивка партии", x.writePartyFirmware)
 }
 
@@ -91,10 +83,7 @@ func (x *D) RunReadCurrent() {
 
 	x.runHardware(false, "опрос", func() error {
 		for {
-			var checkedBlocks []int
-			if err := data.GetCheckedBlocks(x.dbxProducts, &checkedBlocks); err != nil {
-				return err
-			}
+			checkedBlocks := data.GetLastPartyCheckedBlocks()
 			if len(checkedBlocks) == 0 {
 				return merry.New("необходимо выбрать блок для опроса")
 			}
@@ -152,7 +141,7 @@ func (x *D) runHardware(logWork bool, workName string, work WorkFunc) {
 			notify.ErrorOccurredf(x.notifyWindow, "%s: %v", workName, err)
 		}
 
-		if err := x.portMeasurer.Open(x.cfg.User().ComportMeasurer); err != nil {
+		if err := x.portMeasurer.Open(cfg.Cfg.User().ComportMeasurer); err != nil {
 			notifyErr("не удалось открыть СОМ порт", err)
 			return
 		}

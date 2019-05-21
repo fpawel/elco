@@ -8,6 +8,7 @@ import (
 	"github.com/fpawel/comm"
 	"github.com/fpawel/comm/modbus"
 	"github.com/fpawel/elco/internal/api/notify"
+	"github.com/fpawel/elco/internal/cfg"
 	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/elco/pkg/intrng"
 	"github.com/hako/durafmt"
@@ -19,18 +20,11 @@ import (
 func (x *D) writePartyFirmware() error {
 
 	startTime := time.Now()
-	var party data.Party
-	if err := data.GetLastParty(x.dbProducts, &party); err != nil {
-		return err
-	}
-
-	products, err := data.GetLastPartyProducts(x.dbProducts, data.ProductsFilter{
+	party := data.GetLastParty()
+	products := data.GetLastPartyProducts(data.ProductsFilter{
 		WithProduction: true,
 		WithSerials:    true,
 	})
-	if err != nil {
-		return err
-	}
 
 	if len(products) == 0 {
 		return merry.New("не выбрано ни одного прибора")
@@ -73,9 +67,7 @@ func (x *D) writePartyFirmware() error {
 		"duration", durafmt.Parse(time.Since(startTime)),
 	)
 
-	if err = data.GetPartyProducts(x.dbProducts, &party); err != nil {
-		return err
-	}
+	party.Products = data.GetProductsInfoWithPartyID(party.PartyID)
 	notify.LastPartyChanged(x.notifyWindow, party)
 	return nil
 }
@@ -119,7 +111,7 @@ func (x *D) writeBlock(products []*data.Product, placeBytes map[int][]byte) erro
 
 	for _, p := range products {
 		prodInfo := new(data.ProductInfo)
-		if err := x.dbProducts.FindByPrimaryKeyTo(prodInfo, p.ProductID); err != nil {
+		if err := data.DB.FindByPrimaryKeyTo(prodInfo, p.ProductID); err != nil {
 			return err
 		}
 		firmware, err := prodInfo.Firmware()
@@ -165,13 +157,13 @@ func (x *D) writeBlock(products []*data.Product, placeBytes map[int][]byte) erro
 		}
 
 		if i < len(firmwareAddresses)-1 {
-			time.Sleep(time.Duration(x.cfg.Predefined().ReadRangeDelayMillis) * time.Millisecond)
+			time.Sleep(time.Duration(cfg.Cfg.Predefined().ReadRangeDelayMillis) * time.Millisecond)
 		}
 	}
 
 	for _, p := range products {
 		p.Firmware = placeBytes[p.Place]
-		if err := x.dbProducts.Save(p); err != nil {
+		if err := data.DB.Save(p); err != nil {
 			return err
 		}
 	}
@@ -192,7 +184,7 @@ func (x *D) readPlaceFirmware(place int) ([]byte, error) {
 
 	log := comm.LogWithKeys(x.log,
 		"место", data.FormatPlace(place),
-		"тип_микросхемы", x.cfg.User().ChipType,
+		"тип_микросхемы", cfg.Cfg.User().ChipType,
 	)
 
 	log.Info("начато считывание прошивки места")
@@ -204,7 +196,7 @@ func (x *D) readPlaceFirmware(place int) ([]byte, error) {
 			ProtoCmd: 0x44,
 			Data: []byte{
 				byte(placeInBlock + 1),
-				byte(x.cfg.User().ChipType),
+				byte(cfg.Cfg.User().ChipType),
 				byte(c.addr1 >> 8),
 				byte(c.addr1),
 				byte(count >> 8),
@@ -232,7 +224,7 @@ func (x *D) readPlaceFirmware(place int) ([]byte, error) {
 		copy(b[c.addr1:c.addr1+count], resp[8:8+count])
 		if i < len(firmwareAddresses)-1 {
 			time.Sleep(time.Duration(
-				x.cfg.Predefined().ReadRangeDelayMillis) *
+				cfg.Cfg.Predefined().ReadRangeDelayMillis) *
 				time.Millisecond)
 		}
 	}
@@ -250,7 +242,7 @@ func (x *D) writePlaceFirmware(place int, bytes []byte) error {
 
 	log := comm.LogWithKeys(x.log,
 		"место", data.FormatPlace(place),
-		"тип_микросхемы", x.cfg.User().ChipType,
+		"тип_микросхемы", cfg.Cfg.User().ChipType,
 	)
 
 	log.Info("начата запись прошивки места")
@@ -285,10 +277,10 @@ func (x *D) writePlaceFirmware(place int, bytes []byte) error {
 		"duration", durafmt.Parse(time.Since(startTime)))
 
 	var p data.Product
-	switch err := data.GetLastPartyProductAtPlace(x.dbProducts, place, &p); err {
+	switch err := data.GetLastPartyProductAtPlace(place, &p); err {
 	case nil:
 		p.Firmware = bytes
-		if err := x.dbProducts.Save(&p); err != nil {
+		if err := data.DB.Save(&p); err != nil {
 			return err
 		}
 	case reform.ErrNoRows, sql.ErrNoRows:
@@ -301,7 +293,7 @@ func (x *D) writePlaceFirmware(place int, bytes []byte) error {
 }
 
 func (x *D) waitStatus45(block int, placesMask byte) error {
-	t := time.Duration(x.cfg.Predefined().StatusTimeoutSeconds) * time.Second
+	t := time.Duration(cfg.Cfg.Predefined().StatusTimeoutSeconds) * time.Second
 	ctx, _ := context.WithTimeout(x.hardware.ctx, t)
 	for {
 
@@ -373,7 +365,7 @@ func (x *D) writePreparedDataToFlash(block int, placesMask byte, addr uint16, co
 		ProtoCmd: 0x43,
 		Data: []byte{
 			placesMask,
-			byte(x.cfg.User().ChipType),
+			byte(cfg.Cfg.User().ChipType),
 			byte(addr >> 8),
 			byte(addr),
 			byte(count >> 8),

@@ -2,27 +2,26 @@ package api
 
 import (
 	"github.com/fpawel/elco/internal/data"
-	"github.com/fpawel/elco/internal/pdf"
-	"github.com/jmoiron/sqlx"
-	"gopkg.in/reform.v1"
+	"github.com/fpawel/elco/internal/data/old"
 	"strings"
 )
 
-type LastParty struct {
-	db  *reform.DB
-	dbx *sqlx.DB
+type LastPartySvc struct {
 }
 
-func NewLastParty(db *reform.DB, dbx *sqlx.DB) *LastParty {
-	return &LastParty{db, dbx}
+func (x *LastPartySvc) Party(_ struct{}, r *data.Party) error {
+	*r = data.GetLastPartyWithProductsInfo(data.ProductsFilter{})
+	return nil
 }
 
-func (x *LastParty) Party(_ struct{}, r *data.Party) error {
-	return data.GetLastPartyWithProductsInfo(x.db, data.ProductsFilter{}, r)
+func (x *LastPartySvc) SelectOnlyOkProductsProduction(_ struct{}, r *data.Party) error {
+	data.SetOnlyOkProductsProduction()
+	*r = data.GetLastPartyWithProductsInfo(data.ProductsFilter{})
+	return nil
 }
 
-func (x *LastParty) SetProductSerialAtPlace(p [2]int, r *int64) (err error) {
-	*r, err = data.UpdateProductAtPlace(x.db, p[0], func(product *data.Product) error {
+func (x *LastPartySvc) SetProductSerialAtPlace(p [2]int, r *int64) (err error) {
+	*r, err = data.UpdateProductAtPlace(p[0], func(product *data.Product) error {
 		product.Serial.Int64 = int64(p[1])
 		product.Serial.Valid = true
 		return nil
@@ -30,27 +29,24 @@ func (x *LastParty) SetProductSerialAtPlace(p [2]int, r *int64) (err error) {
 	return
 }
 
-func (x LastParty) ProductAtPlace(place [1]int, r *data.ProductInfo) error {
-	partyID, err := data.GetLastPartyID(x.db)
-	if err != nil {
-		return err
-	}
-	return x.db.SelectOneTo(r, "WHERE party_id = ? AND place = ?", partyID, place)
+func (x LastPartySvc) ProductAtPlace(place [1]int, r *data.ProductInfo) error {
+	partyID := data.GetLastPartyID()
+	return data.DB.SelectOneTo(r, "WHERE party_id = ? AND place = ?", partyID, place)
 }
 
-func (x LastParty) ToggleProductProductionAtPlace(place [1]int, r *int64) (err error) {
-	*r, err = data.UpdateProductAtPlace(x.db, place[0], func(p *data.Product) error {
+func (x LastPartySvc) ToggleProductProductionAtPlace(place [1]int, r *int64) (err error) {
+	*r, err = data.UpdateProductAtPlace(place[0], func(p *data.Product) error {
 		p.Production = !p.Production
 		return nil
 	})
 	return
 }
 
-func (x LastParty) SetProductNoteAtPlace(p struct {
+func (x LastPartySvc) SetProductNoteAtPlace(p struct {
 	Place int
 	Note  string
 }, r *int64) (err error) {
-	*r, err = data.UpdateProductAtPlace(x.db, p.Place, func(product *data.Product) error {
+	*r, err = data.UpdateProductAtPlace(p.Place, func(product *data.Product) error {
 		product.Note.String = strings.TrimSpace(p.Note)
 		product.Note.Valid = len(product.Note.String) > 0
 		return nil
@@ -58,11 +54,11 @@ func (x LastParty) SetProductNoteAtPlace(p struct {
 	return
 }
 
-func (x LastParty) SetProductTypeAtPlace(p struct {
+func (x LastPartySvc) SetProductTypeAtPlace(p struct {
 	Place       int
 	ProductType string
 }, r *int64) (err error) {
-	*r, err = data.UpdateProductAtPlace(x.db, p.Place, func(product *data.Product) error {
+	*r, err = data.UpdateProductAtPlace(p.Place, func(product *data.Product) error {
 		product.ProductTypeName.String = strings.TrimSpace(p.ProductType)
 		product.ProductTypeName.Valid = len(product.ProductTypeName.String) > 0
 		return nil
@@ -70,12 +66,12 @@ func (x LastParty) SetProductTypeAtPlace(p struct {
 	return
 }
 
-func (x LastParty) SetPointsMethodAtPlace(p struct {
+func (x LastPartySvc) SetPointsMethodAtPlace(p struct {
 	Place        int
 	PointsMethod int64
 	Valid        bool
 }, r *int64) (err error) {
-	*r, err = data.UpdateProductAtPlace(x.db, p.Place, func(product *data.Product) error {
+	*r, err = data.UpdateProductAtPlace(p.Place, func(product *data.Product) error {
 		product.PointsMethod.Int64 = p.PointsMethod
 		product.PointsMethod.Valid = p.Valid
 		return nil
@@ -83,8 +79,8 @@ func (x LastParty) SetPointsMethodAtPlace(p struct {
 	return
 }
 
-func (x LastParty) DeleteProductAtPlace(place [1]int, _ *struct{}) (err error) {
-	_, err = x.db.Exec(`
+func (x LastPartySvc) DeleteProductAtPlace(place [1]int, _ *struct{}) (err error) {
+	_, err = data.DB.Exec(`
 DELETE FROM product 
 WHERE party_id IN (
   SELECT party.party_id 
@@ -94,59 +90,53 @@ WHERE party_id IN (
 	return
 }
 
-func (x LastParty) SelectAll(checked [1]bool, _ *struct{}) (err error) {
-	_, err = x.db.Exec(`
+func (x LastPartySvc) SelectAll(checked [1]bool, _ *struct{}) (err error) {
+	_, err = data.DB.Exec(`
 UPDATE product SET production = ? WHERE party_id = (SELECT last_party.party_id FROM last_party)`, checked[0])
 	return
 }
 
-func (x LastParty) Export(_ struct{}, _ *struct{}) error {
-	return data.ExportLastParty(x.db)
+func (x LastPartySvc) Export(_ struct{}, _ *struct{}) error {
+	return old.ExportLastParty()
 }
 
-func (x *LastParty) Import(_ struct{}, r *data.Party) (err error) {
-	return data.ImportLastParty(x.db)
+func (x *LastPartySvc) Import(_ struct{}, r *data.Party) (err error) {
+	return old.ImportLastParty()
 }
 
-func (x *LastParty) GetCheckBlocks(_ struct{}, r *GetCheckBlocksArg) error {
-	return data.GetBlocksChecked(x.dbx, &r.Check)
+func (x *LastPartySvc) GetCheckBlocks(_ struct{}, r *GetCheckBlocksArg) error {
+	return data.GetBlocksChecked(&r.Check)
 }
 
-func (x *LastParty) SetBlockChecked(r [2]int, a *int64) error {
-	if err := data.SetBlockChecked(x.dbx, r[0], r[1] != 0); err != nil {
-		return err
-	}
-	b := false
-	if err := data.GetBlockChecked(x.dbx, r[0], &b); err != nil {
-		return err
-	}
+func (x *LastPartySvc) SetBlockChecked(r [2]int, a *int64) error {
+	data.SetBlockChecked(r[0], r[1] != 0)
+	b := data.GetBlockChecked(r[0])
 	if b {
 		*a = 1
 	}
 	return nil
 }
 
-func (x *LastParty) Pdf(_ struct{}, _ *struct{}) error {
-	return pdf.Run(x.db)
-}
-
-func (x *LastParty) CalculateFonMinus20(_ struct{}, party *data.Party) error {
-	if err := data.CalculateFonMinus20(x.db, x.dbx); err != nil {
+func (x *LastPartySvc) CalculateFonMinus20(_ struct{}, party *data.Party) error {
+	if err := data.CalculateFonMinus20(); err != nil {
 		return err
 	}
-	return data.GetLastPartyWithProductsInfo(x.db, data.ProductsFilter{}, party)
+	*party = data.GetLastPartyWithProductsInfo(data.ProductsFilter{})
+	return nil
 }
 
-func (x *LastParty) CalculateSensMinus20(k [1]float64, party *data.Party) error {
-	if err := data.CalculateSensMinus20(x.db, x.dbx, k[0]); err != nil {
+func (x *LastPartySvc) CalculateSensMinus20(k [1]float64, party *data.Party) error {
+	if err := data.CalculateSensMinus20(k[0]); err != nil {
 		return err
 	}
-	return data.GetLastPartyWithProductsInfo(x.db, data.ProductsFilter{}, party)
+	*party = data.GetLastPartyWithProductsInfo(data.ProductsFilter{})
+	return nil
 }
 
-func (x *LastParty) CalculateSensPlus50(k [1]float64, party *data.Party) error {
-	if err := data.CalculateSensPlus50(x.db, x.dbx, k[0]); err != nil {
+func (x *LastPartySvc) CalculateSensPlus50(k [1]float64, party *data.Party) error {
+	if err := data.CalculateSensPlus50(k[0]); err != nil {
 		return err
 	}
-	return data.GetLastPartyWithProductsInfo(x.db, data.ProductsFilter{}, party)
+	*party = data.GetLastPartyWithProductsInfo(data.ProductsFilter{})
+	return nil
 }

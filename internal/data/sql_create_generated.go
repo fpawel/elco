@@ -100,12 +100,14 @@ CREATE TABLE IF NOT EXISTS product
     ON DELETE CASCADE
 );
 
-CREATE VIEW IF NOT EXISTS last_party AS
-SELECT *
-FROM party
-ORDER BY created_at DESC
-LIMIT 1;
-
+CREATE TRIGGER IF NOT EXISTS trigger_product_party_updated_at
+  AFTER INSERT
+  ON product
+  BEGIN
+    UPDATE party
+    SET updated_at = datetime('now')
+    WHERE party.party_id = new.party_id;
+  END;
 
 CREATE VIEW IF NOT EXISTS party_info AS
 SELECT *,

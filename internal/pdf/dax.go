@@ -5,16 +5,12 @@ import (
 	"fmt"
 	"github.com/fpawel/elco/internal/data"
 	"github.com/jung-kurt/gofpdf"
-	"gopkg.in/reform.v1"
 	"strconv"
 )
 
-func passportDax(db *reform.DB, dir string) error {
+func passportDax(dir string) error {
 
-	var party data.Party
-	if err := data.GetLastPartyWithProductsInfo(db, data.ProductsFilter{true, true}, &party); err != nil {
-		return err
-	}
+	party := data.GetLastPartyWithProductsInfo(data.ProductsFilter{true, true})
 
 	d, err := newDoc()
 	if err != nil {

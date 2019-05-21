@@ -6,24 +6,19 @@ import (
 )
 
 type SettingsSvc struct {
-	c *cfg.Config
-}
-
-func NewSetsSvc(cfg *cfg.Config) *SettingsSvc {
-	return &SettingsSvc{cfg}
 }
 
 func (x *SettingsSvc) Sections(_ struct{}, res *cfg.ConfigSections) (err error) {
-	*res, err = x.c.Sections()
+	*res, err = cfg.Cfg.Sections()
 	return nil
 }
 
 func (x *SettingsSvc) SetValue(p [3]string, _ *struct{}) error {
-	return x.c.SetValue(p[0], p[1], p[2])
+	return cfg.Cfg.SetValue(p[0], p[1], p[2])
 }
 
 func (x *SettingsSvc) PredefinedConfig(_ struct{}, r *string) error {
-	b, err := toml.Marshal(x.c.Predefined())
+	b, err := toml.Marshal(cfg.Cfg.Predefined())
 	if err != nil {
 		return err
 	}
@@ -41,7 +36,7 @@ func (x *SettingsSvc) ChangePredefinedConfig(s [1]string, r *string) error {
 		return err
 	}
 	*r = string(b)
-	x.c.SetPredefined(p)
+	cfg.Cfg.SetPredefined(p)
 	return nil
 }
 
@@ -52,6 +47,6 @@ func (x *SettingsSvc) SetDefaultPredefinedConfig(_ struct{}, r *string) error {
 		return err
 	}
 	*r = string(b)
-	x.c.SetPredefined(p)
+	cfg.Cfg.SetPredefined(p)
 	return nil
 }

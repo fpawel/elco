@@ -14,12 +14,13 @@ import (
 
 func main() {
 	types := []r.Type{
-		r.TypeOf((*api.PartiesCatalogue)(nil)),
-		r.TypeOf((*api.LastParty)(nil)),
-		r.TypeOf((*api.ProductTypes)(nil)),
+		r.TypeOf((*api.PartiesCatalogueSvc)(nil)),
+		r.TypeOf((*api.LastPartySvc)(nil)),
+		r.TypeOf((*api.ProductTypesSvc)(nil)),
 		r.TypeOf((*api.PlaceFirmware)(nil)),
 		r.TypeOf((*api.SettingsSvc)(nil)),
 		r.TypeOf((*api.RunnerSvc)(nil)),
+		r.TypeOf((*api.PdfSvc)(nil)),
 	}
 	m := map[string]string{
 		"ProductInfo": "Product",
