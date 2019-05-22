@@ -31,8 +31,8 @@ CREATE TABLE IF NOT EXISTS party
 (
   party_id           INTEGER PRIMARY KEY NOT NULL,
   old_party_id       TEXT,
-  created_at         TIMESTAMP           NOT NULL DEFAULT (datetime('now')),
-  updated_at         TIMESTAMP           NOT NULL DEFAULT (datetime('now')),
+  created_at         TIMESTAMP           NOT NULL DEFAULT (DATETIME('now', '+3 hours')),
+  updated_at         TIMESTAMP           NOT NULL DEFAULT (DATETIME('now', '+3 hours')),
   product_type_name  TEXT                NOT NULL DEFAULT '035',
   concentration1     REAL                NOT NULL DEFAULT 0 CHECK (concentration1 >= 0),
   concentration2     REAL                NOT NULL DEFAULT 50 CHECK (concentration2 >= 0),
@@ -47,9 +47,9 @@ CREATE TABLE IF NOT EXISTS party
   max_k_sens20       REAL                         DEFAULT 0.335,
   min_k_sens50       REAL                         DEFAULT 110,
   max_k_sens50       REAL                         DEFAULT 150,
-  min_d_temp         REAL                         DEFAULT 0,
+  min_d_temp         REAL,
   max_d_temp         REAL                         DEFAULT 3,
-  max_d_not_measured REAL                         DEFAULT 5,
+  max_d_not_measured REAL,
 
   FOREIGN KEY (product_type_name) REFERENCES product_type (product_type_name)
 );

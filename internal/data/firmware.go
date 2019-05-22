@@ -313,9 +313,20 @@ func (x Firmware) Bytes() (b FirmwareBytes) {
 		b[i] = 0xFF
 	}
 
-	modbus.PutBCD6(b[0x0701:], float64(x.Serial))
-	modbus.PutBCD6(b[0x0602:], x.ScaleBegin)
-	modbus.PutBCD6(b[0x0606:], x.ScaleEnd)
+	fmt.Printf("% X\n", b[0x0701:0x0705])
+
+	modbus.PutBCD6(b[0x0701:0x0705], x.Serial)
+
+	fmt.Printf("% X\n", b[0x0701:0x0705])
+
+	if v, _ := modbus.ParseBCD6(b[0x0701:0x0705]); v != x.Serial {
+		fmt.Printf("% X\n", b[0x0701:0x0705])
+		fmt.Printf("% X\n", modbus.BCD6(x.Serial))
+		panic("ups")
+	}
+
+	modbus.PutBCD6(b[0x0602:0x0606], x.ScaleBegin)
+	modbus.PutBCD6(b[0x0606:0x060A], x.ScaleEnd)
 
 	b[0x070F] = byte(x.CreatedAt.Year() - 2000)
 	b[0x070E] = byte(x.CreatedAt.Month())
