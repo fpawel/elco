@@ -43,6 +43,7 @@ type PredefinedConfig struct {
 	HoldTemperatureMinutes int         `toml:"hold_temperature_minutes" comment:"длительность выдержки термокамеры, мин."`
 	StatusTimeoutSeconds   int         `toml:"status_timeout_seconds" comment:"таймаут статуса прошивки, с"`
 	ReadRangeDelayMillis   int         `toml:"read_range_delay_millis" comment:"задержка при считывании диапазонов, мс"`
+	WaitFlashStatusDelay   int         `toml:"wait_flash_status_delay_ms" comment:"задержка при считывании статуса записи, мс"`
 }
 
 type FinsNetwork struct {
@@ -76,6 +77,10 @@ type ConfigSections struct {
 }
 
 var Cfg *Config
+
+func (x PredefinedConfig) WaitFlashStatusDelayMS() time.Duration {
+	return time.Duration(x.WaitFlashStatusDelay) * time.Millisecond
+}
 
 func (x FinsNetwork) NewFinsClient() (*fins.Client, error) {
 	c, err := fins.NewClient(x.Client.Address(), x.Server.Address())
@@ -148,6 +153,7 @@ func (x *Config) SetValue(section, property, value string) error {
 
 func DefaultPredefinedConfig() PredefinedConfig {
 	return PredefinedConfig{
+		WaitFlashStatusDelay:   1000,
 		BlowGasMinutes:         5,
 		HoldTemperatureMinutes: 120,
 		ComportGas: comm.Config{
@@ -163,9 +169,9 @@ func DefaultPredefinedConfig() PredefinedConfig {
 		StatusTimeoutSeconds: 3,
 		ReadRangeDelayMillis: 10,
 		FinsNetwork: FinsNetwork{
-			MaxAttemptsRead: 15,
+			MaxAttemptsRead: 20,
 			PollSec:         2,
-			TimeoutMS:       500,
+			TimeoutMS:       1000,
 			Server: FinsConfig{
 				IP:   "192.168.250.1",
 				Port: 9600,

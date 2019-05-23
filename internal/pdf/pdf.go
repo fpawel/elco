@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/ansel1/merry"
+	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/elco/pkg/winapp"
 	"github.com/jung-kurt/gofpdf"
 	"io/ioutil"
@@ -19,19 +20,31 @@ const (
 	lineSpace1 = 4
 )
 
-func Run() error {
+func Run(partyID int64) error {
+
+	party, err := data.GetParty(partyID, data.WithProducts, data.WithProduction, data.WithSerials)
+	if err != nil {
+		return err
+	}
 
 	dir, err := prepareDir()
 	if err != nil {
 		return err
 	}
-	_ = summary(dir)
-	_ = passportSou(dir)
-	err = passportDax(dir)
-	if err != nil {
-		_ = exec.Command("Explorer.exe", dir).Start()
+	if err = summary(dir, party); err != nil {
+		return err
 	}
-	return err
+	if err = passportSou(dir, party); err != nil {
+		return err
+	}
+	if err = passportDax(dir, party); err != nil {
+		return err
+	}
+	if err = exec.Command("Explorer.exe", dir).Start(); err != nil {
+		return err
+	}
+	return nil
+
 }
 
 func newDoc() (*gofpdf.Fpdf, error) {

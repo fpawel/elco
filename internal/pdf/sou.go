@@ -6,9 +6,7 @@ import (
 	"github.com/jung-kurt/gofpdf"
 )
 
-func passportSou(dir string) error {
-
-	party := data.GetLastPartyWithProductsInfo(data.ProductsFilter{true, true})
+func passportSou(dir string, party data.Party) error {
 
 	d, err := newDoc()
 	if err != nil {

@@ -8,9 +8,7 @@ import (
 	"time"
 )
 
-func summary(dir string) error {
-
-	party := data.GetLastPartyWithProductsInfo(data.ProductsFilter{true, true})
+func summary(dir string, party data.Party) error {
 
 	var productType data.ProductType
 	if err := data.DB.FindByPrimaryKeyTo(&productType, party.ProductTypeName); err != nil {

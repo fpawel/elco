@@ -147,9 +147,7 @@ func (x *D) doDelay(what string, duration time.Duration) error {
 		notify.Delay(x.notifyWindow, api.DelayInfo{Run: false})
 	}()
 	for {
-		productsWithSerials := data.GetLastPartyProducts(data.ProductsFilter{
-			WithSerials:    true,
-			WithProduction: true})
+		productsWithSerials := data.GetLastPartyProducts(data.WithSerials)
 
 		if len(productsWithSerials) == 0 {
 			return merry.New("фоновый опрос: не выбрано ни одного прибора")
@@ -206,13 +204,11 @@ func (x *D) doSetupTemperature(destinationTemperature float64) error {
 	}
 
 	// установка компрессора
-	if err := ktx500.WriteCoolOnOff(destinationTemperature < cfg.Cfg.User().AmbientTemperature); err != nil {
+	if err := ktx500.WriteCoolOnOff(destinationTemperature < 50); err != nil {
 		return err
 	}
 
-	productsWithSerials := data.GetLastPartyProducts(data.ProductsFilter{
-		WithSerials:    true,
-		WithProduction: true})
+	productsWithSerials := data.GetLastPartyProducts(data.WithSerials)
 
 	if len(productsWithSerials) == 0 {
 		return merry.New("фоновый опрос: не выбрано ни одного прибора")
@@ -345,10 +341,7 @@ func (x *D) readAndSaveProductsCurrents(field string) error {
 
 func (x *D) doReadAndSaveProductsCurrents(field string) error {
 
-	productsToWork := data.GetLastPartyProducts(data.ProductsFilter{
-		WithSerials:    true,
-		WithProduction: true,
-	})
+	productsToWork := data.GetLastPartyProducts(data.WithSerials)
 
 	if len(productsToWork) == 0 {
 		return merry.New("не выбрано ни одного прибора в данной партии")
@@ -386,7 +379,7 @@ func (x *D) doReadAndSaveProductsCurrents(field string) error {
 			log.Info("сохраненено", args...)
 		}
 	}
-	party := data.GetLastPartyWithProductsInfo(data.ProductsFilter{})
+	party := data.GetLastParty(data.WithProducts)
 	notify.LastPartyChanged(x.notifyWindow, party)
 	return nil
 

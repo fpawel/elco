@@ -8,9 +8,7 @@ import (
 	"strconv"
 )
 
-func passportDax(dir string) error {
-
-	party := data.GetLastPartyWithProductsInfo(data.ProductsFilter{true, true})
+func passportDax(dir string, party data.Party) error {
 
 	d, err := newDoc()
 	if err != nil {
@@ -150,17 +148,20 @@ func doPassportDax(d *gofpdf.Fpdf, left, width float64, p data.ProductInfo, part
 	}
 	colWidths = []float64{9, 9.5, 9.5, 9.5, 9.5, 9.5, 9.5, 9.5, 9.5}
 
-	if p.IFPlus20.Valid && p.ISPlus20.Valid && p.ISPlus20.Float64 != p.IFPlus20.Float64 {
-		dK := (party.Concentration3 - party.Concentration1) / (p.ISPlus20.Float64 - p.IFPlus20.Float64)
+	fon20, sens20 := p.IFPlus20.Float64, p.ISPlus20.Float64
+
+	if fon20 != sens20 {
+
+		dK := (party.Concentration3 - party.Concentration1) / (sens20 - fon20)
 
 		for i, x := range []struct {
 			sql.NullFloat64
 			PGS float64
 		}{
 			{p.I13, party.Concentration1},
-			{p.I24, party.Concentration1},
-			{p.I35, party.Concentration1},
-			{p.I26, party.Concentration1},
+			{p.I24, party.Concentration2},
+			{p.I35, party.Concentration3},
+			{p.I26, party.Concentration2},
 			{p.I17, party.Concentration1},
 		} {
 			if x.Valid {

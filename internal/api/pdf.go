@@ -5,6 +5,6 @@ import "github.com/fpawel/elco/internal/pdf"
 type PdfSvc struct {
 }
 
-func (_ PdfSvc) Run(_ struct{}, _ *struct{}) error {
-	return pdf.Run()
+func (_ PdfSvc) Run(partyID [1]int64, _ *struct{}) error {
+	return pdf.Run(partyID[0])
 }

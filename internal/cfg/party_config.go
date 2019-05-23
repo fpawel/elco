@@ -10,7 +10,7 @@ import (
 )
 
 func PartyConfigProperties() ([]ConfigProperty, error) {
-	party := data.GetLastParty()
+	party := data.GetLastParty(data.WithoutProducts)
 	productTypesNames := data.ProductTypeNames()
 
 	f := func(v sql.NullFloat64) string {
@@ -126,7 +126,7 @@ func PartyConfigProperties() ([]ConfigProperty, error) {
 
 func SetPartyConfigValue(property, value string) (err error) {
 
-	party := data.GetLastParty()
+	party := data.GetLastParty(data.WithoutProducts)
 
 	switch property {
 

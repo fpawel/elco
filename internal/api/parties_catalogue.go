@@ -46,13 +46,9 @@ cast(strftime('%d', DATETIME(created_at, '+3 hours')) AS INTEGER) = ?`,
 	return nil
 }
 
-func (x *PartiesCatalogueSvc) Party(a [1]int64, r *data.Party) error {
-	if err := data.DB.FindByPrimaryKeyTo(r, a[0]); err != nil {
-		return err
-	}
-	r.Products = data.GetProductsInfoWithPartyID(r.PartyID)
-	r.Last = data.GetLastPartyID() == r.PartyID
-	return nil
+func (x *PartiesCatalogueSvc) Party(a [1]int64, r *data.Party) (err error) {
+	*r, err = data.GetParty(a[0], data.WithProducts)
+	return
 }
 
 func (x *PartiesCatalogueSvc) NewParty(_ struct{}, r *data.Party) error {
@@ -129,5 +125,32 @@ func (x *PartiesCatalogueSvc) CopyParty(partyID [1]int64, party *data.Party) (er
 		}
 	}
 	party.Products = data.GetProductsInfoWithPartyID(party.PartyID)
+	return nil
+}
+
+func (x *PartiesCatalogueSvc) SetProductProduction(v struct {
+	ProductID  int64
+	Production bool
+}, _ *struct{}) error {
+	var p data.Product
+	if err := data.DB.FindByPrimaryKeyTo(&p, v.ProductID); err != nil {
+		return err
+	}
+	p.Production = v.Production
+	if err := data.DB.Save(&p); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (x *PartiesCatalogueSvc) ToggleProductProduction(productID [1]int64, _ *struct{}) error {
+	var p data.Product
+	if err := data.DB.FindByPrimaryKeyTo(&p, productID[0]); err != nil {
+		return err
+	}
+	p.Production = !p.Production
+	if err := data.DB.Save(&p); err != nil {
+		return err
+	}
 	return nil
 }

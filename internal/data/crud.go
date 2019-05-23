@@ -18,19 +18,6 @@ VALUES (?, 'CO', 'мг/м3', 200, 0.1626, 18)`, productTypeName)
 	return merry.Wrap(err)
 }
 
-func GetLastParty() (party Party) {
-	err := DB.SelectOneTo(&party, `ORDER BY created_at DESC LIMIT 1;`)
-	if err == reform.ErrNoRows {
-		partyID := CreateNewParty()
-		err = DB.FindByPrimaryKeyTo(&party, partyID)
-	}
-	if err != nil {
-		panic(err)
-	}
-	party.Last = true
-	return
-}
-
 func SetOnlyOkProductsProduction() {
 	DBx.MustExec(`
 UPDATE product 
@@ -71,42 +58,72 @@ func GetLastPartyID() (partyID int64) {
 	return partyID
 }
 
-type ProductsFilter struct {
-	WithSerials, WithProduction bool
-}
+type ProductsFilter int
 
-func GetLastPartyWithProductsInfo(f ProductsFilter) (party Party) {
+const (
+	WithSerials ProductsFilter = iota
+	WithProduction
+)
 
-	party = GetLastParty()
-
-	tail := "WHERE party_id IN (SELECT party_id FROM last_party)"
-	if f.WithSerials {
+func productsFilterQuery(f ...ProductsFilter) (tail string) {
+	if productsFilter(WithSerials, f...) {
 		tail += " AND (serial NOTNULL)"
 	}
-	if f.WithProduction {
+	if productsFilter(WithProduction, f...) {
 		tail += " AND production"
 	}
 	tail += " ORDER BY place"
-	xs, err := DB.SelectAllFrom(ProductInfoTable, tail)
+	return
+}
+
+func productsFilter(y ProductsFilter, f ...ProductsFilter) bool {
+	for _, x := range f {
+		if x == y {
+			return true
+		}
+	}
+	return false
+}
+
+type PartyProducts bool
+
+const (
+	WithoutProducts PartyProducts = false
+	WithProducts    PartyProducts = true
+)
+
+func GetParty(partyID int64, withProducts PartyProducts, f ...ProductsFilter) (party Party, err error) {
+	if err = DB.FindByPrimaryKeyTo(&party, partyID); err != nil {
+		return
+	}
+	party.Last = party.PartyID == GetLastPartyID()
+	if withProducts {
+		tail := "WHERE party_id = ?" + productsFilterQuery(f...)
+		xs, err := DB.SelectAllFrom(ProductInfoTable, tail, partyID)
+		if err != nil {
+			panic(err)
+		}
+		for _, x := range xs {
+			p := x.(*ProductInfo)
+			party.Products = append(party.Products, *p)
+		}
+	}
+	return
+}
+
+func GetLastParty(withProducts PartyProducts, f ...ProductsFilter) Party {
+	partyID := GetLastPartyID()
+	party, err := GetParty(partyID, withProducts, f...)
 	if err != nil {
 		panic(err)
-	}
-	for _, x := range xs {
-		p := x.(*ProductInfo)
-		party.Products = append(party.Products, *p)
 	}
 	return party
 }
 
-func GetLastPartyProducts(f ProductsFilter) []Product {
-	tail := "WHERE party_id IN (SELECT party_id FROM last_party)"
-	if f.WithSerials {
-		tail += " AND (serial NOTNULL)"
-	}
-	if f.WithProduction {
-		tail += " AND production"
-	}
-	tail += " ORDER BY place"
+func GetLastPartyProducts(f ...ProductsFilter) []Product {
+	tail := "WHERE party_id IN (SELECT party_id FROM last_party)" +
+		productsFilterQuery(f...)
+
 	xs, err := DB.SelectAllFrom(ProductTable, tail)
 	if err != nil {
 		panic(err)

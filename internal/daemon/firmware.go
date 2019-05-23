@@ -20,11 +20,8 @@ import (
 func (x *D) writePartyFirmware() error {
 
 	startTime := time.Now()
-	party := data.GetLastParty()
-	products := data.GetLastPartyProducts(data.ProductsFilter{
-		WithProduction: true,
-		WithSerials:    true,
-	})
+	party := data.GetLastParty(data.WithoutProducts)
+	products := data.GetLastPartyProducts(data.WithSerials, data.WithProduction)
 
 	if len(products) == 0 {
 		return merry.New("не выбрано ни одного прибора")
@@ -152,6 +149,9 @@ func (x *D) writeBlock(products []*data.Product, placeBytes map[int][]byte) erro
 		if err := x.writePreparedDataToFlash(block, placesMask, c.addr1, int(c.addr2-c.addr1+1)); err != nil {
 			return err
 		}
+
+		time.Sleep(cfg.Cfg.Predefined().WaitFlashStatusDelayMS())
+
 		if err := x.waitStatus45(block, placesMask); err != nil {
 			return err
 		}
@@ -260,7 +260,8 @@ func (x *D) writePlaceFirmware(place int, bytes []byte) error {
 		if err := x.writePreparedDataToFlash(block, placesMask, addr1, int(addr2-addr1+1)); err != nil {
 			return err
 		}
-		time.Sleep(time.Second)
+
+		time.Sleep(cfg.Cfg.Predefined().WaitFlashStatusDelayMS())
 
 		if err := x.waitStatus45(block, placesMask); err != nil {
 			return err
