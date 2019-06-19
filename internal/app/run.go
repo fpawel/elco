@@ -1,25 +1,25 @@
-package daemon
+package app
 
 import (
 	"context"
 	"fmt"
 	"github.com/ansel1/merry"
-	"github.com/fpawel/comm"
 	"github.com/fpawel/elco/internal/api/notify"
 	"github.com/fpawel/elco/internal/cfg"
 	"github.com/fpawel/elco/internal/data"
+	"github.com/fpawel/gohelp"
 	"github.com/hashicorp/go-multierror"
 	"github.com/powerman/structlog"
 	"sync"
 )
 
-func (x *D) RunReadAndSaveProductCurrents(field string) {
+func (x *App) RunReadAndSaveProductCurrents(field string) {
 	x.runHardware(true, fmt.Sprintf("Снятие %q", field), func() error {
 		return x.readAndSaveProductsCurrents(field)
 	})
 }
 
-func (x *D) RunWritePlaceFirmware(place int, bytes []byte) {
+func (x *App) RunWritePlaceFirmware(place int, bytes []byte) {
 	x.runHardware(false, fmt.Sprintf("Запись прошивки места %s", data.FormatPlace(place)), func() error {
 		err := x.writePlaceFirmware(place, bytes)
 		if err != nil {
@@ -33,7 +33,7 @@ func (x *D) RunWritePlaceFirmware(place int, bytes []byte) {
 	})
 }
 
-func (x *D) RunReadPlaceFirmware(place int) {
+func (x *App) RunReadPlaceFirmware(place int) {
 	x.runHardware(false, fmt.Sprintf("Считывание места %d", place+1), func() error {
 		b, err := x.readPlaceFirmware(place)
 		if err != nil {
@@ -45,15 +45,15 @@ func (x *D) RunReadPlaceFirmware(place int) {
 	return
 }
 
-func (x *D) RunWritePartyFirmware() {
+func (x *App) RunWritePartyFirmware() {
 	x.runHardware(true, "Прошивка партии", x.writePartyFirmware)
 }
 
-func (x *D) RunMainError() {
+func (x *App) RunMainError() {
 	x.runHardware(true, "Снятие основной погрешности", x.determineMainError)
 }
 
-func (x *D) RunTemperature(workCheck [3]bool) {
+func (x *App) RunTemperature(workCheck [3]bool) {
 	x.runHardware(true, "Снятие термокомпенсации", func() error {
 		for i, temperature := range []data.Temperature{20, -20, 50} {
 			if workCheck[i] {
@@ -70,16 +70,16 @@ func (x *D) RunTemperature(workCheck [3]bool) {
 	})
 }
 
-func (x *D) StopHardware() {
+func (x *App) StopHardware() {
 	x.hardware.cancel()
 }
 
-func (x *D) SkipDelay() {
+func (x *App) SkipDelay() {
 	x.hardware.skipDelay()
 
 }
 
-func (x *D) RunReadCurrent() {
+func (x *App) RunReadCurrent() {
 
 	x.runHardware(false, "опрос", func() error {
 		for {
@@ -99,7 +99,7 @@ func (x *D) RunReadCurrent() {
 
 type WorkFunc = func() error
 
-func (x *D) runHardware(logWork bool, workName string, work WorkFunc) {
+func (x *App) runHardware(logWork bool, workName string, work WorkFunc) {
 
 	x.hardware.cancel()
 	x.hardware.WaitGroup.Wait()
@@ -108,7 +108,7 @@ func (x *D) runHardware(logWork bool, workName string, work WorkFunc) {
 
 	x.hardware.WaitGroup.Add(1)
 
-	x.log = comm.NewLogWithKeys("работа", workName)
+	x.log = gohelp.NewLogWithKeys("работа", workName)
 
 	go func() {
 		notify.WorkStarted(x.notifyWindow, workName)
@@ -163,7 +163,7 @@ func (x *D) runHardware(logWork bool, workName string, work WorkFunc) {
 	}()
 }
 
-func (x *D) closeHardware() (mulErr error) {
+func (x *App) closeHardware() (mulErr error) {
 
 	if x.portMeasurer.Opened() {
 		if err := x.portMeasurer.Close(); err != nil {

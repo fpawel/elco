@@ -1,4 +1,4 @@
-package daemon
+package app
 
 import (
 	"context"
@@ -11,6 +11,7 @@ import (
 	"github.com/fpawel/elco/internal/cfg"
 	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/elco/internal/ktx500"
+	"github.com/fpawel/gohelp"
 	"github.com/hako/durafmt"
 	"github.com/pkg/errors"
 	"github.com/powerman/structlog"
@@ -20,7 +21,7 @@ import (
 	"time"
 )
 
-func (x *D) switchGas(n int) error {
+func (x *App) switchGas(n int) error {
 
 	logrus.Infof("переключение газового блока: %d", n)
 
@@ -53,7 +54,7 @@ func (x *D) switchGas(n int) error {
 	return nil
 }
 
-func (x *D) doSwitchGas(n int) error {
+func (x *App) doSwitchGas(n int) error {
 
 	req := modbus.Request{
 		Addr:     5,
@@ -81,7 +82,7 @@ func (x *D) doSwitchGas(n int) error {
 		}
 	}
 
-	log := comm.LogWithKeys(x.log, "пневмоблок", n)
+	log := gohelp.LogWithKeys(x.log, "пневмоблок", n)
 
 	if _, err := req.GetResponse(log, x.gasBlockReader(), nil); err != nil {
 		return err
@@ -99,7 +100,7 @@ func (x *D) doSwitchGas(n int) error {
 		req.Data[3] = 0xD5
 	}
 
-	log = comm.LogWithKeys(x.log, "пневмоблок", "расход")
+	log = gohelp.LogWithKeys(x.log, "пневмоблок", "расход")
 
 	if _, err := req.GetResponse(log, x.gasBlockReader(), nil); err != nil {
 		return err
@@ -108,7 +109,7 @@ func (x *D) doSwitchGas(n int) error {
 	return nil
 }
 
-func (x *D) blowGas(nGas int) error {
+func (x *App) blowGas(nGas int) error {
 	if err := x.switchGas(nGas); err != nil {
 		return err
 	}
@@ -116,7 +117,7 @@ func (x *D) blowGas(nGas int) error {
 	return x.delay(fmt.Sprintf("продувка ПГС%d", nGas), time.Minute*time.Duration(timeMinutes))
 }
 
-func (x *D) delay(what string, duration time.Duration) error {
+func (x *App) delay(what string, duration time.Duration) error {
 	t := time.Now()
 	logrus.Infof("%s: %s, начало", what, durafmt.Parse(duration))
 	err := x.doDelay(what, duration)
@@ -127,7 +128,7 @@ func (x *D) delay(what string, duration time.Duration) error {
 
 }
 
-func (x *D) doDelay(what string, duration time.Duration) error {
+func (x *App) doDelay(what string, duration time.Duration) error {
 
 	ctx, skipDelay := context.WithTimeout(x.hardware.ctx, duration)
 
@@ -165,7 +166,7 @@ func (x *D) doDelay(what string, duration time.Duration) error {
 			block := products[0].Place / 8
 
 			_, err := x.readBlockMeasure(
-				comm.LogWithKeys(x.log, "фоновый_опрос", fmt.Sprintf("%s %s", what, durafmt.Parse(duration))),
+				gohelp.LogWithKeys(x.log, "фоновый_опрос", fmt.Sprintf("%s %s", what, durafmt.Parse(duration))),
 				block, ctx)
 
 			if err == nil {
@@ -193,7 +194,7 @@ func (x *D) doDelay(what string, duration time.Duration) error {
 	}
 }
 
-func (x *D) doSetupTemperature(destinationTemperature float64) error {
+func (x *App) doSetupTemperature(destinationTemperature float64) error {
 	// запись уставки
 	if err := ktx500.WriteDestination(destinationTemperature); err != nil {
 		return err
@@ -226,7 +227,7 @@ func (x *D) doSetupTemperature(destinationTemperature float64) error {
 
 			block := products[0].Place / 8
 			if _, err = x.readBlockMeasure(
-				comm.LogWithKeys(x.log, "фоновый_опрос",
+				gohelp.LogWithKeys(x.log, "фоновый_опрос",
 					fmt.Sprintf("установка температуры %v⁰C", destinationTemperature)),
 				block, x.hardware.ctx); err != nil {
 				return err
@@ -235,7 +236,7 @@ func (x *D) doSetupTemperature(destinationTemperature float64) error {
 	}
 }
 
-func (x *D) setupTemperature(temperature data.Temperature) error {
+func (x *App) setupTemperature(temperature data.Temperature) error {
 
 	err := x.doSetupTemperature(float64(temperature))
 	if err != nil {
@@ -255,7 +256,7 @@ func (x *D) setupTemperature(temperature data.Temperature) error {
 	return x.delay(fmt.Sprintf("выдержка термокамеры: %v⁰C", temperature), duration)
 }
 
-func (x *D) determineTemperature(temperature data.Temperature) error {
+func (x *App) determineTemperature(temperature data.Temperature) error {
 
 	if err := x.setupTemperature(temperature); err != nil {
 		return err
@@ -307,7 +308,7 @@ func (x *D) determineTemperature(temperature data.Temperature) error {
 	return nil
 }
 
-func (x *D) determineMainError() error {
+func (x *App) determineMainError() error {
 
 	for i, pt := range data.MainErrorPoints {
 		what := fmt.Sprintf("%d: ПГС%d: снятие основной погрешности", i+1, pt.Code())
@@ -325,11 +326,11 @@ func (x *D) determineMainError() error {
 	return nil
 }
 
-func (x *D) determineProductsTemperatureCurrents(temperature data.Temperature, scale data.ScaleType) error {
+func (x *App) determineProductsTemperatureCurrents(temperature data.Temperature, scale data.ScaleType) error {
 	return x.readAndSaveProductsCurrents(data.TemperatureScaleField(temperature, scale))
 }
 
-func (x *D) readAndSaveProductsCurrents(field string) error {
+func (x *App) readAndSaveProductsCurrents(field string) error {
 	logrus.Infof("снятие %q: начало", field)
 	err := x.doReadAndSaveProductsCurrents(field)
 	if err == nil {
@@ -339,7 +340,7 @@ func (x *D) readAndSaveProductsCurrents(field string) error {
 	return merry.WithValue(err, "field", field).Append("снятие")
 }
 
-func (x *D) doReadAndSaveProductsCurrents(field string) error {
+func (x *App) doReadAndSaveProductsCurrents(field string) error {
 
 	productsToWork := data.GetLastPartyProducts(data.WithSerials)
 
@@ -348,7 +349,7 @@ func (x *D) doReadAndSaveProductsCurrents(field string) error {
 	}
 	logrus.Infof("снятие %q: %s", field, formatProducts(productsToWork))
 
-	log := comm.LogWithKeys(x.log, "снятие", field)
+	log := gohelp.LogWithKeys(x.log, "снятие", field)
 
 	blockProducts := GroupProductsByBlocks(productsToWork)
 	for _, products := range blockProducts {
@@ -402,9 +403,9 @@ func GroupProductsByBlocks(ps []data.Product) (gs [][]*data.Product) {
 	return
 }
 
-func (x *D) readBlockMeasure(logger *structlog.Logger, block int, ctx context.Context) ([]float64, error) {
+func (x *App) readBlockMeasure(logger *structlog.Logger, block int, ctx context.Context) ([]float64, error) {
 
-	log := comm.LogWithKeys(logger, "блок", block)
+	log := gohelp.LogWithKeys(logger, "блок", block)
 
 	values, err := modbus.Read3BCDs(log, x.measurerReader(ctx), modbus.Addr(block+101), 0, 8)
 
@@ -425,7 +426,7 @@ func (x *D) readBlockMeasure(logger *structlog.Logger, block int, ctx context.Co
 func init() {
 	merry.RegisterDetail("Запрос", "request")
 	merry.RegisterDetail("Ответ", "response")
-	merry.RegisterDetail("Длительность ожидания", "duration")
+	merry.RegisterDetail("Длительность ожидания", comm.LogKeyDuration)
 	merry.RegisterDetail("Порт", "port")
 	merry.RegisterDetail("Прибор", "device")
 	merry.RegisterDetail("Блок измерительный", "block")

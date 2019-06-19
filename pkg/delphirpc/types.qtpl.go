@@ -25,15 +25,21 @@ func streamdeclInterfaceClass(qw422016 *qt422016.Writer, t typeInfo) {
 	//line types.qtpl:5
 	qw422016.E().S(t.name)
 	//line types.qtpl:5
-	qw422016.N().S(` = class 
+	qw422016.N().S(` = record
     public 
         `)
 	//line types.qtpl:7
 	for _, f := range t.fields {
 		//line types.qtpl:7
-		qw422016.N().S(`F`)
-		//line types.qtpl:7
-		qw422016.E().S(f.name)
+		if f.name == "String" {
+			//line types.qtpl:7
+			qw422016.N().S(` [BsonElement('String')]Str`)
+			//line types.qtpl:7
+		} else {
+			//line types.qtpl:7
+			qw422016.E().S(f.name)
+			//line types.qtpl:7
+		}
 		//line types.qtpl:7
 		qw422016.N().S(` : `)
 		//line types.qtpl:7
@@ -44,296 +50,101 @@ func streamdeclInterfaceClass(qw422016 *qt422016.Writer, t typeInfo) {
 		//line types.qtpl:8
 	}
 	//line types.qtpl:8
-	if t.hasClassField() {
-		//line types.qtpl:8
-		qw422016.N().S(` 
-        constructor Create;
-        destructor Destroy;`)
-		//line types.qtpl:10
-	}
-	//line types.qtpl:10
 	qw422016.N().S(`
     end;
 `)
-//line types.qtpl:12
+//line types.qtpl:10
 }
 
-//line types.qtpl:12
+//line types.qtpl:10
 func writedeclInterfaceClass(qq422016 qtio422016.Writer, t typeInfo) {
-	//line types.qtpl:12
+	//line types.qtpl:10
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line types.qtpl:12
+	//line types.qtpl:10
 	streamdeclInterfaceClass(qw422016, t)
-	//line types.qtpl:12
+	//line types.qtpl:10
 	qt422016.ReleaseWriter(qw422016)
-//line types.qtpl:12
+//line types.qtpl:10
 }
 
-//line types.qtpl:12
+//line types.qtpl:10
 func declInterfaceClass(t typeInfo) string {
-	//line types.qtpl:12
+	//line types.qtpl:10
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line types.qtpl:12
+	//line types.qtpl:10
 	writedeclInterfaceClass(qb422016, t)
-	//line types.qtpl:12
+	//line types.qtpl:10
 	qs422016 := string(qb422016.B)
-	//line types.qtpl:12
+	//line types.qtpl:10
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line types.qtpl:12
+	//line types.qtpl:10
 	return qs422016
+//line types.qtpl:10
+}
+
 //line types.qtpl:12
-}
-
-//line types.qtpl:14
-func streamimplConstructor(qw422016 *qt422016.Writer, t typeInfo) {
-	//line types.qtpl:14
-	qw422016.N().S(` 
-constructor `)
-	//line types.qtpl:15
-	qw422016.E().S(t.name)
-	//line types.qtpl:15
-	qw422016.N().S(`.Create;
-begin
-    `)
-	//line types.qtpl:17
-	for _, f := range t.fields {
-		//line types.qtpl:17
-		if f.isClass {
-			//line types.qtpl:17
-			qw422016.N().S(`F`)
-			//line types.qtpl:17
-			qw422016.E().S(f.name)
-			//line types.qtpl:17
-			qw422016.N().S(` := `)
-			//line types.qtpl:17
-			qw422016.E().S(f.typeName)
-			//line types.qtpl:17
-			qw422016.N().S(`.Create;
-    `)
-			//line types.qtpl:18
-		}
-		//line types.qtpl:18
-	}
-	//line types.qtpl:18
-	qw422016.N().S(`
-end;`)
-//line types.qtpl:19
-}
-
-//line types.qtpl:19
-func writeimplConstructor(qq422016 qtio422016.Writer, t typeInfo) {
-	//line types.qtpl:19
-	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line types.qtpl:19
-	streamimplConstructor(qw422016, t)
-	//line types.qtpl:19
-	qt422016.ReleaseWriter(qw422016)
-//line types.qtpl:19
-}
-
-//line types.qtpl:19
-func implConstructor(t typeInfo) string {
-	//line types.qtpl:19
-	qb422016 := qt422016.AcquireByteBuffer()
-	//line types.qtpl:19
-	writeimplConstructor(qb422016, t)
-	//line types.qtpl:19
-	qs422016 := string(qb422016.B)
-	//line types.qtpl:19
-	qt422016.ReleaseByteBuffer(qb422016)
-	//line types.qtpl:19
-	return qs422016
-//line types.qtpl:19
-}
-
-//line types.qtpl:21
-func streamimplDestructor(qw422016 *qt422016.Writer, t typeInfo) {
-	//line types.qtpl:21
-	qw422016.N().S(` 
-destructor `)
-	//line types.qtpl:22
-	qw422016.E().S(t.name)
-	//line types.qtpl:22
-	qw422016.N().S(`.Destroy;
-begin
-    `)
-	//line types.qtpl:24
-	for _, f := range t.fields {
-		//line types.qtpl:24
-		if f.isClass {
-			//line types.qtpl:24
-			qw422016.N().S(`if Assigned(F`)
-			//line types.qtpl:24
-			qw422016.E().S(f.name)
-			//line types.qtpl:24
-			qw422016.N().S(`) then 
-        F`)
-			//line types.qtpl:25
-			qw422016.E().S(f.name)
-			//line types.qtpl:25
-			qw422016.N().S(`.Free;
-    `)
-			//line types.qtpl:26
-		}
-		//line types.qtpl:26
-	}
-	//line types.qtpl:26
-	qw422016.N().S(`
-end;`)
-//line types.qtpl:27
-}
-
-//line types.qtpl:27
-func writeimplDestructor(qq422016 qtio422016.Writer, t typeInfo) {
-	//line types.qtpl:27
-	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line types.qtpl:27
-	streamimplDestructor(qw422016, t)
-	//line types.qtpl:27
-	qt422016.ReleaseWriter(qw422016)
-//line types.qtpl:27
-}
-
-//line types.qtpl:27
-func implDestructor(t typeInfo) string {
-	//line types.qtpl:27
-	qb422016 := qt422016.AcquireByteBuffer()
-	//line types.qtpl:27
-	writeimplDestructor(qb422016, t)
-	//line types.qtpl:27
-	qs422016 := string(qb422016.B)
-	//line types.qtpl:27
-	qt422016.ReleaseByteBuffer(qb422016)
-	//line types.qtpl:27
-	return qs422016
-//line types.qtpl:27
-}
-
-//line types.qtpl:29
-func streamimplClass(qw422016 *qt422016.Writer, t typeInfo) {
-	//line types.qtpl:29
-	qw422016.N().S(` 
-
-{ `)
-	//line types.qtpl:31
-	qw422016.E().S(t.name)
-	//line types.qtpl:31
-	qw422016.N().S(` }
-
-`)
-	//line types.qtpl:33
-	qw422016.E().S(implConstructor(t))
-	//line types.qtpl:33
-	qw422016.N().S(`
-`)
-	//line types.qtpl:34
-	qw422016.E().S(implDestructor(t))
-//line types.qtpl:34
-}
-
-//line types.qtpl:34
-func writeimplClass(qq422016 qtio422016.Writer, t typeInfo) {
-	//line types.qtpl:34
-	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line types.qtpl:34
-	streamimplClass(qw422016, t)
-	//line types.qtpl:34
-	qt422016.ReleaseWriter(qw422016)
-//line types.qtpl:34
-}
-
-//line types.qtpl:34
-func implClass(t typeInfo) string {
-	//line types.qtpl:34
-	qb422016 := qt422016.AcquireByteBuffer()
-	//line types.qtpl:34
-	writeimplClass(qb422016, t)
-	//line types.qtpl:34
-	qs422016 := string(qb422016.B)
-	//line types.qtpl:34
-	qt422016.ReleaseByteBuffer(qb422016)
-	//line types.qtpl:34
-	return qs422016
-//line types.qtpl:34
-}
-
-//line types.qtpl:36
 func (x *TypesSrc) StreamUnit(qw422016 *qt422016.Writer) {
-	//line types.qtpl:36
-	qw422016.N().S(` 
+	//line types.qtpl:12
+	qw422016.N().S(`
 unit `)
-	//line types.qtpl:37
+	//line types.qtpl:13
 	qw422016.E().S(x.unitName)
-	//line types.qtpl:37
+	//line types.qtpl:13
 	qw422016.N().S(`;
 
 interface
-    `)
-	//line types.qtpl:40
+
+`)
+	//line types.qtpl:17
 	qw422016.E().S(uses(x.interfaceUses))
-	//line types.qtpl:40
+	//line types.qtpl:17
 	qw422016.N().S(`
+
 type
     `)
-	//line types.qtpl:42
+	//line types.qtpl:20
 	for _, t := range x.types {
-		//line types.qtpl:42
+		//line types.qtpl:20
 		qw422016.N().S(declInterfaceClass(t))
-		//line types.qtpl:42
+		//line types.qtpl:20
 	}
-	//line types.qtpl:42
-	qw422016.N().S(` 
+	//line types.qtpl:20
+	qw422016.N().S(`
+
 implementation 
-    `)
-	//line types.qtpl:44
+
+`)
+	//line types.qtpl:24
 	qw422016.E().S(uses(x.implUses))
-	//line types.qtpl:44
-	qw422016.N().S(`   
-`)
-	//line types.qtpl:45
-	for _, t := range x.types {
-		//line types.qtpl:45
-		qw422016.N().S(` `)
-		//line types.qtpl:45
-		if t.hasClassField() {
-			//line types.qtpl:45
-			qw422016.E().S(implClass(t))
-			//line types.qtpl:45
-			qw422016.N().S(`
-`)
-			//line types.qtpl:46
-		}
-		//line types.qtpl:46
-	}
-	//line types.qtpl:46
+	//line types.qtpl:24
 	qw422016.N().S(`
 
 end.`)
-//line types.qtpl:48
+//line types.qtpl:26
 }
 
-//line types.qtpl:48
+//line types.qtpl:26
 func (x *TypesSrc) WriteUnit(qq422016 qtio422016.Writer) {
-	//line types.qtpl:48
+	//line types.qtpl:26
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line types.qtpl:48
+	//line types.qtpl:26
 	x.StreamUnit(qw422016)
-	//line types.qtpl:48
+	//line types.qtpl:26
 	qt422016.ReleaseWriter(qw422016)
-//line types.qtpl:48
+//line types.qtpl:26
 }
 
-//line types.qtpl:48
+//line types.qtpl:26
 func (x *TypesSrc) Unit() string {
-	//line types.qtpl:48
+	//line types.qtpl:26
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line types.qtpl:48
+	//line types.qtpl:26
 	x.WriteUnit(qb422016)
-	//line types.qtpl:48
+	//line types.qtpl:26
 	qs422016 := string(qb422016.B)
-	//line types.qtpl:48
+	//line types.qtpl:26
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line types.qtpl:48
+	//line types.qtpl:26
 	return qs422016
-//line types.qtpl:48
+//line types.qtpl:26
 }

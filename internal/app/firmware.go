@@ -1,4 +1,4 @@
-package daemon
+package app
 
 import (
 	"context"
@@ -11,13 +11,14 @@ import (
 	"github.com/fpawel/elco/internal/cfg"
 	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/elco/pkg/intrng"
+	"github.com/fpawel/gohelp"
 	"github.com/hako/durafmt"
 	"gopkg.in/reform.v1"
 	"sort"
 	"time"
 )
 
-func (x *D) writePartyFirmware() error {
+func (x *App) writePartyFirmware() error {
 
 	startTime := time.Now()
 	party := data.GetLastParty(data.WithoutProducts)
@@ -69,7 +70,7 @@ func (x *D) writePartyFirmware() error {
 	return nil
 }
 
-func (x *D) verifyProductsFirmware(places []int, placeBytes map[int][]byte) error {
+func (x *App) verifyProductsFirmware(places []int, placeBytes map[int][]byte) error {
 	for _, place := range places {
 		b, err := x.readPlaceFirmware(place)
 		if err != nil {
@@ -90,7 +91,7 @@ func (x *D) verifyProductsFirmware(places []int, placeBytes map[int][]byte) erro
 	return nil
 }
 
-func (x *D) writeBlock(products []*data.Product, placeBytes map[int][]byte) error {
+func (x *App) writeBlock(products []*data.Product, placeBytes map[int][]byte) error {
 	startTime := time.Now()
 
 	block := products[0].Place / 8
@@ -118,7 +119,7 @@ func (x *D) writeBlock(products []*data.Product, placeBytes map[int][]byte) erro
 		placeBytes[p.Place] = firmware.Bytes()
 	}
 
-	log := comm.LogWithKeys(x.log,
+	log := gohelp.LogWithKeys(x.log,
 		"блок", block,
 		"маска_мест", fmt.Sprintf("%08b", placesMask),
 		"выбранные_места", intrng.Format(placesInBlock),
@@ -173,7 +174,7 @@ func (x *D) writeBlock(products []*data.Product, placeBytes map[int][]byte) erro
 	return nil
 }
 
-func (x *D) readPlaceFirmware(place int) ([]byte, error) {
+func (x *App) readPlaceFirmware(place int) ([]byte, error) {
 	startTime := time.Now()
 	block := place / 8
 	placeInBlock := place % 8
@@ -182,7 +183,7 @@ func (x *D) readPlaceFirmware(place int) ([]byte, error) {
 		b[i] = 0xff
 	}
 
-	log := comm.LogWithKeys(x.log,
+	log := gohelp.LogWithKeys(x.log,
 		"место", data.FormatPlace(place),
 		"тип_микросхемы", cfg.Cfg.User().ChipType,
 	)
@@ -205,7 +206,7 @@ func (x *D) readPlaceFirmware(place int) ([]byte, error) {
 		}
 		reader := x.measurerReader(x.hardware.ctx)
 
-		log := comm.LogWithKeys(log,
+		log := gohelp.LogWithKeys(log,
 			"диапазон", fmt.Sprintf("%X...%X", c.addr1, c.addr2),
 			"количество_байт", count,
 		)
@@ -234,13 +235,13 @@ func (x *D) readPlaceFirmware(place int) ([]byte, error) {
 	return b, nil
 }
 
-func (x *D) writePlaceFirmware(place int, bytes []byte) error {
+func (x *App) writePlaceFirmware(place int, bytes []byte) error {
 	block := place / 8
 	placeInBlock := place % 8
 	placesMask := byte(1) << byte(placeInBlock)
 	startTime := time.Now()
 
-	log := comm.LogWithKeys(x.log,
+	log := gohelp.LogWithKeys(x.log,
 		"место", data.FormatPlace(place),
 		"тип_микросхемы", cfg.Cfg.User().ChipType,
 	)
@@ -293,7 +294,7 @@ func (x *D) writePlaceFirmware(place int, bytes []byte) error {
 	return nil
 }
 
-func (x *D) waitStatus45(block int, placesMask byte) error {
+func (x *App) waitStatus45(block int, placesMask byte) error {
 	t := time.Duration(cfg.Cfg.Predefined().StatusTimeoutSeconds) * time.Second
 	ctx, _ := context.WithTimeout(x.hardware.ctx, t)
 	for {
@@ -341,14 +342,14 @@ func (x *D) waitStatus45(block int, placesMask byte) error {
 	}
 }
 
-func (x *D) readStatus45(block int) ([]byte, error) {
+func (x *App) readStatus45(block int) ([]byte, error) {
 	reader := x.measurerReader(x.hardware.ctx)
 	request := modbus.Request{
 		Addr:     modbus.Addr(block) + 101,
 		ProtoCmd: 0x45,
 	}
 
-	log := comm.LogWithKeys(x.log,
+	log := gohelp.LogWithKeys(x.log,
 		"действие", "запрос_статуса_записи_флэш",
 		"блок", block)
 
@@ -360,7 +361,7 @@ func (x *D) readStatus45(block int) ([]byte, error) {
 	})
 }
 
-func (x *D) writePreparedDataToFlash(block int, placesMask byte, addr uint16, count int) error {
+func (x *App) writePreparedDataToFlash(block int, placesMask byte, addr uint16, count int) error {
 	req := modbus.Request{
 		Addr:     modbus.Addr(block) + 101,
 		ProtoCmd: 0x43,
@@ -375,7 +376,7 @@ func (x *D) writePreparedDataToFlash(block int, placesMask byte, addr uint16, co
 	}
 	reader := x.measurerReader(x.hardware.ctx)
 
-	log := comm.LogWithKeys(x.log,
+	log := gohelp.LogWithKeys(x.log,
 		"действие", "запись_флеш",
 		"блок", block,
 		"маска", fmt.Sprintf("%08b", placesMask),
@@ -391,7 +392,7 @@ func (x *D) writePreparedDataToFlash(block int, placesMask byte, addr uint16, co
 	return err
 }
 
-func (x *D) sendDataToWrite42(block, placeInBlock int, b []byte) error {
+func (x *App) sendDataToWrite42(block, placeInBlock int, b []byte) error {
 	req := modbus.Request{
 		Addr:     modbus.Addr(block) + 101,
 		ProtoCmd: 0x42,
@@ -401,7 +402,7 @@ func (x *D) sendDataToWrite42(block, placeInBlock int, b []byte) error {
 			byte(len(b)),
 		}, b...),
 	}
-	log := comm.LogWithKeys(x.log,
+	log := gohelp.LogWithKeys(x.log,
 		"действие", "отправка_данных_для_записи_флэш",
 		"блок", block, "место", placeInBlock, "количество_байт", len(b))
 

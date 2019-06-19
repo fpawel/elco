@@ -35,7 +35,7 @@ func NewNotifyServicesSrc(unitName string, d *TypesSrc, services []NotifyService
 	x := &NotifyServicesSrc{
 		unitName:      unitName,
 		interfaceUses: []string{d.unitName, "superobject", "Winapi.Windows", "Winapi.Messages"},
-		implUses:      []string{"Rest.Json", "stringutils", "sysutils"},
+		implUses:      []string{"Grijjy.Bson.Serialization", "stringutils", "sysutils"},
 		DataTypes:     d,
 		types:         make(map[string]string),
 		goImports:     make(map[string]struct{}),
@@ -83,8 +83,7 @@ func NewNotifyServicesSrc(unitName string, d *TypesSrc, services []NotifyService
 			y.instructionArg = "fmt.Sprintf(\"%v\", arg)"
 
 		case r.Struct:
-			y.instructionGetFromStr = fmt.Sprintf(
-				"TJson.JsonToObject<%s>(str)", t)
+			y.instructionGetFromStr = fmt.Sprintf("_deserializer.deserialize<%s>(str)", t)
 			y.notifyFunc = "NotifyJson"
 			y.instructionArg = "arg"
 

@@ -33,7 +33,6 @@ func newField(fieldName string, fieldType r.Type, m typesNames) (dataField, erro
 		f.isArray = true
 		f.typeName = delphiTypeName(m, fieldType.Elem())
 	case r.Struct:
-		f.isClass = true
 		f.typeName = delphiTypeName(m, fieldType)
 	default:
 		return f, errors.Errorf("type not supported: %q, dataField %q", fieldType.Name(), fieldName)

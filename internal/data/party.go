@@ -31,6 +31,6 @@ type Party struct {
 	MaxDTemp        sql.NullFloat64 `reform:"max_d_temp"`
 	MaxDNotMeasured sql.NullFloat64 `reform:"max_d_not_measured"`
 	PointsMethod    int64           `reform:"points_method"`
-	Products        []ProductInfo
+	Products        []ProductInfo   `json:",omitempty"`
 	Last            bool
 }

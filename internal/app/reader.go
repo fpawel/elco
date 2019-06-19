@@ -1,4 +1,4 @@
-package daemon
+package app
 
 import (
 	"context"
@@ -24,7 +24,7 @@ func (x reader) GetResponse(logger *structlog.Logger, request []byte, responsePa
 	}, x.Ctx)
 }
 
-func (x *D) gasBlockReader() modbus.ResponseReader {
+func (x *App) gasBlockReader() modbus.ResponseReader {
 	return reader{
 		Reader: x.portGas,
 		Config: cfg.Cfg.Predefined().ComportGas,
@@ -32,7 +32,7 @@ func (x *D) gasBlockReader() modbus.ResponseReader {
 	}
 }
 
-func (x *D) measurerReader(ctx context.Context) modbus.ResponseReader {
+func (x *App) measurerReader(ctx context.Context) modbus.ResponseReader {
 	return reader{
 		Reader: x.portMeasurer,
 		Config: cfg.Cfg.Predefined().ComportMeasurer,

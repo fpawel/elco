@@ -4,11 +4,12 @@ import (
 	"flag"
 	"fmt"
 	"github.com/ansel1/merry"
+	"github.com/fpawel/elco/internal/app"
 	"github.com/fpawel/elco/internal/assets"
-	"github.com/fpawel/elco/internal/daemon"
 	"github.com/fpawel/elco/internal/elco"
 	"github.com/fpawel/elco/pkg/winapp"
 	"github.com/lxn/win"
+	"github.com/powerman/must"
 	"github.com/powerman/structlog"
 	"log"
 	"os"
@@ -16,6 +17,8 @@ import (
 )
 
 func main() {
+
+	must.AbortIf = must.PanicIf
 
 	structlog.DefaultLogger.
 		SetPrefixKeys(
@@ -67,7 +70,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if err := daemon.Run(skipRunUIApp, createNewDB); err != nil {
+	if err := app.Run(skipRunUIApp, createNewDB); err != nil {
 		panic(merry.Details(err))
 	}
 }

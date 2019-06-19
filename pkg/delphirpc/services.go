@@ -55,12 +55,12 @@ func NewServicesSrc(pipe, unitName, dataUnitName string, types []r.Type, ta type
 	src := &ServicesSrc{
 		pipe:          pipe,
 		unitName:      unitName,
-		interfaceUses: []string{dataUnitName, "pipe", "superobject"},
-		implUses:      []string{"Rest.Json"},
+		interfaceUses: []string{dataUnitName, "superobject"},
+		implUses:      []string{"HttpRpcClient", "SuperObjectHelp"},
 		DataTypes: &TypesSrc{
-			unitName:   dataUnitName,
-			implUses:   []string{"Rest.Json"},
-			typesNames: ta,
+			unitName:      dataUnitName,
+			interfaceUses: []string{"Grijjy.Bson"},
+			typesNames:    ta,
 		},
 	}
 	for _, t := range types {

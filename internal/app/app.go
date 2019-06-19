@@ -1,11 +1,10 @@
-package daemon
+package app
 
 import (
 	"context"
 	"github.com/Microsoft/go-winio"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/comm/comport"
-	"github.com/fpawel/elco/internal/api"
 	"github.com/fpawel/elco/internal/api/notify"
 	"github.com/fpawel/elco/internal/assets"
 	"github.com/fpawel/elco/internal/cfg"
@@ -20,7 +19,6 @@ import (
 	"github.com/powerman/rpc-codec/jsonrpc2"
 	"github.com/powerman/structlog"
 	"net"
-	"net/rpc"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -28,7 +26,7 @@ import (
 	"time"
 )
 
-type D struct {
+type App struct {
 	notifyWindow *copydata.NotifyWindow // окно для отправки сообщений WM_COPYDATA дельфи-приложению
 	ctx          context.Context
 	hardware     hardware
@@ -48,9 +46,11 @@ type hardware struct {
 	ctx context.Context
 }
 
+var log = structlog.New()
+
 func Run(skipRunUIApp, createNewDB bool) error {
 
-	x := &D{
+	x := &App{
 		log: structlog.New(),
 		hardware: hardware{
 			Continue:  func() {},
@@ -79,34 +79,10 @@ func Run(skipRunUIApp, createNewDB bool) error {
 
 	go runSysTray(x.notifyWindow.CloseWindow)
 
-	for _, svcObj := range []interface{}{
-		new(api.PartiesCatalogueSvc),
-		new(api.LastPartySvc),
-		new(api.ProductTypesSvc),
-		api.NewProductFirmware(x),
-		new(api.SettingsSvc),
-		new(api.PdfSvc),
-		&api.RunnerSvc{Runner: x},
-	} {
-		if err := rpc.Register(svcObj); err != nil {
-			return merry.Wrap(err)
-		}
-	}
-
 	var cancel func()
 	x.ctx, cancel = context.WithCancel(context.Background())
 
-	wg := sync.WaitGroup{}
-	wg.Add(1)
-
-	ln := mustPipeListener()
-
-	// цикл RPC сервера
-	go func() {
-		defer wg.Done()
-		defer x.notifyWindow.CloseWindow()
-		x.serveRPC(ln, x.ctx)
-	}()
+	closeHttpServer := x.startHttpServer()
 
 	if !skipRunUIApp {
 		if err := runUIApp(); err != nil {
@@ -130,10 +106,7 @@ func Run(skipRunUIApp, createNewDB bool) error {
 	}
 
 	cancel()
-
-	x.log.ErrIfFail(ln.Close, "defer", "close pipe listener")
-
-	wg.Wait()
+	closeHttpServer()
 
 	winapp.EnumWindowsWithClassName(func(hWnd win.HWND, winClassName string) {
 		if winClassName == elco.PeerWindowClassName {
@@ -146,7 +119,7 @@ func Run(skipRunUIApp, createNewDB bool) error {
 	return nil
 }
 
-func (x *D) serveRPC(ln net.Listener, ctx context.Context) {
+func (x *App) serveRPC(ln net.Listener, ctx context.Context) {
 
 	for {
 		switch conn, err := ln.Accept(); err {

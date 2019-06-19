@@ -35,7 +35,6 @@ type typeInfo struct {
 type dataField struct {
 	name,
 	typeName string
-	isClass,
 	isArray bool
 }
 
@@ -88,15 +87,6 @@ func (x *TypesSrc) listFields(t r.Type) (fields []r.StructField) {
 		}
 	}
 	return
-}
-
-func (x *typeInfo) hasClassField() bool {
-	for _, a := range x.fields {
-		if a.isClass {
-			return true
-		}
-	}
-	return false
 }
 
 func (x dataField) declType() string {

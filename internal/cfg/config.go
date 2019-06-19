@@ -14,7 +14,7 @@ type ConfigProperty struct {
 	Error string
 	Min, Max  sql.NullFloat64
 	ValueType ValueType
-	List      []string
+	List      []string `json:",omitempty"`
 }
 
 type ValueType int
@@ -65,7 +65,7 @@ type FinsConfig struct {
 type ConfigSection struct {
 	Name       string
 	Hint       string
-	Properties []ConfigProperty
+	Properties []ConfigProperty `json:",omitempty"`
 }
 
 type ConfigPropertyValue struct {

@@ -22,9 +22,18 @@ type
     TServerAppCmd = ({% for _,m := range x.services[:len(x.services)-1] %}Cmd{%s m.serviceName %}, {% endfor %}
     Cmd{%s x.services[len(x.services)-1].serviceName %});
 
+    type _deserializer = record
+        class function deserialize<T>(str:string):T;static;
+    end;
+
 var
     {% for _,m := range x.services %}_On{%s m.serviceName %} : {%s strEnsureFirstT(m.typeName) %}Handler;
     {% endfor %}_enabled:boolean;
+
+class function _deserializer.deserialize<T>(str:string):T;
+begin
+    TgoBsonSerializer.Deserialize(str, Result);
+end;
 
 procedure NotifyServices_SetEnabled(enabled:boolean);
 begin
