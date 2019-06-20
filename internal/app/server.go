@@ -50,9 +50,11 @@ func (x *App) startHttpServer() func() {
 	log.ErrIfFail(key.Close)
 
 	go func() {
-		if err := srv.Serve(lnHTTP); err != http.ErrServerClosed {
-			log.PrintErr(err)
+		err := srv.Serve(lnHTTP)
+		if err == http.ErrServerClosed {
+			return
 		}
+		log.PrintErr(err)
 		log.ErrIfFail(lnHTTP.Close)
 	}()
 

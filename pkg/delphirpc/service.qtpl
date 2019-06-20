@@ -33,8 +33,8 @@ begin
     {%if x.procedure %}
         ThttpRpcClient.GetResponse({%s= x.remoteMethod(srvName) %}, req);
     {% else %}
-        {%if x.retDelphiType=="string" && !x.retArray %}
-            Result := ThttpRpcClient.GetResponse({%s= x.remoteMethod(srvName) %}, req).AsString;
+        {%if x.retPODType && !x.retArray %}
+            SuperObject_Get(ThttpRpcClient.GetResponse({%s= x.remoteMethod(srvName) %}, req), Result);
         {% else %}
             ThttpRpcClient.Call({%s= x.remoteMethod(srvName) %}, req, Result);
         {% endif %}

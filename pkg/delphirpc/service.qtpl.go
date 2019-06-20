@@ -166,13 +166,13 @@ begin
 		//line service.qtpl:35
 	} else {
 		//line service.qtpl:36
-		if x.retDelphiType == "string" && !x.retArray {
+		if x.retPODType && !x.retArray {
 			//line service.qtpl:36
-			qw422016.N().S(`Result := ThttpRpcClient.GetResponse(`)
+			qw422016.N().S(`SuperObject_Get(ThttpRpcClient.GetResponse(`)
 			//line service.qtpl:37
 			qw422016.N().S(x.remoteMethod(srvName))
 			//line service.qtpl:37
-			qw422016.N().S(`, req).AsString; `)
+			qw422016.N().S(`, req), Result); `)
 			//line service.qtpl:38
 		} else {
 			//line service.qtpl:38
