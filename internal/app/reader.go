@@ -16,6 +16,7 @@ type reader struct {
 }
 
 func (x reader) GetResponse(logger *structlog.Logger, request []byte, responseParser comm.ResponseParser) ([]byte, error) {
+
 	return x.Reader.GetResponse(comm.Request{
 		Logger:         logger,
 		Bytes:          request,
@@ -24,17 +25,17 @@ func (x reader) GetResponse(logger *structlog.Logger, request []byte, responsePa
 	}, x.Ctx)
 }
 
-func (x *App) gasBlockReader() modbus.ResponseReader {
+func gasBlockReader() modbus.ResponseReader {
 	return reader{
-		Reader: x.portGas,
+		Reader: portGas,
 		Config: cfg.Cfg.Predefined().ComportGas,
-		Ctx:    x.hardware.ctx,
+		Ctx:    hardware.ctx,
 	}
 }
 
-func (x *App) measurerReader(ctx context.Context) modbus.ResponseReader {
+func measurerReader(ctx context.Context) modbus.ResponseReader {
 	return reader{
-		Reader: x.portMeasurer,
+		Reader: portMeasurer,
 		Config: cfg.Cfg.Predefined().ComportMeasurer,
 		Ctx:    ctx,
 	}

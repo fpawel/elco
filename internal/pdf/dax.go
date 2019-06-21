@@ -124,7 +124,7 @@ func doPassportDax(d *gofpdf.Fpdf, left, width float64, p data.ProductInfo, part
 				} else {
 					d.SetFont("RobotoCondensed-Light", "", 7)
 				}
-				d.CellFormat(colWidths[col], 3.5, tr(str), "1", 0, align, f, 0, "")
+				d.CellFormat(colWidths[col], 3.5, tr(str), "1", 0, align, false, 0, "")
 			}
 			d.Ln(-1)
 		}

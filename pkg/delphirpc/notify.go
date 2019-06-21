@@ -38,7 +38,13 @@ func NewNotifyServicesSrc(unitName string, d *TypesSrc, services []NotifyService
 		implUses:      []string{"Grijjy.Bson.Serialization", "stringutils", "sysutils"},
 		DataTypes:     d,
 		types:         make(map[string]string),
-		goImports:     make(map[string]struct{}),
+		goImports: map[string]struct{}{
+			"fmt":                                  {},
+			"github.com/fpawel/elco/internal/api":  {},
+			"github.com/fpawel/elco/internal/data": {},
+			"github.com/fpawel/elco/internal/elco": {},
+			"github.com/powerman/structlog":        {},
+		},
 	}
 	for _, s := range services {
 		x.DataTypes.addType(s.ParamType)

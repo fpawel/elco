@@ -6,7 +6,7 @@ type Runner interface {
 	RunReadCurrent()
 	StopHardware()
 	SkipDelay()
-	RunTemperature([3]bool)
+	RunTemperature([4]bool)
 	RunWritePartyFirmware()
 	RunMainError()
 
@@ -22,7 +22,7 @@ func (x *RunnerSvc) RunWritePartyFirmware(_ struct{}, _ *struct{}) error {
 	return nil
 }
 
-func (x *RunnerSvc) RunTemperature(workCheck [3]bool, _ *struct{}) error {
+func (x *RunnerSvc) RunTemperature(workCheck [4]bool, _ *struct{}) error {
 	for _, v := range workCheck {
 		if v {
 			x.Runner.RunTemperature(workCheck)

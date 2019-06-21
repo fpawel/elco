@@ -21,11 +21,11 @@ import (
 	"time"
 )
 
-func (x *App) switchGas(n int) error {
+func switchGas(n int) error {
 
 	logrus.Infof("переключение газового блока: %d", n)
 
-	err := x.doSwitchGas(n)
+	err := doSwitchGas(n)
 	if err == nil {
 		logrus.Infof("газового блока переключен: %d", n)
 		return nil
@@ -45,8 +45,8 @@ func (x *App) switchGas(n int) error {
 		s += fmt.Sprintf("Подайте ПГС%d", n)
 	}
 	s += " вручную."
-	notify.Warning(x.notifyWindow, s)
-	if merry.Is(x.hardware.ctx.Err(), context.Canceled) {
+	notify.Warning(log, s)
+	if merry.Is(hardware.ctx.Err(), context.Canceled) {
 		return err
 	}
 	logrus.Warnf("проигнорирована ошибка связи с газовым блоком при переключении %d: %v", n, err)
@@ -54,7 +54,7 @@ func (x *App) switchGas(n int) error {
 	return nil
 }
 
-func (x *App) doSwitchGas(n int) error {
+func doSwitchGas(n int) error {
 
 	req := modbus.Request{
 		Addr:     5,
@@ -76,15 +76,15 @@ func (x *App) doSwitchGas(n int) error {
 		return merry.Errorf("wrong gas code: %d", n)
 	}
 
-	if !x.portGas.Opened() {
-		if err := x.portGas.Open(cfg.Cfg.User().ComportGas); err != nil {
+	if !portGas.Opened() {
+		if err := portGas.Open(cfg.Cfg.User().ComportGas); err != nil {
 			return err
 		}
 	}
 
-	log := gohelp.LogWithKeys(x.log, "пневмоблок", n)
+	log := gohelp.LogWithKeys(log, "пневмоблок", n)
 
-	if _, err := req.GetResponse(log, x.gasBlockReader(), nil); err != nil {
+	if _, err := req.GetResponse(log, gasBlockReader(), nil); err != nil {
 		return err
 	}
 
@@ -100,27 +100,27 @@ func (x *App) doSwitchGas(n int) error {
 		req.Data[3] = 0xD5
 	}
 
-	log = gohelp.LogWithKeys(x.log, "пневмоблок", "расход")
+	log = gohelp.LogWithKeys(log, "пневмоблок", "расход")
 
-	if _, err := req.GetResponse(log, x.gasBlockReader(), nil); err != nil {
+	if _, err := req.GetResponse(log, gasBlockReader(), nil); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (x *App) blowGas(nGas int) error {
-	if err := x.switchGas(nGas); err != nil {
+func blowGas(nGas int) error {
+	if err := switchGas(nGas); err != nil {
 		return err
 	}
 	timeMinutes := cfg.Cfg.Predefined().BlowGasMinutes
-	return x.delay(fmt.Sprintf("продувка ПГС%d", nGas), time.Minute*time.Duration(timeMinutes))
+	return delay(fmt.Sprintf("продувка ПГС%d", nGas), time.Minute*time.Duration(timeMinutes))
 }
 
-func (x *App) delay(what string, duration time.Duration) error {
+func delay(what string, duration time.Duration) error {
 	t := time.Now()
 	logrus.Infof("%s: %s, начало", what, durafmt.Parse(duration))
-	err := x.doDelay(what, duration)
+	err := doDelay(what, duration)
 	if err == nil {
 		logrus.Infof("%s: %s: выполнено без ошибок", what, durafmt.Parse(duration))
 	}
@@ -128,45 +128,45 @@ func (x *App) delay(what string, duration time.Duration) error {
 
 }
 
-func (x *App) doDelay(what string, duration time.Duration) error {
+func doDelay(what string, duration time.Duration) error {
 
-	ctx, skipDelay := context.WithTimeout(x.hardware.ctx, duration)
+	ctx, skipDelay := context.WithTimeout(hardware.ctx, duration)
 
 	t := time.Now()
-	x.hardware.skipDelay = func() {
+	hardware.skipDelayFunc = func() {
 		skipDelay()
 		logrus.Warnf("%s %s: задержка прервана: %s", what, durafmt.Parse(duration), durafmt.Parse(time.Since(t)))
 	}
 
-	notify.Delay(x.notifyWindow, api.DelayInfo{
+	notify.Delay(log, api.DelayInfo{
 		Run:         true,
 		What:        what,
 		TimeSeconds: int(duration.Seconds()),
 	})
 
 	defer func() {
-		notify.Delay(x.notifyWindow, api.DelayInfo{Run: false})
+		notify.Delay(log, api.DelayInfo{Run: false})
 	}()
 	for {
-		productsWithSerials := data.GetLastPartyProducts(data.WithSerials)
+		products := data.GetLastPartyProducts(data.WithSerials, data.WithProduction)
 
-		if len(productsWithSerials) == 0 {
+		if len(products) == 0 {
 			return merry.New("фоновый опрос: не выбрано ни одного прибора")
 		}
-		for _, products := range GroupProductsByBlocks(productsWithSerials) {
+		for _, products := range GroupProductsByBlocks(products) {
 
 			if ctx.Err() != nil {
 				return nil
 			}
 
-			if x.hardware.ctx.Err() != nil {
-				return x.hardware.ctx.Err()
+			if hardware.ctx.Err() != nil {
+				return hardware.ctx.Err()
 			}
 
 			block := products[0].Place / 8
 
-			_, err := x.readBlockMeasure(
-				gohelp.LogWithKeys(x.log, "фоновый_опрос", fmt.Sprintf("%s %s", what, durafmt.Parse(duration))),
+			_, err := readBlockMeasure(
+				gohelp.LogWithKeys(log, "фоновый_опрос", fmt.Sprintf("%s %s", what, durafmt.Parse(duration))),
 				block, ctx)
 
 			if err == nil {
@@ -177,13 +177,13 @@ func (x *App) doDelay(what string, duration time.Duration) error {
 				return nil
 			}
 
-			if x.hardware.ctx.Err() != nil {
-				return x.hardware.ctx.Err()
+			if hardware.ctx.Err() != nil {
+				return hardware.ctx.Err()
 			}
 
-			notify.Warningf(x.notifyWindow, "фоновый опрос: блок измерения %d: %v", block+1, err)
+			notify.Warningf(log, "фоновый опрос: блок измерения %d: %v", block+1, err)
 
-			if merry.Is(x.hardware.ctx.Err(), context.Canceled) {
+			if merry.Is(hardware.ctx.Err(), context.Canceled) {
 				return err
 			}
 
@@ -194,7 +194,7 @@ func (x *App) doDelay(what string, duration time.Duration) error {
 	}
 }
 
-func (x *App) doSetupTemperature(destinationTemperature float64) error {
+func doSetupTemperature(destinationTemperature float64) error {
 	// запись уставки
 	if err := ktx500.WriteDestination(destinationTemperature); err != nil {
 		return err
@@ -226,25 +226,25 @@ func (x *App) doSetupTemperature(destinationTemperature float64) error {
 			}
 
 			block := products[0].Place / 8
-			if _, err = x.readBlockMeasure(
-				gohelp.LogWithKeys(x.log, "фоновый_опрос",
+			if _, err = readBlockMeasure(
+				gohelp.LogWithKeys(log, "фоновый_опрос",
 					fmt.Sprintf("установка температуры %v⁰C", destinationTemperature)),
-				block, x.hardware.ctx); err != nil {
+				block, hardware.ctx); err != nil {
 				return err
 			}
 		}
 	}
 }
 
-func (x *App) setupTemperature(temperature data.Temperature) error {
+func setupTemperature(temperature data.Temperature) error {
 
-	err := x.doSetupTemperature(float64(temperature))
+	err := doSetupTemperature(float64(temperature))
 	if err != nil {
 		if !merry.Is(err, ktx500.Err) {
 			return err
 		}
-		notify.Warningf(x.notifyWindow, `Не удалось установить температуру: %v⁰C: %v`, temperature, err)
-		if merry.Is(x.hardware.ctx.Err(), context.Canceled) {
+		notify.Warningf(log, `Не удалось установить температуру: %v⁰C: %v`, temperature, err)
+		if merry.Is(hardware.ctx.Err(), context.Canceled) {
 			return err
 		}
 
@@ -253,54 +253,54 @@ func (x *App) setupTemperature(temperature data.Temperature) error {
 	}
 
 	duration := time.Minute * time.Duration(cfg.Cfg.Predefined().HoldTemperatureMinutes)
-	return x.delay(fmt.Sprintf("выдержка термокамеры: %v⁰C", temperature), duration)
+	return delay(fmt.Sprintf("выдержка термокамеры: %v⁰C", temperature), duration)
 }
 
-func (x *App) determineTemperature(temperature data.Temperature) error {
+func determineTemperature(temperature data.Temperature) error {
 
-	if err := x.setupTemperature(temperature); err != nil {
+	if err := setupTemperature(temperature); err != nil {
 		return err
 	}
 
 	defer func() {
 
 		// выключение термокамеры
-		x.log.ErrIfFail(func() error {
+		log.ErrIfFail(func() error {
 			return ktx500.WriteOnOff(false)
 		})
 		// выключение компрессора
-		x.log.ErrIfFail(func() error {
+		log.ErrIfFail(func() error {
 			return ktx500.WriteCoolOnOff(false)
 		})
 		// выключение газового блока
-		x.log.ErrIfFail(func() error {
-			return x.switchGas(0)
+		log.ErrIfFail(func() error {
+			return switchGas(0)
 		})
 
 	}()
 
-	if err := x.blowGas(1); err != nil {
+	if err := blowGas(1); err != nil {
 		return err
 	}
 
-	if err := x.determineProductsTemperatureCurrents(temperature, data.Fon); err != nil {
+	if err := determineProductsTemperatureCurrents(temperature, data.Fon); err != nil {
 		return err
 	}
 
-	if err := x.blowGas(3); err != nil {
+	if err := blowGas(3); err != nil {
 		return err
 	}
 
-	if err := x.determineProductsTemperatureCurrents(temperature, data.Sens); err != nil {
+	if err := determineProductsTemperatureCurrents(temperature, data.Sens); err != nil {
 		return err
 	}
 
-	if err := x.blowGas(1); err != nil {
+	if err := blowGas(1); err != nil {
 		return err
 	}
 
 	if temperature == 20 {
-		if err := x.readAndSaveProductsCurrents("i13"); err != nil {
+		if err := readAndSaveProductsCurrents("i13"); err != nil {
 			return merry.WithMessagef(err, "снятие возврата НКУ")
 		}
 	}
@@ -308,31 +308,31 @@ func (x *App) determineTemperature(temperature data.Temperature) error {
 	return nil
 }
 
-func (x *App) determineMainError() error {
+func determineMainError() error {
 
 	for i, pt := range data.MainErrorPoints {
 		what := fmt.Sprintf("%d: ПГС%d: снятие основной погрешности", i+1, pt.Code())
 
-		notify.Status(x.notifyWindow, what)
+		notify.Status(log, what)
 
-		if err := x.blowGas(pt.Code()); err != nil {
+		if err := blowGas(pt.Code()); err != nil {
 			return err
 		}
 
-		if err := x.readAndSaveProductsCurrents(pt.Field()); err != nil {
+		if err := readAndSaveProductsCurrents(pt.Field()); err != nil {
 			return errors.Wrap(err, what)
 		}
 	}
 	return nil
 }
 
-func (x *App) determineProductsTemperatureCurrents(temperature data.Temperature, scale data.ScaleType) error {
-	return x.readAndSaveProductsCurrents(data.TemperatureScaleField(temperature, scale))
+func determineProductsTemperatureCurrents(temperature data.Temperature, scale data.ScaleType) error {
+	return readAndSaveProductsCurrents(data.TemperatureScaleField(temperature, scale))
 }
 
-func (x *App) readAndSaveProductsCurrents(field string) error {
+func readAndSaveProductsCurrents(field string) error {
 	logrus.Infof("снятие %q: начало", field)
-	err := x.doReadAndSaveProductsCurrents(field)
+	err := doReadAndSaveProductsCurrents(field)
 	if err == nil {
 		logrus.Infof("снятие %q: успешно", field)
 		return nil
@@ -340,28 +340,28 @@ func (x *App) readAndSaveProductsCurrents(field string) error {
 	return merry.WithValue(err, "field", field).Append("снятие")
 }
 
-func (x *App) doReadAndSaveProductsCurrents(field string) error {
+func doReadAndSaveProductsCurrents(field string) error {
 
-	productsToWork := data.GetLastPartyProducts(data.WithSerials)
+	productsToWork := data.GetLastPartyProducts(data.WithSerials, data.WithProduction)
 
 	if len(productsToWork) == 0 {
 		return merry.New("не выбрано ни одного прибора в данной партии")
 	}
 	logrus.Infof("снятие %q: %s", field, formatProducts(productsToWork))
 
-	log := gohelp.LogWithKeys(x.log, "снятие", field)
+	log := gohelp.LogWithKeys(log, "снятие", field)
 
 	blockProducts := GroupProductsByBlocks(productsToWork)
 	for _, products := range blockProducts {
 		block := products[0].Place / 8
 
-		values, err := x.readBlockMeasure(log, block, x.hardware.ctx)
-		for ; err != nil; values, err = x.readBlockMeasure(log, block, x.hardware.ctx) {
+		values, err := readBlockMeasure(log, block, hardware.ctx)
+		for ; err != nil; values, err = readBlockMeasure(log, block, hardware.ctx) {
 			if merry.Is(err, context.Canceled) {
 				return err
 			}
-			notify.Warning(x.notifyWindow, fmt.Sprintf("блок измерения %d: %v", block+1, err))
-			if x.hardware.ctx.Err() == context.Canceled {
+			notify.Warning(log, fmt.Sprintf("блок измерения %d: %v", block+1, err))
+			if hardware.ctx.Err() == context.Canceled {
 				return err
 			}
 		}
@@ -381,7 +381,7 @@ func (x *App) doReadAndSaveProductsCurrents(field string) error {
 		}
 	}
 	party := data.GetLastParty(data.WithProducts)
-	notify.LastPartyChanged(x.notifyWindow, party)
+	notify.LastPartyChanged(log, party)
 	return nil
 
 }
@@ -403,16 +403,16 @@ func GroupProductsByBlocks(ps []data.Product) (gs [][]*data.Product) {
 	return
 }
 
-func (x *App) readBlockMeasure(logger *structlog.Logger, block int, ctx context.Context) ([]float64, error) {
+func readBlockMeasure(logger *structlog.Logger, block int, ctx context.Context) ([]float64, error) {
 
 	log := gohelp.LogWithKeys(logger, "блок", block)
 
-	values, err := modbus.Read3BCDs(log, x.measurerReader(ctx), modbus.Addr(block+101), 0, 8)
+	values, err := modbus.Read3BCDs(log, measurerReader(ctx), modbus.Addr(block+101), 0, 8)
 
 	switch err {
 
 	case nil:
-		notify.ReadCurrent(x.notifyWindow, api.ReadCurrent{
+		notify.ReadCurrent(log, api.ReadCurrent{
 			Block:  block,
 			Values: values,
 		})

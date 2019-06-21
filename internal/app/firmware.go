@@ -18,7 +18,7 @@ import (
 	"time"
 )
 
-func (x *App) writePartyFirmware() error {
+func writePartyFirmware() error {
 
 	startTime := time.Now()
 	party := data.GetLastParty(data.WithoutProducts)
@@ -28,7 +28,7 @@ func (x *App) writePartyFirmware() error {
 		return merry.New("не выбрано ни одного прибора")
 	}
 
-	log := x.log.New()
+	log := log.New()
 
 	log.Info("запись партии",
 		"ЭХЯ", formatProducts(products))
@@ -37,7 +37,7 @@ func (x *App) writePartyFirmware() error {
 
 	blockProducts := GroupProductsByBlocks(products)
 	for _, products := range blockProducts {
-		if err := x.writeBlock(products, placeBytes); err != nil {
+		if err := writeBlock(products, placeBytes); err != nil {
 			return err
 		}
 	}
@@ -54,7 +54,7 @@ func (x *App) writePartyFirmware() error {
 			places = append(places, p.Place)
 		}
 		sort.Ints(places)
-		if err := x.verifyProductsFirmware(places, placeBytes); err != nil {
+		if err := verifyProductsFirmware(places, placeBytes); err != nil {
 			return merry.Appendf(err, "считывание: %s",
 				durafmt.Parse(time.Since(startTime)))
 		}
@@ -66,13 +66,13 @@ func (x *App) writePartyFirmware() error {
 	)
 
 	party.Products = data.GetProductsInfoWithPartyID(party.PartyID)
-	notify.LastPartyChanged(x.notifyWindow, party)
+	notify.LastPartyChanged(log, party)
 	return nil
 }
 
-func (x *App) verifyProductsFirmware(places []int, placeBytes map[int][]byte) error {
+func verifyProductsFirmware(places []int, placeBytes map[int][]byte) error {
 	for _, place := range places {
-		b, err := x.readPlaceFirmware(place)
+		b, err := readPlaceFirmware(place)
 		if err != nil {
 			return err
 		}
@@ -91,7 +91,7 @@ func (x *App) verifyProductsFirmware(places []int, placeBytes map[int][]byte) er
 	return nil
 }
 
-func (x *App) writeBlock(products []*data.Product, placeBytes map[int][]byte) error {
+func writeBlock(products []*data.Product, placeBytes map[int][]byte) error {
 	startTime := time.Now()
 
 	block := products[0].Place / 8
@@ -119,7 +119,7 @@ func (x *App) writeBlock(products []*data.Product, placeBytes map[int][]byte) er
 		placeBytes[p.Place] = firmware.Bytes()
 	}
 
-	log := gohelp.LogWithKeys(x.log,
+	log := gohelp.LogWithKeys(log,
 		"блок", block,
 		"маска_мест", fmt.Sprintf("%08b", placesMask),
 		"выбранные_места", intrng.Format(placesInBlock),
@@ -134,7 +134,7 @@ func (x *App) writeBlock(products []*data.Product, placeBytes map[int][]byte) er
 			"место", data.FormatPlace(p.Place),
 			"количество_байт", addr2-addr1+1)
 
-		if err := x.sendDataToWrite42(block, placeInBlock, b[addr1:addr2+1]); err != nil {
+		if err := sendDataToWrite42(block, placeInBlock, b[addr1:addr2+1]); err != nil {
 			return err
 		}
 		return nil
@@ -147,13 +147,13 @@ func (x *App) writeBlock(products []*data.Product, placeBytes map[int][]byte) er
 				return err
 			}
 		}
-		if err := x.writePreparedDataToFlash(block, placesMask, c.addr1, int(c.addr2-c.addr1+1)); err != nil {
+		if err := writePreparedDataToFlash(block, placesMask, c.addr1, int(c.addr2-c.addr1+1)); err != nil {
 			return err
 		}
 
 		time.Sleep(cfg.Cfg.Predefined().WaitFlashStatusDelayMS())
 
-		if err := x.waitStatus45(block, placesMask); err != nil {
+		if err := waitStatus45(block, placesMask); err != nil {
 			return err
 		}
 
@@ -174,7 +174,7 @@ func (x *App) writeBlock(products []*data.Product, placeBytes map[int][]byte) er
 	return nil
 }
 
-func (x *App) readPlaceFirmware(place int) ([]byte, error) {
+func readPlaceFirmware(place int) ([]byte, error) {
 	startTime := time.Now()
 	block := place / 8
 	placeInBlock := place % 8
@@ -183,7 +183,7 @@ func (x *App) readPlaceFirmware(place int) ([]byte, error) {
 		b[i] = 0xff
 	}
 
-	log := gohelp.LogWithKeys(x.log,
+	log := gohelp.LogWithKeys(log,
 		"место", data.FormatPlace(place),
 		"тип_микросхемы", cfg.Cfg.User().ChipType,
 	)
@@ -204,7 +204,7 @@ func (x *App) readPlaceFirmware(place int) ([]byte, error) {
 				byte(count),
 			},
 		}
-		reader := x.measurerReader(x.hardware.ctx)
+		reader := measurerReader(hardware.ctx)
 
 		log := gohelp.LogWithKeys(log,
 			"диапазон", fmt.Sprintf("%X...%X", c.addr1, c.addr2),
@@ -235,13 +235,13 @@ func (x *App) readPlaceFirmware(place int) ([]byte, error) {
 	return b, nil
 }
 
-func (x *App) writePlaceFirmware(place int, bytes []byte) error {
+func writePlaceFirmware(place int, bytes []byte) error {
 	block := place / 8
 	placeInBlock := place % 8
 	placesMask := byte(1) << byte(placeInBlock)
 	startTime := time.Now()
 
-	log := gohelp.LogWithKeys(x.log,
+	log := gohelp.LogWithKeys(log,
 		"место", data.FormatPlace(place),
 		"тип_микросхемы", cfg.Cfg.User().ChipType,
 	)
@@ -254,17 +254,17 @@ func (x *App) writePlaceFirmware(place int, bytes []byte) error {
 			"диапазон", fmt.Sprintf("%X...%X", addr1, addr2),
 			"количество_байт", addr2+1-addr1)
 
-		if err := x.sendDataToWrite42(block, placeInBlock, bytes[addr1:addr2+1]); err != nil {
+		if err := sendDataToWrite42(block, placeInBlock, bytes[addr1:addr2+1]); err != nil {
 			return err
 		}
 
-		if err := x.writePreparedDataToFlash(block, placesMask, addr1, int(addr2-addr1+1)); err != nil {
+		if err := writePreparedDataToFlash(block, placesMask, addr1, int(addr2-addr1+1)); err != nil {
 			return err
 		}
 
 		time.Sleep(cfg.Cfg.Predefined().WaitFlashStatusDelayMS())
 
-		if err := x.waitStatus45(block, placesMask); err != nil {
+		if err := waitStatus45(block, placesMask); err != nil {
 			return err
 		}
 		return nil
@@ -294,14 +294,14 @@ func (x *App) writePlaceFirmware(place int, bytes []byte) error {
 	return nil
 }
 
-func (x *App) waitStatus45(block int, placesMask byte) error {
+func waitStatus45(block int, placesMask byte) error {
 	t := time.Duration(cfg.Cfg.Predefined().StatusTimeoutSeconds) * time.Second
-	ctx, _ := context.WithTimeout(x.hardware.ctx, t)
+	ctx, _ := context.WithTimeout(hardware.ctx, t)
 	for {
 
 		select {
 		case <-ctx.Done():
-			response, err := x.readStatus45(block)
+			response, err := readStatus45(block)
 			if err != nil {
 				return err
 			}
@@ -317,7 +317,7 @@ func (x *App) waitStatus45(block int, placesMask byte) error {
 			return nil
 
 		default:
-			response, err := x.readStatus45(block)
+			response, err := readStatus45(block)
 			if err != nil {
 				return err
 			}
@@ -342,14 +342,14 @@ func (x *App) waitStatus45(block int, placesMask byte) error {
 	}
 }
 
-func (x *App) readStatus45(block int) ([]byte, error) {
-	reader := x.measurerReader(x.hardware.ctx)
+func readStatus45(block int) ([]byte, error) {
+	reader := measurerReader(hardware.ctx)
 	request := modbus.Request{
 		Addr:     modbus.Addr(block) + 101,
 		ProtoCmd: 0x45,
 	}
 
-	log := gohelp.LogWithKeys(x.log,
+	log := gohelp.LogWithKeys(log,
 		"действие", "запрос_статуса_записи_флэш",
 		"блок", block)
 
@@ -361,7 +361,7 @@ func (x *App) readStatus45(block int) ([]byte, error) {
 	})
 }
 
-func (x *App) writePreparedDataToFlash(block int, placesMask byte, addr uint16, count int) error {
+func writePreparedDataToFlash(block int, placesMask byte, addr uint16, count int) error {
 	req := modbus.Request{
 		Addr:     modbus.Addr(block) + 101,
 		ProtoCmd: 0x43,
@@ -374,9 +374,9 @@ func (x *App) writePreparedDataToFlash(block int, placesMask byte, addr uint16, 
 			byte(count),
 		},
 	}
-	reader := x.measurerReader(x.hardware.ctx)
+	reader := measurerReader(hardware.ctx)
 
-	log := gohelp.LogWithKeys(x.log,
+	log := gohelp.LogWithKeys(log,
 		"действие", "запись_флеш",
 		"блок", block,
 		"маска", fmt.Sprintf("%08b", placesMask),
@@ -392,7 +392,7 @@ func (x *App) writePreparedDataToFlash(block int, placesMask byte, addr uint16, 
 	return err
 }
 
-func (x *App) sendDataToWrite42(block, placeInBlock int, b []byte) error {
+func sendDataToWrite42(block, placeInBlock int, b []byte) error {
 	req := modbus.Request{
 		Addr:     modbus.Addr(block) + 101,
 		ProtoCmd: 0x42,
@@ -402,11 +402,11 @@ func (x *App) sendDataToWrite42(block, placeInBlock int, b []byte) error {
 			byte(len(b)),
 		}, b...),
 	}
-	log := gohelp.LogWithKeys(x.log,
+	log := gohelp.LogWithKeys(log,
 		"действие", "отправка_данных_для_записи_флэш",
 		"блок", block, "место", placeInBlock, "количество_байт", len(b))
 
-	reader := x.measurerReader(x.hardware.ctx)
+	reader := measurerReader(hardware.ctx)
 	_, err := req.GetResponse(log, reader, func(request, response []byte) (string, error) {
 		if len(response) != 7 {
 			return "", merry.Errorf("длина ответа %d не равна 7", len(response))

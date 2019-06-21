@@ -8,18 +8,101 @@ import (
 	"github.com/fpawel/elco/internal/api"
 	"github.com/fpawel/elco/internal/api/notify"
 	"github.com/fpawel/elco/internal/cfg"
-	"github.com/fpawel/elco/internal/elco"
-	"github.com/fpawel/elco/pkg/copydata"
 	"github.com/fpawel/gofins/fins"
 	"github.com/powerman/structlog"
 	"math"
+	"sync"
 	"time"
 )
 
 var (
-	log = structlog.New()
 	Err = merry.New("КТХ-500")
 )
+
+func TraceTemperature() {
+
+	var (
+		x      api.Ktx500Info
+		err    error
+		errStr string
+	)
+
+	notifyErr := func() {
+		if errStr == err.Error() {
+			return
+		}
+		errStr = err.Error()
+		notify.Ktx500Error(nil, errStr)
+		log.PrintErr(err)
+
+		last.Mutex.Lock()
+		last.error = err
+		last.Mutex.Unlock()
+	}
+
+	for {
+		time.Sleep(time.Second * cfg.Cfg.Predefined().FinsNetwork.PollSec)
+
+		var y api.Ktx500Info
+		err = readInfo(&y)
+		if err != nil {
+			notifyErr()
+			continue
+		}
+
+		if eqNfo(y, x) {
+			continue
+		}
+
+		x = y
+		log.Info(fmt.Sprintf("%v", x.Temperature),
+			"вкл", x.On,
+			"уставка", x.Destination,
+			"компрессор", x.CoolOn)
+		notify.Ktx500Info(nil, x)
+
+		last.Mutex.Lock()
+		last.Ktx500Info = x
+		last.error = nil
+		last.Mutex.Unlock()
+	}
+}
+
+func ReadTemperature() (temperature float64, err error) {
+	_ = write("запрос температуры", func(c *fins.Client) error {
+		temperature, err = readTemperature(c)
+		return err
+	})
+	return
+}
+
+func WriteDestination(value float64) error {
+	return write(fmt.Sprintf("запись уставки: %v", value), func(c *fins.Client) error {
+		return finsWriteFloat(c, 8, value)
+	})
+}
+
+func WriteOnOff(value bool) error {
+	return write(fmt.Sprintf("включение: %v", value), func(c *fins.Client) error {
+		return c.BitTwiddle(fins.MemoryAreaWRBit, 0, 0, value)
+	})
+}
+
+func WriteCoolOnOff(value bool) error {
+	return write(fmt.Sprintf("включение компрессора: %v", value), func(c *fins.Client) error {
+		return c.BitTwiddle(fins.MemoryAreaWRBit, 0, 10, value)
+	})
+}
+
+func GetLast() (api.Ktx500Info, error) {
+	last.Mutex.Lock()
+	defer last.Mutex.Unlock()
+	if last.error != nil {
+		return api.Ktx500Info{}, last.error
+	}
+	return last.Ktx500Info, nil
+
+}
 
 func newErr(err error) merry.Error {
 	return Err.Here().WithCause(err)
@@ -69,38 +152,12 @@ func write(what string, f func(*fins.Client) error) (err error) {
 	return nil
 }
 
-func ReadTemperature() (temperature float64, err error) {
-	_ = write("запрос температуры", func(c *fins.Client) error {
-		temperature, err = readTemperature(c)
-		return err
-	})
-	return
-}
-
 func readTemperature(c *fins.Client) (float64, error) {
 	temperature, err := finsReadFloat(c, 2)
 	if err != nil {
 		return 0, newErr(err).Append("запрос температуры")
 	}
 	return temperature, nil
-}
-
-func WriteDestination(value float64) error {
-	return write(fmt.Sprintf("запись уставки: %v", value), func(c *fins.Client) error {
-		return finsWriteFloat(c, 8, value)
-	})
-}
-
-func WriteOnOff(value bool) error {
-	return write(fmt.Sprintf("включение: %v", value), func(c *fins.Client) error {
-		return c.BitTwiddle(fins.MemoryAreaWRBit, 0, 0, value)
-	})
-}
-
-func WriteCoolOnOff(value bool) error {
-	return write(fmt.Sprintf("включение компрессора: %v", value), func(c *fins.Client) error {
-		return c.BitTwiddle(fins.MemoryAreaWRBit, 0, 10, value)
-	})
 }
 
 func readInfo(x *api.Ktx500Info) error {
@@ -137,49 +194,6 @@ func readInfo(x *api.Ktx500Info) error {
 	})
 }
 
-func TraceTemperature() {
-
-	var (
-		x      api.Ktx500Info
-		err    error
-		errStr string
-	)
-	w := copydata.NewNotifyWindow(
-		elco.ServerWindowClassName+"TraceTemperature",
-		elco.PeerWindowClassName, nil, nil)
-
-	notifyErr := func() {
-		if errStr == err.Error() {
-			return
-		}
-		errStr = err.Error()
-		notify.Ktx500Error(w, errStr)
-		log.PrintErr(err)
-	}
-
-	for {
-		time.Sleep(time.Second * cfg.Cfg.Predefined().FinsNetwork.PollSec)
-
-		var y api.Ktx500Info
-		err = readInfo(&y)
-		if err != nil {
-			notifyErr()
-			continue
-		}
-
-		if eqNfo(y, x) {
-			continue
-		}
-
-		x = y
-		log.Info(fmt.Sprintf("%v", x.Temperature),
-			"вкл", x.On,
-			"уставка", x.Destination,
-			"компрессор", x.CoolOn)
-		notify.Ktx500Info(w, x)
-	}
-}
-
 func eqNfo(x, y api.Ktx500Info) bool {
 	if x == y {
 		return true
@@ -213,3 +227,12 @@ func finsWriteFloat(finsClient *fins.Client, addr int, value float64) error {
 	}
 	return finsClient.WriteWords(fins.MemoryAreaDMWord, uint16(addr), words)
 }
+
+var (
+	last struct {
+		sync.Mutex
+		api.Ktx500Info
+		error
+	}
+	log = structlog.New()
+)

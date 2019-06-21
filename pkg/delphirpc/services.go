@@ -11,7 +11,6 @@ type ServicesSrc struct {
 	implUses []string
 	DataTypes *TypesSrc
 	services  []service
-	pipe      string
 }
 
 type service struct {
@@ -51,9 +50,8 @@ func (x param) setFieldInstruction() string {
 		x.name, x.name)
 }
 
-func NewServicesSrc(pipe, unitName, dataUnitName string, types []r.Type, ta typesNames) *ServicesSrc {
+func NewServicesSrc(unitName, dataUnitName string, types []r.Type, ta typesNames) *ServicesSrc {
 	src := &ServicesSrc{
-		pipe:          pipe,
 		unitName:      unitName,
 		interfaceUses: []string{dataUnitName, "superobject"},
 		implUses:      []string{"HttpRpcClient", "SuperObjectHelp"},
@@ -67,10 +65,6 @@ func NewServicesSrc(pipe, unitName, dataUnitName string, types []r.Type, ta type
 		src.addService(t)
 	}
 	return src
-}
-
-func (x *ServicesSrc) pipeStr() string {
-	return "'" + x.pipe + "'"
 }
 
 func (x *ServicesSrc) addService(serviceType r.Type) {

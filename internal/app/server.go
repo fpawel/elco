@@ -5,23 +5,21 @@ import (
 	"github.com/powerman/must"
 	"github.com/powerman/rpc-codec/jsonrpc2"
 	"golang.org/x/sys/windows/registry"
-	"io"
 	"net"
 	"net/http"
 	"net/rpc"
 )
 
-func (x *App) startHttpServer() func() {
+func startHttpServer() func() {
 
-	// Server export an object of type ExampleSvc.
 	for _, svcObj := range []interface{}{
 		new(api.PartiesCatalogueSvc),
 		new(api.LastPartySvc),
 		new(api.ProductTypesSvc),
-		api.NewProductFirmware(x),
+		api.NewProductFirmware(runner{}),
 		new(api.SettingsSvc),
 		new(api.PdfSvc),
-		&api.RunnerSvc{Runner: x},
+		&api.RunnerSvc{runner{}},
 	} {
 		must.AbortIf(rpc.Register(svcObj))
 	}
@@ -32,7 +30,7 @@ func (x *App) startHttpServer() func() {
 	srv := new(http.Server)
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		io.WriteString(w, "hello world\n")
+		must.Write(w, []byte("hello world"))
 	})
 	lnHTTP, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -59,7 +57,7 @@ func (x *App) startHttpServer() func() {
 	}()
 
 	return func() {
-		if err := srv.Shutdown(x.ctx); err != nil {
+		if err := srv.Shutdown(ctxApp); err != nil {
 			log.PrintErr(err)
 		}
 	}

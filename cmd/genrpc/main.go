@@ -3,7 +3,6 @@ package main
 import (
 	"github.com/fpawel/elco/internal/api"
 	"github.com/fpawel/elco/internal/data"
-	"github.com/fpawel/elco/internal/elco"
 	"github.com/fpawel/elco/pkg/delphirpc"
 	"github.com/fpawel/elco/pkg/winapp"
 	"log"
@@ -40,7 +39,7 @@ func main() {
 		return file
 	}
 
-	servicesSrc := delphirpc.NewServicesSrc(elco.PipeName, "services", "server_data_types", types, m)
+	servicesSrc := delphirpc.NewServicesSrc("services", "server_data_types", types, m)
 
 	notifySvcSrc := delphirpc.NewNotifyServicesSrc("notify_services", servicesSrc.DataTypes, []delphirpc.NotifyServiceType{
 		{

@@ -2,8 +2,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
-	"github.com/ansel1/merry"
 	"github.com/fpawel/elco/internal/app"
 	"github.com/fpawel/elco/internal/assets"
 	"github.com/fpawel/elco/internal/elco"
@@ -11,14 +9,11 @@ import (
 	"github.com/lxn/win"
 	"github.com/powerman/must"
 	"github.com/powerman/structlog"
-	"log"
 	"os"
 	"path/filepath"
 )
 
 func main() {
-
-	must.AbortIf = must.PanicIf
 
 	structlog.DefaultLogger.
 		SetPrefixKeys(
@@ -42,15 +37,19 @@ func main() {
 			"работа":            " %[1]s=`%[2]s`",
 		}).SetTimeFormat("15:04:05")
 
-	// Преверяем, не было ли приложение запущено ранее
+	log := structlog.New()
+
+	// Преверяем, не было ли приложение запущено ранее.
+	// Если было, выдвигаем окно UI приложения на передний план и завершаем процесс.
 	if winapp.IsWindow(winapp.FindWindow(elco.ServerWindowClassName)) {
-		// Если было, выдвигаем окно приложения на передний план и завершаем процесс
 		hWnd := winapp.FindWindow(elco.PeerWindowClassName)
 		win.ShowWindow(hWnd, win.SW_RESTORE)
 		win.SetForegroundWindow(hWnd)
-		fmt.Println("elco.exe already executing")
+		log.Info("elco.exe already executing")
 		return
 	}
+
+	must.AbortIf = must.PanicIf
 
 	createNewDB := false
 	hideCon := false
@@ -66,11 +65,7 @@ func main() {
 		win.ShowWindow(win.GetConsoleWindow(), win.SW_HIDE)
 	}
 
-	if err := assets.Ensure(); err != nil {
-		log.Fatal(err)
-	}
+	must.AbortIf(assets.Ensure())
+	must.AbortIf(app.Run(skipRunUIApp, createNewDB))
 
-	if err := app.Run(skipRunUIApp, createNewDB); err != nil {
-		panic(merry.Details(err))
-	}
 }

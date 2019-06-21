@@ -5,14 +5,11 @@
 package notify
 
 import (
-	"github.com/fpawel/elco/pkg/copydata"
 	{% for imp := range x.goImports %}"{%s imp %}"
     {% endfor %}
 )
 
 type msg int
-
-type W = *copydata.NotifyWindow
 
 const (
     msg{%s x.services[0].serviceName %} msg = iota
@@ -20,22 +17,18 @@ const (
     {% endfor %}
 )
 
-var
-    msgName = map[msg]string{
-        {% for _,m := range x.services%}msg{%s m.serviceName %}:"{%s m.serviceName %}",
-        {% endfor %}
+{% for _,m := range x.services %}func {%s m.serviceName %}(log *structlog.Logger, arg {%s m.goType %}) {
+    if log != nil {
+        log.Debug(elco.PeerWindowClassName, "{%s m.serviceName %}", arg, "MSG", msg{%s m.serviceName %})
     }
-
-func FormatMsg(msgCode uintptr) string {
-    s,_ := msgName[msg(msgCode)]
-    return s
+    W.{%s m.notifyFunc %}( uintptr(msg{%s m.serviceName %}), {%s= m.instructionArg %} )
 }
-
-{% for _,m := range x.services %}func {%s m.serviceName %}(w W, arg {%s m.goType %}) {
-    w.{%s m.notifyFunc %}( uintptr(msg{%s m.serviceName %}), {%s= m.instructionArg %} )
-}
-{% if m.notifyFunc == "NotifyStr" %}func {%s m.serviceName %}f(w W, format string, a ...interface{}) {
-    w.Notifyf( uintptr(msg{%s m.serviceName %}), format, a... )
+{% if m.notifyFunc == "NotifyStr" %}
+func {%s m.serviceName %}f(log *structlog.Logger, format string, a ...interface{}) {
+    if log != nil {
+        log.Debug(elco.PeerWindowClassName, "{%s m.serviceName %}", fmt.Sprintf(format,a...), "MSG", msg{%s m.serviceName %})
+    }
+    W.Notifyf( uintptr(msg{%s m.serviceName %}), format, a... )
 }{% endif %}
 {% endfor %}
 

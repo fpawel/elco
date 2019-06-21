@@ -40,25 +40,24 @@ func doSummary(d *gofpdf.Fpdf, party data.Party, productType data.ProductType) {
 
 	d.SetX(spaceX)
 	d.SetFont("RobotoCondensed", "B", 13)
-	d.CellFormat(tableWidth, 6, tr(fmt.Sprintf("Итоговая таблица электрохимических ячеек №%d", party.PartyID)),
+	d.CellFormat(tableWidth, 6, tr(fmt.Sprintf(
+		"Итоговая таблица электрохимических ячеек №%d", party.PartyID)),
 		"", 1, "C", false, 0, "")
 
 	d.SetX(spaceX)
-	y := d.GetY()
 	d.SetFont("RobotoCondensed", "", 9)
-	d.CellFormat(0, 6, tr(fmt.Sprintf("ИБЯЛ.418425.%s", party.ProductTypeName)),
-		"", 1, "", false, 0, "")
+	d.CellFormat(0, 6,
+		tr(fmt.Sprintf("ИБЯЛ.418425.%s, %s 0-%v %s, %d штук",
+			party.ProductTypeName,
+			productType.GasName, productType.Scale, productType.UnitsName,
+			len(party.Products)+1)),
+		"", 0, "", false, 0, "")
 
-	d.SetY(y)
-	d.CellFormat(tableWidth, 6, tr(fmt.Sprintf("%s 0-%v %s",
-		productType.GasName, productType.Scale, productType.UnitsName)),
-		"", 1, "C", false, 0, "")
-
-	d.SetY(y)
+	d.SetX(spaceX)
 	d.CellFormat(tableWidth, 6, time.Now().Format("02.01.2006"),
 		"", 1, "R", false, 0, "")
 
-	d.SetFont("RobotoCondensed-Light", "", 8)
+	d.SetFont("RobotoCondensed-Light", "", 9.5)
 
 	colWidth1 := d.GetStringWidth("№ п/п")
 	colWidth := (pageWidth - colWidth1 - 2.*spaceX) / 9.
@@ -79,30 +78,48 @@ func doSummary(d *gofpdf.Fpdf, party data.Party, productType data.ProductType) {
 		if i == 0 {
 			w = colWidth1
 		}
-		d.CellFormat(w, 6, tr(str), "1", 0, "C", true, 0, "")
+		f := i == 5 || i == 7
+		if f {
+			d.SetFont("RobotoCondensed-Light", "", 8)
+		}
+
+		borderStr := "LT"
+		if i > 0 {
+			borderStr += "R"
+		}
+
+		d.CellFormat(w, 6, tr(str), "LRT", 0, "C", false, 0, "")
+		if f {
+			d.SetFont("RobotoCondensed-Light", "", 9.5)
+		}
 	}
 	d.Ln(-1)
 
+	const collHeight = 4
+	cf := func(txtStr, borderStr string, ln int, alignStr string) {
+		d.CellFormat(colWidth, collHeight, txtStr, borderStr, ln, alignStr, false, 0, "")
+	}
 	for row, p := range party.Products {
-		d.CellFormat(colWidth1, 3.5, strconv.Itoa(row+1), "1", 0, "C", true, 0, "")
-
-		d.CellFormat(colWidth, 3.5, fmt.Sprintf("%d-%d", p.Serial.Int64, p.ProductID),
-			"1", 0, "C", false, 0, "")
-
-		d.CellFormat(colWidth, 3.5, formatNullFloat64(p.IFPlus20), "1", 0, "R", false, 0, "")
-		d.CellFormat(colWidth, 3.5, formatNullFloat64(p.DFon20), "1", 0, "R", false, 0, "")
-		d.CellFormat(colWidth, 3.5, formatNullFloat64(p.DFon50), "1", 0, "R", false, 0, "")
-		d.CellFormat(colWidth, 3.5, formatNullFloat64(p.KSens20), "1", 0, "R", false, 0, "")
-		d.CellFormat(colWidth, 3.5, formatNullFloat64(p.KSens50), "1", 0, "R", false, 0, "")
-		d.CellFormat(colWidth, 3.5, formatNullFloat64(p.DNotMeasured), "1", 0, "R", false, 0, "")
-
+		borderStr := "TL"
+		if row == len(party.Products)-1 {
+			borderStr += "B"
+		}
+		d.CellFormat(colWidth1, collHeight, strconv.Itoa(row+1), borderStr,
+			0, "C", false, 0, "")
+		cf(fmt.Sprintf("%d-%d", p.Serial.Int64, p.ProductID), borderStr, 0, "C")
+		cf(formatNullFloat64(p.IFPlus20), borderStr, 0, "R")
+		cf(formatNullFloat64(p.DFon20), borderStr, 0, "R")
+		cf(formatNullFloat64(p.DFon50), borderStr, 0, "R")
+		cf(formatNullFloat64(p.KSens20), borderStr, 0, "R")
+		cf(formatNullFloat64(p.KSens50), borderStr, 0, "R")
+		cf(formatNullFloat64(p.DNotMeasured), borderStr, 0, "R")
 		var u1, u2 string
 		if p.DFon50.Valid {
 			u1 = strconv.FormatFloat(p.DFon50.Float64*77, 'f', 1, 64)
 			u2 = strconv.FormatFloat(p.DFon50.Float64*52, 'f', 1, 64)
 		}
-		d.CellFormat(colWidth, 3.5, u1, "1", 0, "R", false, 0, "")
-		d.CellFormat(colWidth, 3.5, u2, "1", 0, "R", false, 0, "")
+		cf(u1, borderStr, 0, "R")
+		cf(u2, borderStr+"R", 0, "R")
 		d.Ln(-1)
 	}
 }
