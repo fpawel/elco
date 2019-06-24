@@ -57,7 +57,7 @@ func NewServicesSrc(unitName, dataUnitName string, types []r.Type, ta typesNames
 		implUses:      []string{"HttpRpcClient", "SuperObjectHelp"},
 		DataTypes: &TypesSrc{
 			unitName:      dataUnitName,
-			interfaceUses: []string{"Grijjy.Bson"},
+			interfaceUses: []string{"Grijjy.Bson", "Grijjy.Bson.Serialization"},
 			typesNames:    ta,
 		},
 	}

@@ -59,29 +59,37 @@ func (x LastPartySvc) SetProductNoteAtPlace(p struct {
 	return
 }
 
-func (x LastPartySvc) SetProductTypeAtPlace(p struct {
-	Place       int
-	ProductType string
+func (x LastPartySvc) SetProductTypeAtPlacesRange(p struct {
+	Place1, Place2 int
+	ProductType    string
 }, r *int64) (err error) {
-	*r, err = data.UpdateProductAtPlace(p.Place, func(product *data.Product) error {
-		product.ProductTypeName.String = strings.TrimSpace(p.ProductType)
-		product.ProductTypeName.Valid = len(product.ProductTypeName.String) > 0
-		return nil
-	})
-	return
+	p.ProductType = strings.TrimSpace(p.ProductType)
+	var v interface{}
+	if p.ProductType != "" {
+		v = p.ProductType
+	}
+	data.DBx.MustExec(`
+UPDATE product 
+SET product_type_name=? 
+WHERE party_id=(SELECT party_id FROM last_party) 
+  AND place BETWEEN ? AND ?`, v, p.Place1, p.Place2)
+	return nil
 }
 
-func (x LastPartySvc) SetPointsMethodAtPlace(p struct {
-	Place        int
-	PointsMethod int64
-	Valid        bool
-}, r *int64) (err error) {
-	*r, err = data.UpdateProductAtPlace(p.Place, func(product *data.Product) error {
-		product.PointsMethod.Int64 = p.PointsMethod
-		product.PointsMethod.Valid = p.Valid
-		return nil
-	})
-	return
+func (x LastPartySvc) SetPointsMethodInPlacesRange(p struct {
+	Place1, Place2 int
+	Value          int
+}, r *int64) error {
+	var v interface{}
+	if p.Value == 2 || p.Value == 3 {
+		v = p.Value
+	}
+	data.DBx.MustExec(`
+UPDATE product 
+SET points_method=? 
+WHERE party_id=(SELECT party_id FROM last_party) 
+  AND place BETWEEN ? AND ?`, v, p.Place1, p.Place2)
+	return nil
 }
 
 func (x LastPartySvc) DeleteProductAtPlace(place [1]int, _ *struct{}) (err error) {

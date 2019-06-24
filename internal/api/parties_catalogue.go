@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/fpawel/elco/internal/data"
+	"strconv"
 	"time"
 )
 
@@ -128,18 +129,22 @@ func (x *PartiesCatalogueSvc) CopyParty(partyID [1]int64, party *data.Party) (er
 	return nil
 }
 
-func (x *PartiesCatalogueSvc) SetProductProduction(v struct {
-	ProductID  int64
+func (x *PartiesCatalogueSvc) SetProductsProduction(v struct {
+	ProductIDs []int64
 	Production bool
 }, _ *struct{}) error {
-	var p data.Product
-	if err := data.DB.FindByPrimaryKeyTo(&p, v.ProductID); err != nil {
-		return err
+	var s string
+	for i, productID := range v.ProductIDs {
+		if i > 0 {
+			s += ","
+		}
+		s += strconv.FormatInt(productID, 10)
 	}
-	p.Production = v.Production
-	if err := data.DB.Save(&p); err != nil {
-		return err
-	}
+	query := fmt.Sprintf(
+		"UPDATE product SET production = ? WHERE product_id IN (%s)", s)
+
+	data.DBx.MustExec(query, v.Production)
+
 	return nil
 }
 
