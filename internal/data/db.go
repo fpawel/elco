@@ -3,7 +3,7 @@ package data
 import (
 	"database/sql"
 	"github.com/ansel1/merry"
-	"github.com/fpawel/elco/pkg/winapp"
+	"github.com/fpawel/gohelp/winapp"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/powerman/structlog"

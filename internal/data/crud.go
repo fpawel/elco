@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-//go:generate go run github.com/fpawel/elco/cmd/utils/sqlstr/...
+//go:generate go run github.com/fpawel/gohelp/cmd/sqlstr/...
 
 func EnsureProductTypeName(productTypeName string) error {
 	_, err := DB.Exec(`

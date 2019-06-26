@@ -4,7 +4,7 @@
 {% func declInterfaceClass(t typeInfo) %} 
     {%s t.name %} = record
     public 
-        {% for _,f := range t.fields %}{%if f.name=="String" %} [BsonElement('String')]Str{% else %}{%s f.name %}{% endif %} : {%s= f.declType() %};
+        {% for _,f := range t.fields %}{%if f.name=="String" %} [BsonElement('String')]Str{% else %}{%s f.name %}{% endif %} : {%s= f.typeName %};
         {% endfor %}
     end;
 {% endfunc %}

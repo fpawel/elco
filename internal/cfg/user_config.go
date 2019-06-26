@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/fpawel/comm/comport"
-	"github.com/fpawel/elco/pkg/winapp"
+	"github.com/fpawel/gohelp/winapp"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"io/ioutil"

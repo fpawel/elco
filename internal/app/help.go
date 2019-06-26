@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/elco/internal/data"
-	"github.com/fpawel/elco/pkg/intrng"
+	"github.com/fpawel/gohelp/intrng"
 	"path/filepath"
 	"runtime"
 	"sort"

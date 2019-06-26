@@ -30,8 +30,8 @@ func newField(fieldName string, fieldType r.Type, m typesNames) (dataField, erro
 	switch fieldType.Kind() {
 
 	case r.Slice, r.Array:
-		f.isArray = true
-		f.typeName = delphiTypeName(m, fieldType.Elem())
+		f.typeName = fmt.Sprintf("TArray<%s>", delphiTypeName(m, fieldType.Elem()))
+
 	case r.Struct:
 		f.typeName = delphiTypeName(m, fieldType)
 	default:

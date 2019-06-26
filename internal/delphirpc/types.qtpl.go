@@ -43,7 +43,7 @@ func streamdeclInterfaceClass(qw422016 *qt422016.Writer, t typeInfo) {
 		//line types.qtpl:7
 		qw422016.N().S(` : `)
 		//line types.qtpl:7
-		qw422016.N().S(f.declType())
+		qw422016.N().S(f.typeName)
 		//line types.qtpl:7
 		qw422016.N().S(`;
         `)

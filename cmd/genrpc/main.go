@@ -3,8 +3,8 @@ package main
 import (
 	"github.com/fpawel/elco/internal/api"
 	"github.com/fpawel/elco/internal/data"
-	"github.com/fpawel/elco/pkg/delphirpc"
-	"github.com/fpawel/elco/pkg/winapp"
+	"github.com/fpawel/elco/internal/delphirpc"
+	"github.com/fpawel/gohelp/winapp"
 	"log"
 	"os"
 	"path/filepath"

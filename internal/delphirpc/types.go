@@ -7,18 +7,6 @@ import (
 	"time"
 )
 
-//func NewTypes(types []r.Type, ta typesNames) *TypesSrc {
-//	src := &TypesSrc{
-//		unitName:   "server_data_types",
-//		implUses:   []string{"Rest.Json"},
-//		typesNames: ta,
-//	}
-//	for _, t := range types {
-//		src.addType(t)
-//	}
-//	return src
-//}
-
 type TypesSrc struct {
 	types    []typeInfo
 	unitName string
@@ -35,7 +23,6 @@ type typeInfo struct {
 type dataField struct {
 	name,
 	typeName string
-	isArray bool
 }
 
 func (x *TypesSrc) addType(t r.Type) {
@@ -87,11 +74,4 @@ func (x *TypesSrc) listFields(t r.Type) (fields []r.StructField) {
 		}
 	}
 	return
-}
-
-func (x dataField) declType() string {
-	if x.isArray {
-		return fmt.Sprintf("TArray<%s>", x.typeName)
-	}
-	return x.typeName
 }

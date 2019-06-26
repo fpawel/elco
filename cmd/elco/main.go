@@ -5,7 +5,7 @@ import (
 	"github.com/fpawel/elco/internal/app"
 	"github.com/fpawel/elco/internal/assets"
 	"github.com/fpawel/elco/internal/elco"
-	"github.com/fpawel/elco/pkg/winapp"
+	"github.com/fpawel/gohelp/winapp"
 	"github.com/lxn/win"
 	"github.com/powerman/must"
 	"github.com/powerman/structlog"

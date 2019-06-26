@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/elco/internal/data"
-	"github.com/fpawel/elco/pkg/winapp"
+	"github.com/fpawel/gohelp/winapp"
 	"github.com/jung-kurt/gofpdf"
 	"io/ioutil"
 	"os"

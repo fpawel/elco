@@ -2,7 +2,7 @@ package notify
 
 import (
 	"github.com/fpawel/elco/internal/elco"
-	"github.com/fpawel/elco/pkg/copydata"
+	"github.com/fpawel/gohelp/copydata"
 )
 
 // окно для отправки сообщений WM_COPYDATA дельфи-приложению

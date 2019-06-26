@@ -9,7 +9,7 @@ import (
 	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/elco/internal/elco"
 	"github.com/fpawel/elco/internal/ktx500"
-	"github.com/fpawel/elco/pkg/winapp"
+	"github.com/fpawel/gohelp/winapp"
 	"github.com/getlantern/systray"
 	"github.com/lxn/win"
 	_ "github.com/mattn/go-sqlite3"

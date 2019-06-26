@@ -2,7 +2,7 @@ package assets
 
 import (
 	"github.com/ansel1/merry"
-	"github.com/fpawel/elco/pkg/winapp"
+	"github.com/fpawel/gohelp/winapp"
 	"os"
 	"path"
 	"strings"
