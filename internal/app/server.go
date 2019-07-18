@@ -2,6 +2,7 @@ package app
 
 import (
 	"github.com/fpawel/elco/internal/api"
+	"github.com/fpawel/elco/internal/api/notify"
 	"github.com/powerman/must"
 	"github.com/powerman/rpc-codec/jsonrpc2"
 	"golang.org/x/sys/windows/registry"
@@ -20,6 +21,7 @@ func startHttpServer() func() {
 		new(api.SettingsSvc),
 		new(api.PdfSvc),
 		&api.RunnerSvc{runner{}},
+		api.NewPeerSvc(peerNotifier{}),
 	} {
 		must.AbortIf(rpc.Register(svcObj))
 	}
@@ -61,4 +63,16 @@ func startHttpServer() func() {
 			log.PrintErr(err)
 		}
 	}
+}
+
+type peerNotifier struct{}
+
+func (_ peerNotifier) OnStarted() {
+	hardware.cancelFunc()
+	notify.W.InitPeer()
+}
+
+func (_ peerNotifier) OnClosed() {
+	notify.W.ResetPeer()
+	hardware.cancelFunc()
 }

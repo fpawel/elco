@@ -25,13 +25,8 @@ func Run(skipRunUIApp, createNewDB bool) error {
 	cfg.OpenConfig()
 	data.Open(createNewDB)
 	notify.InitWindow("")
-
-	go runSysTray(notify.W.CloseWindow)
-
-	var cancel func()
-	ctxApp, cancel = context.WithCancel(context.Background())
-
 	closeHttpServer := startHttpServer()
+	go runSysTray(notify.W.Close)
 
 	if !skipRunUIApp {
 		if err := runUIApp(); err != nil {
@@ -40,6 +35,10 @@ func Run(skipRunUIApp, createNewDB bool) error {
 	} else {
 		log.Debug("elcoui.exe не будет запущен, поскольку установлен соответствующий флаг")
 	}
+
+	var cancel func()
+	ctxApp, cancel = context.WithCancel(context.Background())
+
 	notify.StartServerApplication(log, "")
 
 	go ktx500.TraceTemperature()

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/comm/modbus"
+	"github.com/fpawel/gohelp/delphi"
 	"math"
 	"strconv"
 	"time"
@@ -25,8 +26,8 @@ type Firmware struct {
 
 type FirmwareInfo struct {
 	TempPoints
-	Place int
-	Time  time.Time
+	Place     int
+	CreatedAt delphi.GoDateTime
 	Sensitivity,
 	Serial,
 	ProductType,
@@ -65,7 +66,7 @@ func (s ProductInfo) FirmwareInfo() FirmwareInfo {
 		ScaleEnd:    fmt.Sprintf("%v", s.Scale),
 		ProductType: s.AppliedProductTypeName,
 		Serial:      formatNullInt64(s.Serial),
-		Time:        s.CreatedAt,
+		CreatedAt:   delphi.NewDateTime(s.CreatedAt),
 		Sensitivity: formatNullFloat64(s.KSens20, 3),
 		ISPlus20:    formatNullFloat64K(s.ISPlus20, 1000, -1),
 		ISMinus20:   formatNullFloat64K(s.ISMinus20, 1000, -1),
@@ -176,8 +177,14 @@ func (s ProductInfo) TableSens2() (TableXY, error) {
 }
 
 func (s ProductInfo) TableSens3() (TableXY, error) {
+
 	y, err := s.KSensPercentValues(true)
 	if err == nil {
+
+		if y[-20] <= 1 {
+			return nil, merry.Errorf("y[-20]=%v: значение должно быть больше 1")
+		}
+
 		//if y[-20] > 0 && y[-20] < 0.45*y[20] {
 		//	return y, errors.Errorf(
 		//		"ток чувствительности: I(-20)=%v, I(+20)=%v, I(-20)>0, I(-20)<0.45*I(+20)",
@@ -243,7 +250,7 @@ func (x FirmwareBytes) FirmwareInfo(place int) FirmwareInfo {
 	r := FirmwareInfo{
 		Place:       place,
 		TempPoints:  x.TempPoints(),
-		Time:        x.Time(),
+		CreatedAt:   delphi.NewDateTime(x.Time()),
 		ProductType: x.ProductType(),
 		Serial:      formatBCD(x[0x0701:0x0705], -1),
 		ScaleBeg:    formatBCD(x[0x0602:0x0606], -1),

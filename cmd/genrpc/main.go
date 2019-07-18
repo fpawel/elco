@@ -20,6 +20,7 @@ func main() {
 		r.TypeOf((*api.SettingsSvc)(nil)),
 		r.TypeOf((*api.RunnerSvc)(nil)),
 		r.TypeOf((*api.PdfSvc)(nil)),
+		r.TypeOf((*api.PeerSvc)(nil)),
 	}
 	m := map[string]string{
 		"ProductInfo": "Product",
@@ -106,6 +107,10 @@ func main() {
 		{
 			"WriteConsole",
 			r.TypeOf((*string)(nil)).Elem(),
+		},
+		{
+			"ReadPlace",
+			r.TypeOf((*int)(nil)).Elem(),
 		},
 	})
 
