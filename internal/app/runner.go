@@ -23,21 +23,20 @@ func (_ runner) RunReadAndSaveProductCurrents(field string) {
 
 func (_ runner) RunWritePlaceFirmware(place int, bytes []byte) {
 	runHardware(fmt.Sprintf("Запись прошивки места %s", data.FormatPlace(place)), func() error {
-		err := writePlaceFirmware(place, bytes)
+		err := writePlaceFirmware(log, place, bytes)
 		if err != nil {
 			return err
 		}
-		m := map[int][]byte{place: bytes}
-		if err := verifyProductsFirmware([]int{place}, m); err != nil {
-			return err
-		}
-		return nil
+		h := newHelperWriteParty()
+		h.bytes[place] = bytes
+		h.verifyProductsFirmware(log, []int{place})
+		return h.error()
 	})
 }
 
 func (_ runner) RunReadPlaceFirmware(place int) {
 	runHardware(fmt.Sprintf("Считывание места %d", place+1), func() error {
-		b, err := readPlaceFirmware(place)
+		b, err := readPlaceFirmware(log, place)
 		if err != nil {
 			return err
 		}

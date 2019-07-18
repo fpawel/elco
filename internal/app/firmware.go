@@ -11,17 +11,25 @@ import (
 	"github.com/fpawel/elco/internal/cfg"
 	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/gohelp"
+	"github.com/fpawel/gohelp/helpstr"
 	"github.com/fpawel/gohelp/intrng"
 	"github.com/hako/durafmt"
+	"github.com/powerman/structlog"
 	"gopkg.in/reform.v1"
 	"sort"
 	"time"
 )
 
-
 type helperWriteParty struct {
-	bytes  map[int][]byte
-	okProducts, failedProducts map[int]struct{}
+	bytes          map[int][]byte
+	failedProducts map[int]error
+}
+
+func newHelperWriteParty() helperWriteParty {
+	return helperWriteParty{
+		bytes:          map[int][]byte{},
+		failedProducts: map[int]error{},
+	}
 }
 
 func writePartyFirmware() error {
@@ -33,28 +41,31 @@ func writePartyFirmware() error {
 		return merry.New("не выбрано ни одного прибора")
 	}
 
-	log := log.New()
+	log := gohelp.LogWithKeys(log,
+		"party_id", party.PartyID,
+		"created_at", party.CreatedAt,
+		"products", formatProducts(products),
+	)
 
-	log.Info("запись партии",
-		"ЭХЯ", formatProducts(products))
+	log.Info("begin")
+	defer func() {
+		log.Info("end")
+	}()
 
-	hlp := helperWriteParty{
-		bytes : map[int][]byte{},
-		okProducts : map[int]struct{},
-		failedProducts : map[int]struct{},
-	}
+	hlp := newHelperWriteParty()
 
 	blockProducts := GroupProductsByBlocks(products)
 	for _, products := range blockProducts {
-		if err := pfw.writeBlock(products); err != nil {
-			return err
+		if err := hlp.writeBlock(log, products); err != nil {
+			return merry.Wrap(err)
 		}
 	}
 
-	log.Info("Запись партии завершена успешно. Будет выполнена проверка.",
-		"ЭХЯ", formatProducts(products),
-		"duration", durafmt.Parse(time.Since(startTime)),
+	log.Info("Write: ok. Verify.",
+		"elapsed", helpstr.FormatDuration(time.Since(startTime)),
 	)
+
+	log = gohelp.LogWithKeys(log, "verify", "")
 
 	startTime = time.Now()
 	for _, products := range blockProducts {
@@ -63,44 +74,59 @@ func writePartyFirmware() error {
 			places = append(places, p.Place)
 		}
 		sort.Ints(places)
-		if err := verifyProductsFirmware(places, placeBytes); err != nil {
-			return merry.Appendf(err, "считывание: %s",
-				durafmt.Parse(time.Since(startTime)))
-		}
+		hlp.verifyProductsFirmware(log, places)
 	}
 
-	log.Info("Проерка записи партии выполнена успешно.",
-		"ЭХЯ", formatProducts(products),
-		"duration", durafmt.Parse(time.Since(startTime)),
+	log.Info("verify complete",
+		"elapsed", helpstr.FormatDuration(time.Since(startTime)),
 	)
 
 	party.Products = data.GetProductsInfoWithPartyID(party.PartyID)
 	notify.LastPartyChanged(log, party)
-	return nil
+
+	return hlp.error()
 }
 
-func verifyProductsFirmware(places []int, placeBytes map[int][]byte) error {
+func (x helperWriteParty) error() error {
+	if len(x.failedProducts) == 0 {
+		return nil
+	}
+
+	errStr := "Непрошитые места:\n"
+	for place, err := range x.failedProducts {
+		errStr += "\t- " + data.FormatPlace(place) + ": " + err.Error() + "\n"
+	}
+	return merry.New(errStr)
+}
+
+func (x helperWriteParty) verifyProductsFirmware(log *structlog.Logger, places []int) {
+loopPlaces:
 	for _, place := range places {
-		b, err := readPlaceFirmware(place)
+		log := gohelp.LogWithKeys(log, "place", data.FormatPlace(place))
+		b, err := readPlaceFirmware(log, place)
 		if err != nil {
-			return err
+			x.failedProducts[place] = err
+			log.PrintErr(err)
+			continue
 		}
 		for _, c := range firmwareAddresses {
 			read := b[c.addr1 : c.addr2+1]
-			calc := placeBytes[place][c.addr1 : c.addr2+1]
+			calc := x.bytes[place][c.addr1 : c.addr2+1]
 			if !compareBytes(read, calc) {
-				return merry.Errorf(
+				err := merry.Errorf(
 					"место %s: не совпадают данные по адресам %X...%X",
 					data.FormatPlace(place), c.addr1, c.addr2).
 					WithValue("расчитано", fmt.Sprintf("% X", read)).
 					WithValue("записано", fmt.Sprintf("% X", calc))
+				x.failedProducts[place] = err
+				log.PrintErr(err)
+				continue loopPlaces
 			}
 		}
 	}
-	return nil
 }
 
-func (x *helperWriteParty) writeBlock(products []*data.Product) error {
+func (x *helperWriteParty) writeBlock(log *structlog.Logger, products []*data.Product) error {
 	startTime := time.Now()
 
 	block := products[0].Place / 8
@@ -116,6 +142,14 @@ func (x *helperWriteParty) writeBlock(products []*data.Product) error {
 	}
 	sort.Ints(placesInBlock)
 
+	log = gohelp.LogWithKeys(log,
+		"firmware_write_block", block,
+		"places_mask", fmt.Sprintf("%08b", placesMask),
+		"selected_places", intrng.Format(placesInBlock),
+	)
+
+	log.Info("calculate")
+
 	for _, p := range products {
 		prodInfo := new(data.ProductInfo)
 		if err := data.DB.FindByPrimaryKeyTo(prodInfo, p.ProductID); err != nil {
@@ -124,46 +158,46 @@ func (x *helperWriteParty) writeBlock(products []*data.Product) error {
 		if firmware, err := prodInfo.Firmware(); err == nil {
 			x.bytes[p.Place] = firmware.Bytes()
 		} else {
-			log.PrintErr(err, "расчёт_прошивки", prodInfo.String2())
-			x.failedProducts[p.Place] = struct{}{}
+			log.Warn(err, "place", data.FormatPlace(p.Place),
+				"product_id", p.ProductID,
+				"serial", p.Serial)
+			x.failedProducts[p.Place] = err
 		}
 	}
 
-	log := gohelp.LogWithKeys(log,
-		"блок", block,
-		"маска_мест", fmt.Sprintf("%08b", placesMask),
-		"выбранные_места", intrng.Format(placesInBlock),
-	)
+	log.Info("begin write block")
 
-	log.Info("начата запись блока")
+	defer func() {
+		log.Info("end write block", "elapsed", helpstr.FormatDuration(time.Since(startTime)))
+	}()
+
 	for i, c := range firmwareAddresses {
 		for _, p := range products {
-
+			if _, f := x.failedProducts[p.Place]; f {
+				continue
+			}
 			addr1 := c.addr1
 			addr2 := c.addr2
 			b := x.bytes[p.Place]
-
 			placeInBlock := p.Place % 8
 			log := gohelp.LogWithKeys(log,
-				"количество_байт", addr2+1-addr1,
-				"диапазон", fmt.Sprintf("%X...%X", addr1, addr2),
-				"место", data.FormatPlace(p.Place),
+				"bytes_count", addr2+1-addr1,
+				"range", fmt.Sprintf("%X...%X", addr1, addr2),
+				"place", data.FormatPlace(p.Place),
+				"product_id", p.ProductID,
+				"serial", p.Serial,
 			)
-
-			if err := sendDataToWrite42(block, placeInBlock, b[addr1:addr2+1]); err != nil {
-				log.PrintErr(err, "запись_блока", p.String2())
-				x.failedProducts[p.Place] = struct{}{}
-			} else {
-				log.Debug("запись: успешно")
+			if err := sendDataToWrite42(log, block, placeInBlock, b[addr1:addr2+1]); err != nil {
+				return merry.Wrap(err)
 			}
 		}
-		if err := writePreparedDataToFlash(block, placesMask, c.addr1, int(c.addr2-c.addr1+1)); err != nil {
+		if err := writePreparedDataToFlash(log, block, placesMask, c.addr1, int(c.addr2-c.addr1+1)); err != nil {
 			return err
 		}
 
 		time.Sleep(cfg.Cfg.Predefined().WaitFlashStatusDelayMS())
 
-		if err := waitStatus45(block, placesMask); err != nil {
+		if err := waitStatus45(log, block, placesMask); err != nil {
 			return err
 		}
 
@@ -173,7 +207,7 @@ func (x *helperWriteParty) writeBlock(products []*data.Product) error {
 	}
 
 	for _, p := range products {
-		if _,f := x.failedProducts[p.Place]; f{
+		if _, f := x.failedProducts[p.Place]; f {
 			continue
 		}
 		p.Firmware = x.bytes[p.Place]
@@ -182,12 +216,10 @@ func (x *helperWriteParty) writeBlock(products []*data.Product) error {
 		}
 	}
 
-	log.Info("запись блока завершена",
-		"duration", durafmt.Parse(time.Since(startTime)))
 	return nil
 }
 
-func readPlaceFirmware(place int) ([]byte, error) {
+func readPlaceFirmware(log *structlog.Logger, place int) ([]byte, error) {
 
 	notify.ReadPlace(log, place)
 
@@ -199,12 +231,20 @@ func readPlaceFirmware(place int) ([]byte, error) {
 		b[i] = 0xff
 	}
 
-	log := gohelp.LogWithKeys(log,
-		"место", data.FormatPlace(place),
-		"тип_микросхемы", cfg.Cfg.User().ChipType,
+	log = gohelp.LogWithKeys(log,
+		"place", data.FormatPlace(place),
+		"chip", cfg.Cfg.User().ChipType,
+		"total_read_bytes_count", len(b),
 	)
 
-	log.Info("начато считывание прошивки места")
+	log.Info("begin read firmware")
+
+	defer func() {
+		log.Info("end read firmware",
+			"bytes_read", len(b),
+			"elapsed", helpstr.FormatDuration(time.Since(startTime)))
+
+	}()
 
 	for i, c := range firmwareAddresses {
 		count := c.addr2 - c.addr1 + 1
@@ -223,8 +263,8 @@ func readPlaceFirmware(place int) ([]byte, error) {
 		reader := measurerReader(hardware.ctx)
 
 		log := gohelp.LogWithKeys(log,
-			"диапазон", fmt.Sprintf("%X...%X", c.addr1, c.addr2),
-			"количество_байт", count,
+			"range", fmt.Sprintf("%X...%X", c.addr1, c.addr2),
+			"bytes_count", count,
 		)
 
 		resp, err := req.GetResponse(log, reader, func(request, response []byte) (string, error) {
@@ -235,7 +275,7 @@ func readPlaceFirmware(place int) ([]byte, error) {
 			return "", nil
 		})
 		if err != nil {
-			return nil, err
+			return nil, merry.Wrap(err)
 		}
 
 		copy(b[c.addr1:c.addr1+count], resp[8:8+count])
@@ -245,13 +285,11 @@ func readPlaceFirmware(place int) ([]byte, error) {
 				time.Millisecond)
 		}
 	}
-	log.Info("завершено считывание прошивки места",
-		"duration", durafmt.Parse(time.Since(startTime)),
-		"количество_считаных_байт", len(b))
+
 	return b, nil
 }
 
-func writePlaceFirmware(place int, bytes []byte) error {
+func writePlaceFirmware(log *structlog.Logger, place int, bytes []byte) error {
 
 	notify.ReadPlace(log, place)
 
@@ -260,42 +298,47 @@ func writePlaceFirmware(place int, bytes []byte) error {
 	placesMask := byte(1) << byte(placeInBlock)
 	startTime := time.Now()
 
-	log := gohelp.LogWithKeys(log,
-		"место", data.FormatPlace(place),
-		"тип_микросхемы", cfg.Cfg.User().ChipType,
+	log = gohelp.LogWithKeys(log,
+		"place", data.FormatPlace(place),
+		"chip", cfg.Cfg.User().ChipType,
+		"total_write_bytes_count", len(bytes),
 	)
 
-	log.Info("начата запись прошивки места")
+	log.Info("begin write place firmware")
+
+	defer func() {
+		log.Info("end read firmware",
+			"elapsed", helpstr.FormatDuration(time.Since(startTime)))
+	}()
 
 	doAddresses := func(addr1, addr2 uint16) error {
 
-		log.Debug("запись флэш",
-			"диапазон", fmt.Sprintf("%X...%X", addr1, addr2),
-			"количество_байт", addr2+1-addr1)
+		log := gohelp.LogWithKeys(log,
+			"range", fmt.Sprintf("%X...%X", addr1, addr2),
+			"bytes_count", addr2+1-addr1,
+		)
 
-		if err := sendDataToWrite42(block, placeInBlock, bytes[addr1:addr2+1]); err != nil {
-			return err
+		if err := sendDataToWrite42(log, block, placeInBlock, bytes[addr1:addr2+1]); err != nil {
+			return merry.Wrap(err)
 		}
 
-		if err := writePreparedDataToFlash(block, placesMask, addr1, int(addr2-addr1+1)); err != nil {
-			return err
+		if err := writePreparedDataToFlash(log, block, placesMask, addr1, int(addr2-addr1+1)); err != nil {
+			return merry.Wrap(err)
 		}
 
 		time.Sleep(cfg.Cfg.Predefined().WaitFlashStatusDelayMS())
 
-		if err := waitStatus45(block, placesMask); err != nil {
-			return err
+		if err := waitStatus45(log, block, placesMask); err != nil {
+			return merry.Wrap(err)
 		}
 		return nil
 	}
 
 	for _, c := range firmwareAddresses {
 		if err := doAddresses(c.addr1, c.addr2); err != nil {
-			return err
+			return merry.Wrap(err)
 		}
 	}
-	log.Info("выполнена запись прошивки места",
-		"duration", durafmt.Parse(time.Since(startTime)))
 
 	var p data.Product
 	switch err := data.GetLastPartyProductAtPlace(place, &p); err {
@@ -304,6 +347,7 @@ func writePlaceFirmware(place int, bytes []byte) error {
 		if err := data.DB.Save(&p); err != nil {
 			return err
 		}
+		log.Info("save")
 	case reform.ErrNoRows, sql.ErrNoRows:
 		return nil
 	default:
@@ -313,14 +357,14 @@ func writePlaceFirmware(place int, bytes []byte) error {
 	return nil
 }
 
-func waitStatus45(block int, placesMask byte) error {
+func waitStatus45(log *structlog.Logger, block int, placesMask byte) error {
 	t := time.Duration(cfg.Cfg.Predefined().StatusTimeoutSeconds) * time.Second
 	ctx, _ := context.WithTimeout(hardware.ctx, t)
 	for {
 
 		select {
 		case <-ctx.Done():
-			response, err := readStatus45(block)
+			response, err := readStatus45(log, block)
 			if err != nil {
 				return err
 			}
@@ -328,7 +372,7 @@ func waitStatus45(block int, placesMask byte) error {
 
 			for i, b := range status {
 				if (1<<byte(i))&placesMask != 0 && b != 0 {
-					return merry.Errorf(
+					return comm.ErrProtocol.Here().Appendf(
 						"%s: таймаут %s, статус[%d]=%X",
 						data.FormatPlace(block*8+i), durafmt.Parse(t), i, b)
 				}
@@ -336,7 +380,7 @@ func waitStatus45(block int, placesMask byte) error {
 			return nil
 
 		default:
-			response, err := readStatus45(block)
+			response, err := readStatus45(log, block)
 			if err != nil {
 				return err
 			}
@@ -349,7 +393,7 @@ func waitStatus45(block int, placesMask byte) error {
 					}
 					statusOk = false
 					if b != 0xB2 {
-						return merry.Errorf("место %s: статус[%d]=%X",
+						return comm.ErrProtocol.Here().Appendf("место %s: статус[%d]=%X",
 							data.FormatPlace(block*8+i), i, b)
 					}
 				}
@@ -361,17 +405,14 @@ func waitStatus45(block int, placesMask byte) error {
 	}
 }
 
-func readStatus45(block int) ([]byte, error) {
+func readStatus45(log *structlog.Logger, block int) ([]byte, error) {
 	reader := measurerReader(hardware.ctx)
 	request := modbus.Request{
 		Addr:     modbus.Addr(block) + 101,
 		ProtoCmd: 0x45,
 	}
 
-	log := gohelp.LogWithKeys(log,
-		"действие", "запрос_статуса_записи_флэш",
-		"блок", block)
-
+	log = gohelp.LogWithKeys(log, "block", block)
 	return request.GetResponse(log, reader, func(request, response []byte) (string, error) {
 		if len(response) != 12 {
 			return "", comm.ErrProtocol.Here().WithMessagef("ожидалось 12 байт ответа, получено %d", len(response))
@@ -380,7 +421,7 @@ func readStatus45(block int) ([]byte, error) {
 	})
 }
 
-func writePreparedDataToFlash(block int, placesMask byte, addr uint16, count int) error {
+func writePreparedDataToFlash(log *structlog.Logger, block int, placesMask byte, addr uint16, count int) error {
 	req := modbus.Request{
 		Addr:     modbus.Addr(block) + 101,
 		ProtoCmd: 0x43,
@@ -395,12 +436,11 @@ func writePreparedDataToFlash(block int, placesMask byte, addr uint16, count int
 	}
 	reader := measurerReader(hardware.ctx)
 
-	log := gohelp.LogWithKeys(log,
-		"действие", "запись_флеш",
-		"блок", block,
-		"маска", fmt.Sprintf("%08b", placesMask),
-		"адрес", fmt.Sprintf("%X", addr),
-		"количество_байт", count)
+	log = gohelp.LogWithKeys(log,
+		"block", block,
+		"mask", fmt.Sprintf("%08b", placesMask),
+		"addr", fmt.Sprintf("%X", addr),
+		"bytes_count", count)
 
 	_, err := req.GetResponse(log, reader, func(request, response []byte) (string, error) {
 		if !compareBytes(response, request) {
@@ -411,9 +451,15 @@ func writePreparedDataToFlash(block int, placesMask byte, addr uint16, count int
 	return err
 }
 
-func sendDataToWrite42(block, placeInBlock int, b []byte) error {
+func sendDataToWrite42(log *structlog.Logger, block, placeInBlock int, b []byte) error {
 
-	notify.ReadPlace(log, block * 8 + placeInBlock)
+	log = gohelp.LogWithKeys(log,
+		"block", block,
+		"place_in_block", placeInBlock,
+		"bytes_count", len(b),
+	)
+
+	notify.ReadPlace(log, block*8+placeInBlock)
 
 	req := modbus.Request{
 		Addr:     modbus.Addr(block) + 101,
@@ -424,9 +470,6 @@ func sendDataToWrite42(block, placeInBlock int, b []byte) error {
 			byte(len(b)),
 		}, b...),
 	}
-	log := gohelp.LogWithKeys(log,
-		"действие", "отправка_данных_для_записи_флэш",
-		"блок", block, "место", placeInBlock, "количество_байт", len(b))
 
 	reader := measurerReader(hardware.ctx)
 	_, err := req.GetResponse(log, reader, func(request, response []byte) (string, error) {
