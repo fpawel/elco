@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/elco/internal/api/notify"
-	"github.com/fpawel/elco/internal/cfg"
 	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/elco/internal/ktx500"
 	"github.com/fpawel/gohelp"
@@ -133,11 +132,6 @@ func runHardware(workName string, work WorkFunc) {
 
 		notify.WorkStarted(log, workName)
 
-		if err := portMeasurer.Open(cfg.Cfg.User().ComportMeasurer); err != nil {
-			notifyErr(merry.Append(err, "не удалось открыть СОМ порт"))
-			return
-		}
-
 		switch err := work(); err {
 		case nil:
 			log.Info("выполнено успешно")
@@ -175,17 +169,13 @@ func notifyErr(err error) {
 }
 
 func closeHardware() {
-
-	if portMeasurer.Opened() {
-		log.ErrIfFail(portMeasurer.Close)
-	}
+	log.ErrIfFail(portMeasurer.Close)
 	if portGas.Opened() {
 		log.ErrIfFail(func() error {
 			return switchGas(0)
 		})
-		log.ErrIfFail(portGas.Close)
 	}
-
+	log.ErrIfFail(portGas.Close)
 	if i, err := ktx500.GetLast(); err == nil {
 		if i.On {
 			log.ErrIfFail(func() error {

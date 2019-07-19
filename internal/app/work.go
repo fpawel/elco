@@ -76,15 +76,9 @@ func doSwitchGas(n int) error {
 		return merry.Errorf("wrong gas code: %d", n)
 	}
 
-	if !portGas.Opened() {
-		if err := portGas.Open(cfg.Cfg.User().ComportGas); err != nil {
-			return err
-		}
-	}
-
 	log := gohelp.LogWithKeys(log, "пневмоблок", n)
 
-	if _, err := req.GetResponse(log, gasBlockReader(), nil); err != nil {
+	if _, err := req.GetResponse(log, hardware.ctx, portGas, nil); err != nil {
 		return err
 	}
 
@@ -102,7 +96,7 @@ func doSwitchGas(n int) error {
 
 	log = gohelp.LogWithKeys(log, "пневмоблок", "расход")
 
-	if _, err := req.GetResponse(log, gasBlockReader(), nil); err != nil {
+	if _, err := req.GetResponse(log, hardware.ctx, portGas, nil); err != nil {
 		return err
 	}
 
@@ -405,9 +399,11 @@ func GroupProductsByBlocks(ps []data.Product) (gs [][]*data.Product) {
 
 func readBlockMeasure(logger *structlog.Logger, block int, ctx context.Context) ([]float64, error) {
 
+	notify.ReadBlock(log, block)
+
 	log := gohelp.LogWithKeys(logger, "блок", block)
 
-	values, err := modbus.Read3BCDs(log, measurerReader(ctx), modbus.Addr(block+101), 0, 8)
+	values, err := modbus.Read3BCDs(log, ctx, portMeasurer, modbus.Addr(block+101), 0, 8)
 
 	switch err {
 

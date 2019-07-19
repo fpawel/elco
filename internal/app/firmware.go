@@ -92,9 +92,15 @@ func (x helperWriteParty) error() error {
 		return nil
 	}
 
+	var xs []int
+	for n := range x.failedProducts {
+		xs = append(xs, n)
+	}
+	sort.Ints(xs)
+
 	errStr := "Непрошитые места:\n"
-	for place, err := range x.failedProducts {
-		errStr += "\t- " + data.FormatPlace(place) + ": " + err.Error() + "\n"
+	for n := range xs {
+		errStr += "\t- " + data.FormatPlace(n) + ": " + x.failedProducts[n].Error() + "\n"
 	}
 	return merry.New(errStr)
 }
@@ -127,9 +133,16 @@ loopPlaces:
 }
 
 func (x *helperWriteParty) writeBlock(log *structlog.Logger, products []*data.Product) error {
-	startTime := time.Now()
 
 	block := products[0].Place / 8
+
+	notify.ReadBlock(log, block)
+	defer func() {
+		notify.ReadBlock(log, -1)
+	}()
+
+	startTime := time.Now()
+
 	var placesMask byte
 	for _, p := range products {
 		place := byte(p.Place) % 8
@@ -222,6 +235,9 @@ func (x *helperWriteParty) writeBlock(log *structlog.Logger, products []*data.Pr
 func readPlaceFirmware(log *structlog.Logger, place int) ([]byte, error) {
 
 	notify.ReadPlace(log, place)
+	defer func() {
+		notify.ReadPlace(log, -1)
+	}()
 
 	startTime := time.Now()
 	block := place / 8
@@ -260,14 +276,13 @@ func readPlaceFirmware(log *structlog.Logger, place int) ([]byte, error) {
 				byte(count),
 			},
 		}
-		reader := measurerReader(hardware.ctx)
 
 		log := gohelp.LogWithKeys(log,
 			"range", fmt.Sprintf("%X...%X", c.addr1, c.addr2),
 			"bytes_count", count,
 		)
 
-		resp, err := req.GetResponse(log, reader, func(request, response []byte) (string, error) {
+		resp, err := req.GetResponse(log, hardware.ctx, portMeasurer, func(request, response []byte) (string, error) {
 			if len(response) != 10+int(count) {
 				return "", comm.ErrProtocol.Here().WithMessagef("ожидалось %d байт ответа, получено %d",
 					10+int(count), len(response))
@@ -292,6 +307,9 @@ func readPlaceFirmware(log *structlog.Logger, place int) ([]byte, error) {
 func writePlaceFirmware(log *structlog.Logger, place int, bytes []byte) error {
 
 	notify.ReadPlace(log, place)
+	defer func() {
+		notify.ReadPlace(log, -1)
+	}()
 
 	block := place / 8
 	placeInBlock := place % 8
@@ -358,6 +376,12 @@ func writePlaceFirmware(log *structlog.Logger, place int, bytes []byte) error {
 }
 
 func waitStatus45(log *structlog.Logger, block int, placesMask byte) error {
+
+	notify.ReadBlock(log, block)
+	defer func() {
+		notify.ReadBlock(log, -1)
+	}()
+
 	t := time.Duration(cfg.Cfg.Predefined().StatusTimeoutSeconds) * time.Second
 	ctx, _ := context.WithTimeout(hardware.ctx, t)
 	for {
@@ -393,8 +417,7 @@ func waitStatus45(log *structlog.Logger, block int, placesMask byte) error {
 					}
 					statusOk = false
 					if b != 0xB2 {
-						return comm.ErrProtocol.Here().Appendf("место %s: статус[%d]=%X",
-							data.FormatPlace(block*8+i), i, b)
+						return comm.ErrProtocol.Here().Appendf("место %s: статус[%d]=%X", data.FormatPlace(block*8+i), i, b)
 					}
 				}
 			}
@@ -406,14 +429,19 @@ func waitStatus45(log *structlog.Logger, block int, placesMask byte) error {
 }
 
 func readStatus45(log *structlog.Logger, block int) ([]byte, error) {
-	reader := measurerReader(hardware.ctx)
+
+	notify.ReadBlock(log, block)
+	defer func() {
+		notify.ReadBlock(log, -1)
+	}()
+
 	request := modbus.Request{
 		Addr:     modbus.Addr(block) + 101,
 		ProtoCmd: 0x45,
 	}
 
 	log = gohelp.LogWithKeys(log, "block", block)
-	return request.GetResponse(log, reader, func(request, response []byte) (string, error) {
+	return request.GetResponse(log, hardware.ctx, portMeasurer, func(request, response []byte) (string, error) {
 		if len(response) != 12 {
 			return "", comm.ErrProtocol.Here().WithMessagef("ожидалось 12 байт ответа, получено %d", len(response))
 		}
@@ -422,6 +450,12 @@ func readStatus45(log *structlog.Logger, block int) ([]byte, error) {
 }
 
 func writePreparedDataToFlash(log *structlog.Logger, block int, placesMask byte, addr uint16, count int) error {
+
+	notify.ReadBlock(log, block)
+	defer func() {
+		notify.ReadBlock(log, -1)
+	}()
+
 	req := modbus.Request{
 		Addr:     modbus.Addr(block) + 101,
 		ProtoCmd: 0x43,
@@ -434,7 +468,6 @@ func writePreparedDataToFlash(log *structlog.Logger, block int, placesMask byte,
 			byte(count),
 		},
 	}
-	reader := measurerReader(hardware.ctx)
 
 	log = gohelp.LogWithKeys(log,
 		"block", block,
@@ -442,7 +475,7 @@ func writePreparedDataToFlash(log *structlog.Logger, block int, placesMask byte,
 		"addr", fmt.Sprintf("%X", addr),
 		"bytes_count", count)
 
-	_, err := req.GetResponse(log, reader, func(request, response []byte) (string, error) {
+	_, err := req.GetResponse(log, hardware.ctx, portMeasurer, func(request, response []byte) (string, error) {
 		if !compareBytes(response, request) {
 			return "", merry.New("запрос не равен ответу")
 		}
@@ -460,6 +493,9 @@ func sendDataToWrite42(log *structlog.Logger, block, placeInBlock int, b []byte)
 	)
 
 	notify.ReadPlace(log, block*8+placeInBlock)
+	defer func() {
+		notify.ReadPlace(log, -1)
+	}()
 
 	req := modbus.Request{
 		Addr:     modbus.Addr(block) + 101,
@@ -471,8 +507,7 @@ func sendDataToWrite42(log *structlog.Logger, block, placeInBlock int, b []byte)
 		}, b...),
 	}
 
-	reader := measurerReader(hardware.ctx)
-	_, err := req.GetResponse(log, reader, func(request, response []byte) (string, error) {
+	_, err := req.GetResponse(log, hardware.ctx, portMeasurer, func(request, response []byte) (string, error) {
 		if len(response) != 7 {
 			return "", merry.Errorf("длина ответа %d не равна 7", len(response))
 		}

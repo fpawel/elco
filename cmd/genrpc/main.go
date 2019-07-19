@@ -112,6 +112,10 @@ func main() {
 			"ReadPlace",
 			r.TypeOf((*int)(nil)).Elem(),
 		},
+		{
+			"ReadBlock",
+			r.TypeOf((*int)(nil)).Elem(),
+		},
 	})
 
 	file := openFile("services.pas")

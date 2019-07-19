@@ -27,6 +27,7 @@ const (
 	msgPanic
 	msgWriteConsole
 	msgReadPlace
+	msgReadBlock
 )
 
 func ReadCurrent(log *structlog.Logger, arg api.ReadCurrent) {
@@ -206,4 +207,17 @@ func ReadPlacef(log *structlog.Logger, format string, a ...interface{}) {
 		log.Debug(elco.PeerWindowClassName, "ReadPlace", fmt.Sprintf(format, a...), "MSG", msgReadPlace)
 	}
 	W.Notifyf(uintptr(msgReadPlace), format, a...)
+}
+func ReadBlock(log *structlog.Logger, arg int) {
+	if log != nil {
+		log.Debug(elco.PeerWindowClassName, "ReadBlock", arg, "MSG", msgReadBlock)
+	}
+	W.NotifyStr(uintptr(msgReadBlock), fmt.Sprintf("%d", arg))
+}
+
+func ReadBlockf(log *structlog.Logger, format string, a ...interface{}) {
+	if log != nil {
+		log.Debug(elco.PeerWindowClassName, "ReadBlock", fmt.Sprintf(format, a...), "MSG", msgReadBlock)
+	}
+	W.Notifyf(uintptr(msgReadBlock), format, a...)
 }

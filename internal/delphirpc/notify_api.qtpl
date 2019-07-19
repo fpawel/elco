@@ -21,14 +21,14 @@ const (
     if log != nil {
         log.Debug(elco.PeerWindowClassName, "{%s m.serviceName %}", arg, "MSG", msg{%s m.serviceName %})
     }
-    W.{%s m.notifyFunc %}( uintptr(msg{%s m.serviceName %}), {%s= m.instructionArg %} )
+    go W.{%s m.notifyFunc %}( uintptr(msg{%s m.serviceName %}), {%s= m.instructionArg %} )
 }
 {% if m.notifyFunc == "NotifyStr" %}
 func {%s m.serviceName %}f(log *structlog.Logger, format string, a ...interface{}) {
     if log != nil {
         log.Debug(elco.PeerWindowClassName, "{%s m.serviceName %}", fmt.Sprintf(format,a...), "MSG", msg{%s m.serviceName %})
     }
-    W.Notifyf( uintptr(msg{%s m.serviceName %}), format, a... )
+    go W.Notifyf( uintptr(msg{%s m.serviceName %}), format, a... )
 }{% endif %}
 {% endfor %}
 

@@ -15,6 +15,13 @@ import (
 
 func main() {
 
+	createNewDB := flag.Bool("new-db", false, "create new data base")
+	hideCon := flag.Bool("hide-con", false, "hide console window")
+	skipRunUIApp := flag.Bool("skip-run-ui", false, "skip running ui")
+	logLevel := flag.String("log.level", os.Getenv(elco.EnvVarLogLevel), "log `level` (debug|info|warn|err)")
+
+	flag.Parse()
+
 	structlog.DefaultLogger.
 		SetPrefixKeys(
 			structlog.KeyApp, structlog.KeyPID, structlog.KeyLevel, structlog.KeyUnit, structlog.KeyTime,
@@ -35,9 +42,8 @@ func main() {
 			"запрос":            " %[1]s=`% [2]X`",
 			"ответ":             " %[1]s=`% [2]X`",
 			"работа":            " %[1]s=`%[2]s`",
-		}).SetTimeFormat("15:04:05")
-
-	log := structlog.New()
+		}).SetTimeFormat("15:04:05").
+		SetLogLevel(structlog.ParseLevel(*logLevel))
 
 	// Преверяем, не было ли приложение запущено ранее.
 	// Если было, выдвигаем окно UI приложения на передний план и завершаем процесс.
@@ -45,27 +51,16 @@ func main() {
 		hWnd := winapp.FindWindow(elco.PeerWindowClassName)
 		win.ShowWindow(hWnd, win.SW_RESTORE)
 		win.SetForegroundWindow(hWnd)
-		log.Info("elco.exe already executing")
+		structlog.DefaultLogger.Info("elco.exe already executing")
 		return
 	}
 
 	must.AbortIf = must.PanicIf
 
-	createNewDB := false
-	hideCon := false
-	skipRunUIApp := false
-
-	flag.BoolVar(&createNewDB, "new-db", false, "create new data base")
-	flag.BoolVar(&hideCon, "hide-con", false, "hide console window")
-	flag.BoolVar(&skipRunUIApp, "skip-run-ui", false, "skip running ui")
-
-	flag.Parse()
-
-	if hideCon {
+	if *hideCon {
 		win.ShowWindow(win.GetConsoleWindow(), win.SW_HIDE)
 	}
-
 	must.AbortIf(assets.Ensure())
-	must.AbortIf(app.Run(skipRunUIApp, createNewDB))
+	must.AbortIf(app.Run(*skipRunUIApp, *createNewDB))
 
 }

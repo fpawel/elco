@@ -90,7 +90,7 @@ const (
 		//line notify_api.qtpl:22
 		qw422016.N().S(`)
     }
-    W.`)
+    go W.`)
 		//line notify_api.qtpl:24
 		qw422016.E().S(m.notifyFunc)
 		//line notify_api.qtpl:24
@@ -125,7 +125,7 @@ func `)
 			//line notify_api.qtpl:29
 			qw422016.N().S(`)
     }
-    W.Notifyf( uintptr(msg`)
+    go W.Notifyf( uintptr(msg`)
 			//line notify_api.qtpl:31
 			qw422016.E().S(m.serviceName)
 			//line notify_api.qtpl:31

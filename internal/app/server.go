@@ -68,8 +68,8 @@ func startHttpServer() func() {
 type peerNotifier struct{}
 
 func (_ peerNotifier) OnStarted() {
-	hardware.cancelFunc()
 	notify.W.InitPeer()
+	hardware.cancelFunc()
 }
 
 func (_ peerNotifier) OnClosed() {
