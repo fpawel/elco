@@ -13,7 +13,7 @@ func TestPdf(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if err := Run(reform.NewDB(dbConn, sqlite3.Dialect, nil)); err != nil {
+	if err := RunPartyID(reform.NewDB(dbConn, sqlite3.Dialect, nil)); err != nil {
 		t.Error(err)
 	}
 }

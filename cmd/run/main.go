@@ -10,6 +10,7 @@ import (
 )
 
 func main() {
+
 	log.SetFlags(log.Ltime)
 	var exeName, args string
 	flag.StringVar(&args, "args", "", "command line arguments to pass")

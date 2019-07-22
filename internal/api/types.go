@@ -6,9 +6,8 @@ type ReadCurrent struct {
 }
 
 type DelayInfo struct {
-	Run         bool
-	TimeSeconds int
-	What        string
+	TotalSeconds, ElapsedSeconds int
+	What                         string
 }
 
 type GetCheckBlocksArg struct {

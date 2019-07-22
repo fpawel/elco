@@ -20,7 +20,40 @@ const (
 	lineSpace1 = 4
 )
 
-func Run(partyID int64) error {
+func RunProductID(productID int64) error {
+	var product data.ProductInfo
+	if err := data.DB.SelectOneTo(&product, `WHERE product_id = ?`, productID); err != nil {
+		return err
+	}
+	var party data.Party
+	if err := data.DB.SelectOneTo(&party, `WHERE party_id = ?`, product.PartyID); err != nil {
+		return err
+	}
+
+	dir, err := prepareDir()
+	if err != nil {
+		return err
+	}
+	d, err := newDoc()
+	if err != nil {
+		return err
+	}
+	d.AddPage()
+
+	pageWidth, _ := d.GetPageSize()
+	const spaceX = 10.
+	width := pageWidth/2. - spaceX*2
+
+	y := d.GetY()
+
+	doPassportSou(d, 10., width, product)
+	d.SetY(y)
+	doPassportDax(d, pageWidth/2., width, product, party)
+
+	return saveAndShowDoc(d, dir, strconv.Itoa(int(productID)))
+}
+
+func RunPartyID(partyID int64) error {
 
 	party, err := data.GetParty(partyID, data.WithProducts, data.WithProduction, data.WithSerials)
 	if err != nil {

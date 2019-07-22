@@ -108,48 +108,49 @@ func newErr(err error) merry.Error {
 	return Err.Here().WithCause(err)
 }
 
-func read(f func(*fins.Client) error) (err error) {
-	config := cfg.Cfg.Predefined().FinsNetwork
+func read(f func(*fins.Client) error) error {
 
-	client, err := config.NewFinsClient()
-	if err != nil {
-		return newErr(err).Append("установка соединения")
-	}
-	defer client.Close()
-
-	for attempt := 0; attempt < config.MaxAttemptsRead; attempt++ {
-		if err = f(client); err != nil {
+	return withClient(func(client *fins.Client, config cfg.FinsNetwork) error {
+		var err error
+		for attempt := 0; attempt < config.MaxAttemptsRead; attempt++ {
+			if err = f(client); err == nil {
+				return nil
+			}
 			time.Sleep(config.PollSec * time.Second)
-			continue
 		}
-		return nil
-	}
-	return
+		return err
+	})
 }
 
-func write(what string, f func(*fins.Client) error) (err error) {
-	config := cfg.Cfg.Predefined().FinsNetwork
+func write(what string, f func(*fins.Client) error) error {
+	return withClient(func(client *fins.Client, config cfg.FinsNetwork) error {
+		var err error
+		for attempt := 0; attempt < config.MaxAttemptsRead; attempt++ {
+			if err = f(client); err == nil {
+				break
+			}
+			time.Sleep(config.PollSec * time.Second)
+		}
+		if err != nil {
+			err = merry.Append(err, what)
+			log.PrintErr(err, "ktx500", what)
+			return err
+		}
+		log.Info(what)
+		return nil
+	})
+}
 
+func withClient(work func(*fins.Client, cfg.FinsNetwork) error) error {
+	config := cfg.Cfg.Predefined().FinsNetwork
+	muClient.Lock()
+	defer muClient.Unlock()
 	client, err := config.NewFinsClient()
 	if err != nil {
 		return newErr(err).Append("установка соединения")
 	}
 	defer client.Close()
-
-	for attempt := 0; attempt < config.MaxAttemptsRead; attempt++ {
-		if err = f(client); err != nil {
-			time.Sleep(config.PollSec * time.Second)
-			continue
-		}
-		break
-	}
-	if err != nil {
-		err = merry.Append(err, what)
-		log.PrintErr(err)
-		return err
-	}
-	log.Info(what)
-	return nil
+	return work(client, config)
 }
 
 func readTemperature(c *fins.Client) (float64, error) {
@@ -234,5 +235,6 @@ var (
 		api.Ktx500Info
 		error
 	}
-	log = structlog.New()
+	log      = structlog.New()
+	muClient sync.Mutex
 )

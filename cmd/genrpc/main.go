@@ -87,6 +87,10 @@ func main() {
 			r.TypeOf((*api.DelayInfo)(nil)).Elem(),
 		},
 		{
+			"EndDelay",
+			r.TypeOf((*string)(nil)).Elem(),
+		},
+		{
 			"LastPartyChanged",
 			r.TypeOf((*data.Party)(nil)).Elem(),
 		},
@@ -103,7 +107,6 @@ func main() {
 			"Panic",
 			r.TypeOf((*string)(nil)).Elem(),
 		},
-
 		{
 			"WriteConsole",
 			r.TypeOf((*string)(nil)).Elem(),

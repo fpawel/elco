@@ -53,29 +53,62 @@ func (_ runner) RunMainError() {
 	runHardware("Снятие основной погрешности", determineMainError)
 }
 
-func (_ runner) RunTemperature(workCheck [4]bool) {
-	runHardware("Снятие термокомпенсации", func() error {
+func (_ runner) RunSwitchGas(n int) {
+	var what string
+	if n == 0 {
+		what = "отключить газ"
+	} else {
+		what = fmt.Sprintf("подать газ %d", n)
+	}
+	runHardware(what, func() error {
+		return doSwitchGas(n)
+	})
+}
 
-		ft := func(temperature data.Temperature) func() error {
-			return func() error {
-				notify.Statusf(log, "%v⁰C: снятие термокомпенсации", temperature)
-				return determineTemperature(temperature)
-			}
+func (_ runner) RunMain(nku, variation, minus, plus bool) {
+
+	runHardware("Снятие", func() error {
+		var works []func() error
+
+		addWork := func(f func() error) {
+			works = append(works, f)
 		}
-		for i, f := range []func() error{
-			ft(20),
-			determineMainError,
-			ft(-20),
-			ft(50),
-		} {
-			if workCheck[i] {
-				if err := f(); err != nil {
-					return err
-				}
-			}
+
+		addSetupT := func(t data.Temperature) {
+			addWork(func() error {
+				return setupTemperature(t)
+			})
 		}
-		if err := setupTemperature(20); err != nil {
-			return err
+		addDetermineT := func(t data.Temperature) {
+			addWork(func() error {
+				notify.Statusf(log, "%v⁰C: снятие", t)
+				return determineTemperature(t)
+			})
+		}
+		if nku || variation {
+			addSetupT(20)
+		}
+		if nku {
+			addDetermineT(20)
+		}
+		if variation {
+			addWork(determineMainError)
+		}
+		if minus {
+			addSetupT(-20)
+			addDetermineT(-20)
+		}
+		if plus {
+			addSetupT(50)
+			addDetermineT(50)
+		}
+		if minus || plus {
+			addSetupT(20)
+		}
+		for _, work := range works {
+			if err := work(); err != nil {
+				return err
+			}
 		}
 		return nil
 	})
@@ -119,7 +152,7 @@ func runHardware(workName string, work WorkFunc) {
 
 	hardware.WaitGroup.Add(1)
 
-	log = gohelp.NewLogWithKeys("работа", workName)
+	log = gohelp.NewLogWithSuffixKeys("работа", workName)
 	resetLogFunc := func() {
 		log = structlog.New()
 	}

@@ -11,14 +11,20 @@ import (
 	"github.com/powerman/structlog"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 func main() {
 
+	defaultLogLevelStr := os.Getenv(elco.EnvVarLogLevel)
+	if len(strings.TrimSpace(defaultLogLevelStr)) == 0 {
+		defaultLogLevelStr = "info"
+	}
+
 	createNewDB := flag.Bool("new-db", false, "create new data base")
 	hideCon := flag.Bool("hide-con", false, "hide console window")
 	skipRunUIApp := flag.Bool("skip-run-ui", false, "skip running ui")
-	logLevel := flag.String("log.level", os.Getenv(elco.EnvVarLogLevel), "log `level` (debug|info|warn|err)")
+	logLevel := flag.String("log.level", defaultLogLevelStr, "log `level` (debug|info|warn|err)")
 
 	flag.Parse()
 

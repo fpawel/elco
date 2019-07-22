@@ -76,7 +76,7 @@ func doSwitchGas(n int) error {
 		return merry.Errorf("wrong gas code: %d", n)
 	}
 
-	log := gohelp.LogWithKeys(log, "пневмоблок", n)
+	log := gohelp.LogPrependSuffixKeys(log, "пневмоблок", n)
 
 	if _, err := req.GetResponse(log, hardware.ctx, portGas, nil); err != nil {
 		return err
@@ -94,7 +94,7 @@ func doSwitchGas(n int) error {
 		req.Data[3] = 0xD5
 	}
 
-	log = gohelp.LogWithKeys(log, "пневмоблок", "расход")
+	log = gohelp.LogPrependSuffixKeys(log, "пневмоблок", "расход")
 
 	if _, err := req.GetResponse(log, hardware.ctx, portGas, nil); err != nil {
 		return err
@@ -132,14 +132,8 @@ func doDelay(what string, duration time.Duration) error {
 		logrus.Warnf("%s %s: задержка прервана: %s", what, durafmt.Parse(duration), durafmt.Parse(time.Since(t)))
 	}
 
-	notify.Delay(log, api.DelayInfo{
-		Run:         true,
-		What:        what,
-		TimeSeconds: int(duration.Seconds()),
-	})
-
 	defer func() {
-		notify.Delay(log, api.DelayInfo{Run: false})
+		notify.EndDelay(log, "")
 	}()
 	for {
 		products := data.GetLastPartyProducts(data.WithSerials, data.WithProduction)
@@ -159,8 +153,14 @@ func doDelay(what string, duration time.Duration) error {
 
 			block := products[0].Place / 8
 
+			notify.Delay(log, api.DelayInfo{
+				What:           what,
+				TotalSeconds:   int(duration.Seconds()),
+				ElapsedSeconds: int(time.Since(t).Seconds()),
+			})
+
 			_, err := readBlockMeasure(
-				gohelp.LogWithKeys(log, "фоновый_опрос", fmt.Sprintf("%s %s", what, durafmt.Parse(duration))),
+				gohelp.LogPrependSuffixKeys(log, "фоновый_опрос", fmt.Sprintf("%s %s", what, durafmt.Parse(duration))),
 				block, ctx)
 
 			if err == nil {
@@ -183,7 +183,6 @@ func doDelay(what string, duration time.Duration) error {
 
 			logrus.Warnf("%s: фоновый опрос: проигнорирована ошибка связи с блоком измерительным %d: %v", what, block, err)
 
-			continue
 		}
 	}
 }
@@ -221,7 +220,7 @@ func doSetupTemperature(destinationTemperature float64) error {
 
 			block := products[0].Place / 8
 			if _, err = readBlockMeasure(
-				gohelp.LogWithKeys(log, "фоновый_опрос",
+				gohelp.LogPrependSuffixKeys(log, "фоновый_опрос",
 					fmt.Sprintf("установка температуры %v⁰C", destinationTemperature)),
 				block, hardware.ctx); err != nil {
 				return err
@@ -251,10 +250,6 @@ func setupTemperature(temperature data.Temperature) error {
 }
 
 func determineTemperature(temperature data.Temperature) error {
-
-	if err := setupTemperature(temperature); err != nil {
-		return err
-	}
 
 	defer func() {
 
@@ -343,7 +338,7 @@ func doReadAndSaveProductsCurrents(field string) error {
 	}
 	logrus.Infof("снятие %q: %s", field, formatProducts(productsToWork))
 
-	log := gohelp.LogWithKeys(log, "снятие", field)
+	log := gohelp.LogPrependSuffixKeys(log, "снятие", field)
 
 	blockProducts := GroupProductsByBlocks(productsToWork)
 	for _, products := range blockProducts {
@@ -401,7 +396,7 @@ func readBlockMeasure(logger *structlog.Logger, block int, ctx context.Context) 
 
 	notify.ReadBlock(log, block)
 
-	log := gohelp.LogWithKeys(logger, "блок", block)
+	log := gohelp.LogPrependSuffixKeys(logger, "блок", block)
 
 	values, err := modbus.Read3BCDs(log, ctx, portMeasurer, modbus.Addr(block+101), 0, 8)
 

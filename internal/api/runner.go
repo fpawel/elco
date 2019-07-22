@@ -1,15 +1,12 @@
 package api
 
-import "errors"
-
 type Runner interface {
 	RunReadCurrent()
 	StopHardware()
 	SkipDelay()
-	RunTemperature([4]bool)
+	RunMain(nku, variation, minus, plus bool)
 	RunWritePartyFirmware()
-	RunMainError()
-
+	RunSwitchGas(int)
 	RunReadAndSaveProductCurrents(field string)
 }
 
@@ -22,14 +19,9 @@ func (x *RunnerSvc) RunWritePartyFirmware(_ struct{}, _ *struct{}) error {
 	return nil
 }
 
-func (x *RunnerSvc) RunTemperature(workCheck [4]bool, _ *struct{}) error {
-	for _, v := range workCheck {
-		if v {
-			x.Runner.RunTemperature(workCheck)
-			return nil
-		}
-	}
-	return errors.New("необходимо отметить как минимум одну теммпературу")
+func (x *RunnerSvc) RunMain(a [4]bool, _ *struct{}) error {
+	x.Runner.RunMain(a[0], a[1], a[2], a[3])
+	return nil
 }
 
 func (x *RunnerSvc) RunReadCurrent(_ struct{}, _ *struct{}) error {
@@ -48,12 +40,12 @@ func (x *RunnerSvc) SkipDelay(_ struct{}, _ *struct{}) error {
 	return nil
 }
 
-func (x *RunnerSvc) RunMainError(_ struct{}, _ *struct{}) error {
-	x.Runner.RunMainError()
+func (x *RunnerSvc) RunReadAndSaveProductCurrents(r [1]string, _ *struct{}) error {
+	x.Runner.RunReadAndSaveProductCurrents(r[0])
 	return nil
 }
 
-func (x *RunnerSvc) RunReadAndSaveProductCurrents(r [1]string, _ *struct{}) error {
-	x.Runner.RunReadAndSaveProductCurrents(r[0])
+func (x *RunnerSvc) RunSwitchGas(r [1]int, _ *struct{}) error {
+	x.Runner.RunSwitchGas(r[0])
 	return nil
 }
