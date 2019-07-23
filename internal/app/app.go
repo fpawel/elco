@@ -4,7 +4,6 @@ import (
 	"context"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/elco/internal/api/notify"
-	"github.com/fpawel/elco/internal/assets"
 	"github.com/fpawel/elco/internal/cfg"
 	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/elco/internal/elco"
@@ -13,6 +12,7 @@ import (
 	"github.com/getlantern/systray"
 	"github.com/lxn/win"
 	_ "github.com/mattn/go-sqlite3"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -29,9 +29,7 @@ func Run(skipRunUIApp, createNewDB bool) error {
 	go runSysTray(notify.W.Close)
 
 	if !skipRunUIApp {
-		if err := runUIApp(); err != nil {
-			return merry.WithMessage(err, "не удалось выполнить elcoui.exe")
-		}
+		runUIApp()
 	} else {
 		log.Debug("elcoui.exe не будет запущен, поскольку установлен соответствующий флаг")
 	}
@@ -67,19 +65,17 @@ func Run(skipRunUIApp, createNewDB bool) error {
 	return nil
 }
 
-func runUIApp() error {
+func runUIApp() {
 	fileName := filepath.Join(filepath.Dir(os.Args[0]), "elcoui.exe")
-	err := exec.Command(fileName).Start()
-	if err != nil {
-		return merry.Append(err, fileName)
+	if err := exec.Command(fileName).Start(); err != nil {
+		panic(merry.Append(err, fileName))
 	}
-	return nil
 }
 
 func runSysTray(onClose func()) {
 	systray.Run(func() {
 
-		appIconBytes, err := assets.Asset("assets/appicon.ico")
+		appIconBytes, err := ioutil.ReadFile(filepath.Join(filepath.Dir(os.Args[0]), "assets", "appicon.ico"))
 		if err != nil {
 			panic(err)
 		}
@@ -94,9 +90,7 @@ func runSysTray(onClose func()) {
 			for {
 				select {
 				case <-mRunGUIApp.ClickedCh:
-					if err := runUIApp(); err != nil {
-						panic(merry.Append(err, "не удалось запустить elcoui.exe"))
-					}
+					runUIApp()
 				case <-mQuitOrig.ClickedCh:
 					systray.Quit()
 					onClose()

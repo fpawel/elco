@@ -22,9 +22,9 @@ import (
 	"time"
 )
 
-func switchGas(n int) error {
+func switchGasWithWarn(n int) error {
 
-	err := doSwitchGas(n)
+	err := switchGasWithoutWarn(n)
 	if err == nil {
 		return nil
 	}
@@ -53,7 +53,7 @@ func switchGas(n int) error {
 	return nil
 }
 
-func doSwitchGas(n int) error {
+func switchGasWithoutWarn(n int) error {
 
 	req := modbus.Request{
 		Addr:     5,
@@ -110,7 +110,7 @@ func doSwitchGas(n int) error {
 }
 
 func blowGas(nGas int) error {
-	if err := switchGas(nGas); err != nil {
+	if err := switchGasWithWarn(nGas); err != nil {
 		return err
 	}
 	timeMinutes := cfg.Cfg.Predefined().BlowGasMinutes
@@ -263,7 +263,7 @@ func (x readAndSaveCurrents) atTemperature(temperature data.Temperature) error {
 		}, "выключение", "компрессор")
 		// выключение газового блока
 		log.ErrIfFail(func() error {
-			return switchGas(0)
+			return switchGasWithWarn(0)
 		}, "выключение", "газ")
 	}()
 

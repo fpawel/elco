@@ -57,7 +57,7 @@ func (_ runner) RunSwitchGas(n int) {
 		what = fmt.Sprintf("подать газ %d", n)
 	}
 	runHardware(what, func() error {
-		return doSwitchGas(n)
+		return switchGasWithoutWarn(n)
 	})
 }
 
@@ -145,15 +145,14 @@ func runHardware(workName string, work WorkFunc) {
 	hardware.WaitGroup.Add(1)
 
 	log = gohelp.NewLogWithSuffixKeys("работа", workName)
-	resetLogFunc := func() {
-		log = structlog.New()
-	}
 
 	go func() {
 		defer hardware.WaitGroup.Done()
+		defer func() {
+			log = structlog.New()
+		}()
 		defer notify.WorkStoppedf(log, "выполнение окончено: %s", workName)
 		defer closeHardware()
-		defer resetLogFunc()
 
 		notify.WorkStarted(log, workName)
 
@@ -194,23 +193,24 @@ func notifyErr(err error) {
 }
 
 func closeHardware() {
-	log.ErrIfFail(portMeasurer.Close)
+
+	log.ErrIfFail(portMeasurer.Close, "close_hardware", "port measurer")
 	if portGas.Opened() {
 		log.ErrIfFail(func() error {
-			return switchGas(0)
-		})
+			return switchGasWithoutWarn(0)
+		}, "close_hardware", "switch off gas")
 	}
-	log.ErrIfFail(portGas.Close)
+	log.ErrIfFail(portGas.Close, "close_hardware", "port gas")
 	if i, err := ktx500.GetLast(); err == nil {
 		if i.On {
 			log.ErrIfFail(func() error {
 				return ktx500.WriteCoolOnOff(false)
-			})
+			}, "close_hardware", "отключение компрессора")
 		}
 		if i.CoolOn {
 			log.ErrIfFail(func() error {
 				return ktx500.WriteOnOff(false)
-			})
+			}, "выключение термокамеры")
 		}
 	}
 }

@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"github.com/fpawel/elco/internal/app"
-	"github.com/fpawel/elco/internal/assets"
 	"github.com/fpawel/elco/internal/elco"
 	"github.com/fpawel/gohelp/winapp"
 	"github.com/lxn/win"
@@ -66,7 +65,6 @@ func main() {
 	if *hideCon {
 		win.ShowWindow(win.GetConsoleWindow(), win.SW_HIDE)
 	}
-	must.AbortIf(assets.Ensure())
 	must.AbortIf(app.Run(*skipRunUIApp, *createNewDB))
 
 }
