@@ -66,13 +66,13 @@ func doSummary(d *gofpdf.Fpdf, party data.Party, productType data.ProductType) {
 		"№ п/п",
 		"Зав.№",
 		"Iфон, мкА",
-		"Dфон, мкА",
-		"Dt, мкА",
-		fmt.Sprintf("Кч20, мкА/%s", productType.UnitsName),
-		"Кч50, %",
-		fmt.Sprintf("Dn, мкА/%s", productType.UnitsName),
+		"Dф50, мкА",
+		"Кч-20, %",
+		"Kч50, %",
 		"Uсоу, мВ",
 		"Uстг, мВ",
+		"Код 1",
+		"Код 2",
 	} {
 		w := colWidth
 		if i == 0 {
@@ -107,19 +107,23 @@ func doSummary(d *gofpdf.Fpdf, party data.Party, productType data.ProductType) {
 		d.CellFormat(colWidth1, collHeight, strconv.Itoa(row+1), borderStr,
 			0, "C", false, 0, "")
 		cf(fmt.Sprintf("%d-%d", p.Serial.Int64, p.ProductID), borderStr, 0, "C")
+
 		cf(formatNullFloat64(p.IFPlus20), borderStr, 0, "R")
-		cf(formatNullFloat64(p.DFon20), borderStr, 0, "R")
 		cf(formatNullFloat64(p.DFon50), borderStr, 0, "R")
-		cf(formatNullFloat64(p.KSens20), borderStr, 0, "R")
+		cf(formatNullFloat64(p.KSensMinus20), borderStr, 0, "R")
 		cf(formatNullFloat64(p.KSens50), borderStr, 0, "R")
-		cf(formatNullFloat64(p.DNotMeasured), borderStr, 0, "R")
+
 		var u1, u2 string
 		if p.DFon50.Valid {
 			u1 = strconv.FormatFloat(p.DFon50.Float64*77, 'f', 1, 64)
 			u2 = strconv.FormatFloat(p.DFon50.Float64*52, 'f', 1, 64)
 		}
 		cf(u1, borderStr, 0, "R")
-		cf(u2, borderStr+"R", 0, "R")
+		cf(u2, borderStr, 0, "R")
+
+		code1, code2 := tempCodes(p)
+		cf(code1, borderStr, 0, "C")
+		cf(code2, borderStr+"R", 0, "C")
 		d.Ln(-1)
 	}
 }

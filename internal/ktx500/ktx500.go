@@ -101,7 +101,24 @@ func GetLast() (api.Ktx500Info, error) {
 		return api.Ktx500Info{}, last.error
 	}
 	return last.Ktx500Info, nil
+}
 
+func SetupTemperature(destinationTemperature float64) error {
+
+	// запись уставки
+	if err := WriteDestination(destinationTemperature); err != nil {
+		return err
+	}
+	// включение термокамеры
+	if err := WriteOnOff(true); err != nil {
+		return err
+	}
+
+	// установка компрессора
+	if err := WriteCoolOnOff(destinationTemperature < 50); err != nil {
+		return err
+	}
+	return nil
 }
 
 func newErr(err error) merry.Error {

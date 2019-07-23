@@ -80,7 +80,7 @@ func doPassportSou(d *gofpdf.Fpdf, left, width float64, p data.ProductInfo) {
 	for row, c := range [][]string{
 		{"T, \"C", "Iфон, мкА", "Кч, %"},
 		{"20", formatNullFloat64(p.IFPlus20), "100"},
-		{"50", formatNullFloat64(p.IFPlus50), formatNullFloat64(p.KSens50)},
+		{"50", formatNullFloat64(p.IFPlus50), formatNullFloat64Prec(p.KSens50, 1)},
 	} {
 		d.SetX(left)
 		for col, str := range c {

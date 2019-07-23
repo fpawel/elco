@@ -73,6 +73,9 @@ func RunPartyID(partyID int64) error {
 	if err = passportDax(dir, party); err != nil {
 		return err
 	}
+	if err = passportTempCodes(dir, party); err != nil {
+		return err
+	}
 	if err = exec.Command("Explorer.exe", dir).Start(); err != nil {
 		return err
 	}

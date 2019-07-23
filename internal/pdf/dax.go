@@ -142,7 +142,7 @@ func doPassportDax(d *gofpdf.Fpdf, left, width float64, p data.ProductInfo, part
 			formatNullFloat64Prec(p.I35, 3),
 			formatNullFloat64Prec(p.I26, 3),
 			formatNullFloat64Prec(p.I17, 3),
-			formatNullFloat64Prec(p.Variation, 3),
+			formatNullFloat64Prec(p.Variation, 2),
 		},
 		{"мг/м3", "", "", "", "", "", "", "", ""},
 	}
@@ -166,12 +166,12 @@ func doPassportDax(d *gofpdf.Fpdf, left, width float64, p data.ProductInfo, part
 		} {
 			if x.Valid {
 				v := dK*(x.Float64-p.IFPlus20.Float64) - (x.PGS - party.Concentration1)
-				dax[2][3+i] = strconv.FormatFloat(v, 'f', 3, 64)
+				dax[2][3+i] = strconv.FormatFloat(v, 'f', 2, 64)
 			}
 		}
 		if p.Variation.Valid {
 			v := dK * (p.I26.Float64 - p.I24.Float64)
-			dax[2][8] = strconv.FormatFloat(v, 'f', 3, 64)
+			dax[2][8] = strconv.FormatFloat(v, 'f', 2, 64)
 		}
 	}
 

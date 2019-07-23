@@ -17,19 +17,18 @@ import (
 	"github.com/powerman/structlog"
 	"github.com/sirupsen/logrus"
 	"math"
+	"os"
 	"sort"
 	"time"
 )
 
 func switchGas(n int) error {
 
-	logrus.Infof("переключение газового блока: %d", n)
-
 	err := doSwitchGas(n)
 	if err == nil {
-		logrus.Infof("газового блока переключен: %d", n)
 		return nil
 	}
+
 	s := "Не удалось "
 	if n == 0 {
 		s += "отключить газ"
@@ -49,7 +48,7 @@ func switchGas(n int) error {
 	if merry.Is(hardware.ctx.Err(), context.Canceled) {
 		return err
 	}
-	logrus.Warnf("проигнорирована ошибка связи с газовым блоком при переключении %d: %v", n, err)
+	log.Warn("проигнорирована ошибка связи с газовым блоком", "gas", n, "error", err)
 
 	return nil
 }
@@ -76,7 +75,14 @@ func doSwitchGas(n int) error {
 		return merry.Errorf("wrong gas code: %d", n)
 	}
 
-	log := gohelp.LogPrependSuffixKeys(log, "пневмоблок", n)
+	log := gohelp.LogPrependSuffixKeys(log, "gas", n)
+
+	if os.Getenv("ELCO_DEBUG_NO_HARDWARE") == "true" {
+		log.Warn("skip because ELCO_DEBUG_NO_HARDWARE set")
+		return nil
+	}
+
+	log.Info("переключение клапана")
 
 	if _, err := req.GetResponse(log, hardware.ctx, portGas, nil); err != nil {
 		return err
@@ -94,7 +100,7 @@ func doSwitchGas(n int) error {
 		req.Data[3] = 0xD5
 	}
 
-	log = gohelp.LogPrependSuffixKeys(log, "пневмоблок", "расход")
+	log.Info("установка расхода")
 
 	if _, err := req.GetResponse(log, hardware.ctx, portGas, nil); err != nil {
 		return err
@@ -187,18 +193,14 @@ func doDelay(what string, duration time.Duration) error {
 	}
 }
 
-func doSetupTemperature(destinationTemperature float64) error {
-	// запись уставки
-	if err := ktx500.WriteDestination(destinationTemperature); err != nil {
-		return err
-	}
-	// включение термокамеры
-	if err := ktx500.WriteOnOff(true); err != nil {
-		return err
+func setupTemperature(destinationTemperature float64) error {
+
+	if os.Getenv("ELCO_DEBUG_NO_HARDWARE") == "true" {
+		log.Warn("skip because ELCO_DEBUG_NO_HARDWARE set")
+		return nil
 	}
 
-	// установка компрессора
-	if err := ktx500.WriteCoolOnOff(destinationTemperature < 50); err != nil {
+	if err := ktx500.SetupTemperature(destinationTemperature); err != nil {
 		return err
 	}
 
@@ -229,9 +231,9 @@ func doSetupTemperature(destinationTemperature float64) error {
 	}
 }
 
-func setupTemperature(temperature data.Temperature) error {
+func setupAndHoldTemperature(temperature data.Temperature) error {
 
-	err := doSetupTemperature(float64(temperature))
+	err := setupTemperature(float64(temperature))
 	if err != nil {
 		if !merry.Is(err, ktx500.Err) {
 			return err
@@ -240,39 +242,38 @@ func setupTemperature(temperature data.Temperature) error {
 		if merry.Is(hardware.ctx.Err(), context.Canceled) {
 			return err
 		}
-
-		logrus.Warnf("установка тепературы %v⁰C, фоновый опрос: проигнорирована ошибка связи с термокамерой: %v",
-			temperature, err)
+		log.Warn("проигнорирована ошибка связи с термокамерой",
+			"setup_temperature", temperature, "error", err)
 	}
 
 	duration := time.Minute * time.Duration(cfg.Cfg.Predefined().HoldTemperatureMinutes)
 	return delay(fmt.Sprintf("выдержка термокамеры: %v⁰C", temperature), duration)
 }
 
-func determineTemperature(temperature data.Temperature) error {
+type readAndSaveCurrents struct{}
+
+func (x readAndSaveCurrents) atTemperature(temperature data.Temperature) error {
 
 	defer func() {
-
-		// выключение термокамеры
 		log.ErrIfFail(func() error {
 			return ktx500.WriteOnOff(false)
-		})
-		// выключение компрессора
+		}, "выключение", "термокамера")
 		log.ErrIfFail(func() error {
 			return ktx500.WriteCoolOnOff(false)
-		})
+		}, "выключение", "компрессор")
 		// выключение газового блока
 		log.ErrIfFail(func() error {
 			return switchGas(0)
-		})
-
+		}, "выключение", "газ")
 	}()
+
+	notify.Statusf(log, "%v⁰C: снятие", temperature)
 
 	if err := blowGas(1); err != nil {
 		return err
 	}
 
-	if err := determineProductsTemperatureCurrents(temperature, data.Fon); err != nil {
+	if err := x.atTemperatureScalePt(temperature, data.Fon); err != nil {
 		return err
 	}
 
@@ -280,7 +281,7 @@ func determineTemperature(temperature data.Temperature) error {
 		return err
 	}
 
-	if err := determineProductsTemperatureCurrents(temperature, data.Sens); err != nil {
+	if err := x.atTemperatureScalePt(temperature, data.Sens); err != nil {
 		return err
 	}
 
@@ -289,7 +290,7 @@ func determineTemperature(temperature data.Temperature) error {
 	}
 
 	if temperature == 20 {
-		if err := readAndSaveProductsCurrents("i13"); err != nil {
+		if err := x.forDBColumn("i13"); err != nil {
 			return merry.WithMessagef(err, "снятие возврата НКУ")
 		}
 	}
@@ -297,7 +298,7 @@ func determineTemperature(temperature data.Temperature) error {
 	return nil
 }
 
-func determineMainError() error {
+func (x readAndSaveCurrents) forMainError() error {
 
 	for i, pt := range data.MainErrorPoints {
 		what := fmt.Sprintf("%d: ПГС%d: снятие основной погрешности", i+1, pt.Code())
@@ -308,37 +309,28 @@ func determineMainError() error {
 			return err
 		}
 
-		if err := readAndSaveProductsCurrents(pt.Field()); err != nil {
+		if err := x.forDBColumn(pt.Field()); err != nil {
 			return errors.Wrap(err, what)
 		}
 	}
 	return nil
 }
 
-func determineProductsTemperatureCurrents(temperature data.Temperature, scale data.ScaleType) error {
-	return readAndSaveProductsCurrents(data.TemperatureScaleField(temperature, scale))
+func (x readAndSaveCurrents) atTemperatureScalePt(temperature data.Temperature, scale data.ScaleType) error {
+	return x.forDBColumn(data.TemperatureScaleField(temperature, scale))
 }
 
-func readAndSaveProductsCurrents(field string) error {
-	logrus.Infof("снятие %q: начало", field)
-	err := doReadAndSaveProductsCurrents(field)
-	if err == nil {
-		logrus.Infof("снятие %q: успешно", field)
-		return nil
-	}
-	return merry.WithValue(err, "field", field).Append("снятие")
-}
+func (_ readAndSaveCurrents) forDBColumn(dbColumn string) error {
 
-func doReadAndSaveProductsCurrents(field string) error {
+	log := gohelp.LogPrependSuffixKeys(log, "db_column", dbColumn)
+	log.Info("снятие")
 
 	productsToWork := data.GetLastPartyProducts(data.WithSerials, data.WithProduction)
-
 	if len(productsToWork) == 0 {
-		return merry.New("не выбрано ни одного прибора в данной партии")
+		return merry.Errorf("снятие \"%s\": не выбрано ни одного прибора", dbColumn)
 	}
-	logrus.Infof("снятие %q: %s", field, formatProducts(productsToWork))
 
-	log := gohelp.LogPrependSuffixKeys(log, "снятие", field)
+	log = gohelp.LogPrependSuffixKeys(log, "products", formatProducts(productsToWork))
 
 	blockProducts := GroupProductsByBlocks(productsToWork)
 	for _, products := range blockProducts {
@@ -356,17 +348,19 @@ func doReadAndSaveProductsCurrents(field string) error {
 		}
 
 		for _, p := range products {
+
 			n := p.Place % 8
-			args := []interface{}{
+
+			log := gohelp.LogPrependSuffixKeys(log,
 				"product_id", p.ProductID,
 				"place", data.FormatPlace(p.Place),
-				"field", field,
-				"value", values[n],
+				"db_column", dbColumn,
+				"value", values[n])
+
+			if err := data.SetProductValue(p.ProductID, dbColumn, values[n]); err != nil {
+				return log.Err(merry.Append(err, "не удалось сохранить в базе данных"))
 			}
-			if err := data.SetProductValue(p.ProductID, field, values[n]); err != nil {
-				return log.Err(merry.Append(err, "не удалось сохранить"), args...)
-			}
-			log.Info("сохраненено", args...)
+			log.Info("сохраненено в базе данных")
 		}
 	}
 	party := data.GetLastParty(data.WithProducts)

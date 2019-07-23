@@ -14,9 +14,9 @@ import (
 
 type runner struct{}
 
-func (_ runner) RunReadAndSaveProductCurrents(field string) {
-	runHardware(fmt.Sprintf("Снятие %q", field), func() error {
-		return readAndSaveProductsCurrents(field)
+func (_ runner) RunReadAndSaveProductCurrents(dbColumn string) {
+	runHardware(fmt.Sprintf("Снятие %q", dbColumn), func() error {
+		return readAndSaveCurrents{}.forDBColumn(dbColumn)
 	})
 }
 
@@ -49,10 +49,6 @@ func (_ runner) RunWritePartyFirmware() {
 	runHardware("Прошивка партии", writePartyFirmware)
 }
 
-func (_ runner) RunMainError() {
-	runHardware("Снятие основной погрешности", determineMainError)
-}
-
 func (_ runner) RunSwitchGas(n int) {
 	var what string
 	if n == 0 {
@@ -67,49 +63,45 @@ func (_ runner) RunSwitchGas(n int) {
 
 func (_ runner) RunMain(nku, variation, minus, plus bool) {
 
+	readAndSaveCurrents := readAndSaveCurrents{}
+
 	runHardware("Снятие", func() error {
-		var works []func() error
 
-		addWork := func(f func() error) {
-			works = append(works, f)
-		}
-
-		addSetupT := func(t data.Temperature) {
-			addWork(func() error {
-				return setupTemperature(t)
-			})
-		}
-		addDetermineT := func(t data.Temperature) {
-			addWork(func() error {
-				notify.Statusf(log, "%v⁰C: снятие", t)
-				return determineTemperature(t)
-			})
-		}
 		if nku || variation {
-			addSetupT(20)
-		}
-		if nku {
-			addDetermineT(20)
-		}
-		if variation {
-			addWork(determineMainError)
-		}
-		if minus {
-			addSetupT(-20)
-			addDetermineT(-20)
-		}
-		if plus {
-			addSetupT(50)
-			addDetermineT(50)
-		}
-		if minus || plus {
-			addSetupT(20)
-		}
-		for _, work := range works {
-			if err := work(); err != nil {
+			if err := setupAndHoldTemperature(20); err != nil {
 				return err
 			}
 		}
+
+		if nku {
+			if err := readAndSaveCurrents.atTemperature(20); err != nil {
+				return err
+			}
+		}
+
+		if variation {
+			if err := readAndSaveCurrents.forMainError(); err != nil {
+				return err
+			}
+		}
+
+		if minus {
+			if err := setupAndHoldTemperature(-20); err != nil {
+				return err
+			}
+			if err := readAndSaveCurrents.atTemperature(-20); err != nil {
+				return err
+			}
+		}
+		if plus {
+			if err := setupAndHoldTemperature(50); err != nil {
+				return err
+			}
+			if err := readAndSaveCurrents.atTemperature(50); err != nil {
+				return err
+			}
+		}
+
 		return nil
 	})
 }
