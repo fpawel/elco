@@ -1,6 +1,8 @@
 debug
 Win32
 bin
+build/*
+!build/assets/
 .vscode/
 .idea/
 *.exe
@@ -15,5 +17,3 @@ __recovery/
 *.stat
 *.vlb
 *.rsm
-build
-!build/assets/
