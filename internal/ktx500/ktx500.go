@@ -133,7 +133,7 @@ func read(f func(*fins.Client) error) error {
 			if err = f(client); err == nil {
 				return nil
 			}
-			time.Sleep(config.PollSec * time.Second)
+			time.Sleep(time.Second)
 		}
 		return err
 	})
@@ -146,7 +146,7 @@ func write(what string, f func(*fins.Client) error) error {
 			if err = f(client); err == nil {
 				break
 			}
-			time.Sleep(config.PollSec * time.Second)
+			time.Sleep(time.Second)
 		}
 		if err != nil {
 			err = merry.Append(err, what)
