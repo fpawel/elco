@@ -30,7 +30,7 @@ func main() {
 
 	dir := filepath.Join(os.Getenv("DELPHIPATH"),
 		"src", "github.com", "fpawel", "elco-gui", "api")
-	winapp.EnsuredDirectory(dir)
+	_ = winapp.EnsuredDirectory(dir)
 
 	openFile := func(fileName string) *os.File {
 		file, err := os.Create(filepath.Join(dir, fileName))
@@ -94,10 +94,7 @@ func main() {
 			"LastPartyChanged",
 			r.TypeOf((*data.Party)(nil)).Elem(),
 		},
-		{
-			"StartServerApplication",
-			r.TypeOf((*string)(nil)).Elem(),
-		},
+
 		{
 			"ReadFirmware",
 			r.TypeOf((*data.FirmwareInfo)(nil)).Elem(),

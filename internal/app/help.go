@@ -30,6 +30,16 @@ func formatProducts(products []data.Product) (s string) {
 	return s
 }
 
+func merryKeysValues(err error) (kvs []interface{}) {
+	for k, v := range merry.Values(err) {
+		strK := fmt.Sprintf("%v", k)
+		if strK != "stack" && strK != "msg" && strK != "message" {
+			kvs = append(kvs, k, v)
+		}
+	}
+	return kvs
+}
+
 // stacktrace returns the error's stacktrace as a string formatted
 // the same way as golangs runtime package.
 // If e has no stacktrace, returns an empty string.

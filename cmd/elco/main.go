@@ -3,8 +3,10 @@ package main
 import (
 	"flag"
 	"github.com/fpawel/elco/internal/app"
-	"github.com/fpawel/elco/internal/elco"
-	"github.com/fpawel/gohelp/winapp"
+	"github.com/fpawel/elco/internal/cfg"
+	"github.com/fpawel/elco/internal/data"
+	"github.com/fpawel/elco/internal/peer"
+	"github.com/fpawel/gohelp"
 	"github.com/lxn/win"
 	"github.com/powerman/must"
 	"github.com/powerman/structlog"
@@ -15,17 +17,20 @@ import (
 
 func main() {
 
-	defaultLogLevelStr := os.Getenv(elco.EnvVarLogLevel)
+	defaultLogLevelStr := gohelp.GetEnvWithLog("ELCO_LOG_LEVEL")
+
 	if len(strings.TrimSpace(defaultLogLevelStr)) == 0 {
 		defaultLogLevelStr = "info"
 	}
 
-	createNewDB := flag.Bool("new-db", false, "create new data base")
 	hideCon := flag.Bool("hide-con", false, "hide console window")
-	skipRunUIApp := flag.Bool("skip-run-ui", false, "skip running ui")
 	logLevel := flag.String("log.level", defaultLogLevelStr, "log `level` (debug|info|warn|err)")
 
 	flag.Parse()
+
+	if *hideCon {
+		win.ShowWindow(win.GetConsoleWindow(), win.SW_HIDE)
+	}
 
 	structlog.DefaultLogger.
 		SetPrefixKeys(
@@ -50,21 +55,16 @@ func main() {
 		}).SetTimeFormat("15:04:05").
 		SetLogLevel(structlog.ParseLevel(*logLevel))
 
-	// Преверяем, не было ли приложение запущено ранее.
-	// Если было, выдвигаем окно UI приложения на передний план и завершаем процесс.
-	if winapp.IsWindow(winapp.FindWindow(elco.ServerWindowClassName)) {
-		hWnd := winapp.FindWindow(elco.PeerWindowClassName)
-		win.ShowWindow(hWnd, win.SW_RESTORE)
-		win.SetForegroundWindow(hWnd)
-		structlog.DefaultLogger.Info("elco.exe already executing")
-		return
-	}
-
 	must.AbortIf = must.PanicIf
 
-	if *hideCon {
-		win.ShowWindow(win.GetConsoleWindow(), win.SW_HIDE)
-	}
-	must.AbortIf(app.Run(*skipRunUIApp, *createNewDB))
+	log := structlog.New()
+
+	cfg.OpenConfig()
+	data.Open()
+
+	must.AbortIf(app.Run())
+	peer.Close()
+	log.ErrIfFail(data.Close, "defer", "close products db")
+	log.ErrIfFail(cfg.Cfg.Save, "defer", "save config")
 
 }

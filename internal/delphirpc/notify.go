@@ -42,7 +42,7 @@ func NewNotifyServicesSrc(unitName string, d *TypesSrc, services []NotifyService
 			"fmt":                                  {},
 			"github.com/fpawel/elco/internal/api":  {},
 			"github.com/fpawel/elco/internal/data": {},
-			"github.com/fpawel/elco/internal/elco": {},
+			"github.com/fpawel/elco/internal/peer": {},
 			"github.com/powerman/structlog":        {},
 		},
 	}

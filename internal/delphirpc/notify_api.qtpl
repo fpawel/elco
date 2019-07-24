@@ -19,16 +19,16 @@ const (
 
 {% for _,m := range x.services %}func {%s m.serviceName %}(log *structlog.Logger, arg {%s m.goType %}) {
     if log != nil {
-        log.Debug(elco.PeerWindowClassName, "{%s m.serviceName %}", arg, "MSG", msg{%s m.serviceName %})
+        msg{%s m.serviceName %}.Log(log)(peer.WindowClassName + ": {%s m.serviceName %}: "+ fmt.Sprintf("%+v",arg), "MSG", msg{%s m.serviceName %}, )
     }
-    go W.{%s m.notifyFunc %}( uintptr(msg{%s m.serviceName %}), {%s= m.instructionArg %} )
+    go peer.{%s m.notifyFunc %}( uintptr(msg{%s m.serviceName %}), {%s= m.instructionArg %} )
 }
 {% if m.notifyFunc == "NotifyStr" %}
 func {%s m.serviceName %}f(log *structlog.Logger, format string, a ...interface{}) {
     if log != nil {
-        log.Debug(elco.PeerWindowClassName, "{%s m.serviceName %}", fmt.Sprintf(format,a...), "MSG", msg{%s m.serviceName %})
+        msg{%s m.serviceName %}.Log(log)(peer.WindowClassName + ": {%s m.serviceName %}: " + fmt.Sprintf(format,a...), "MSG", msg{%s m.serviceName %}, )
     }
-    go W.Notifyf( uintptr(msg{%s m.serviceName %}), format, a... )
+    go peer.Notifyf( uintptr(msg{%s m.serviceName %}), format, a... )
 }{% endif %}
 {% endfor %}
 

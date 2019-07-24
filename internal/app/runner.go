@@ -15,13 +15,13 @@ import (
 type runner struct{}
 
 func (_ runner) RunReadAndSaveProductCurrents(dbColumn string) {
-	runHardware(fmt.Sprintf("Снятие %q", dbColumn), func() error {
-		return readAndSaveCurrents{}.forDBColumn(dbColumn)
+	runHardware(fmt.Sprintf("Снятие %q", dbColumn), func(log *structlog.Logger) error {
+		return readSaveForDBColumn(log, dbColumn)
 	})
 }
 
 func (_ runner) RunWritePlaceFirmware(place int, bytes []byte) {
-	runHardware(fmt.Sprintf("Запись прошивки места %s", data.FormatPlace(place)), func() error {
+	runHardware(fmt.Sprintf("Запись прошивки места %s", data.FormatPlace(place)), func(log *structlog.Logger) error {
 		err := writePlaceFirmware(log, place, bytes)
 		if err != nil {
 			return err
@@ -34,7 +34,7 @@ func (_ runner) RunWritePlaceFirmware(place int, bytes []byte) {
 }
 
 func (_ runner) RunReadPlaceFirmware(place int) {
-	runHardware(fmt.Sprintf("Считывание места %d", place+1), func() error {
+	runHardware(fmt.Sprintf("Считывание места %d", place+1), func(log *structlog.Logger) error {
 		b, err := readPlaceFirmware(log, place)
 		if err != nil {
 			return err
@@ -56,48 +56,46 @@ func (_ runner) RunSwitchGas(n int) {
 	} else {
 		what = fmt.Sprintf("подать газ %d", n)
 	}
-	runHardware(what, func() error {
-		return switchGasWithoutWarn(n)
+	runHardware(what, func(log *structlog.Logger) error {
+		return switchGasWithoutWarn(log, n)
 	})
 }
 
 func (_ runner) RunMain(nku, variation, minus, plus bool) {
 
-	readAndSaveCurrents := readAndSaveCurrents{}
-
-	runHardware("Снятие", func() error {
+	runHardware("Снятие", func(log *structlog.Logger) error {
 
 		if nku || variation {
-			if err := setupAndHoldTemperature(20); err != nil {
+			if err := setupAndHoldTemperature(log, 20); err != nil {
 				return err
 			}
 		}
 
 		if nku {
-			if err := readAndSaveCurrents.atTemperature(20); err != nil {
+			if err := readSaveAtTemperature(log, 20); err != nil {
 				return err
 			}
 		}
 
 		if variation {
-			if err := readAndSaveCurrents.forMainError(); err != nil {
+			if err := readSaveForMainError(log); err != nil {
 				return err
 			}
 		}
 
 		if minus {
-			if err := setupAndHoldTemperature(-20); err != nil {
+			if err := setupAndHoldTemperature(log, -20); err != nil {
 				return err
 			}
-			if err := readAndSaveCurrents.atTemperature(-20); err != nil {
+			if err := readSaveAtTemperature(log, -20); err != nil {
 				return err
 			}
 		}
 		if plus {
-			if err := setupAndHoldTemperature(50); err != nil {
+			if err := setupAndHoldTemperature(log, 50); err != nil {
 				return err
 			}
-			if err := readAndSaveCurrents.atTemperature(50); err != nil {
+			if err := readSaveAtTemperature(log, 50); err != nil {
 				return err
 			}
 		}
@@ -107,17 +105,17 @@ func (_ runner) RunMain(nku, variation, minus, plus bool) {
 }
 
 func (_ runner) StopHardware() {
-	hardware.cancelFunc()
+	cancelWorkFunc()
 }
 
 func (_ runner) SkipDelay() {
-	hardware.skipDelayFunc()
+	skipDelayFunc()
 
 }
 
 func (_ runner) RunReadCurrent() {
 
-	runHardware("опрос", func() error {
+	runHardware("опрос", func(log *structlog.Logger) error {
 		for {
 			checkedBlocks := data.GetLastPartyCheckedBlocks()
 			if len(checkedBlocks) == 0 {
@@ -125,7 +123,7 @@ func (_ runner) RunReadCurrent() {
 			}
 			for _, block := range checkedBlocks {
 
-				if _, err := readBlockMeasure(log, block, hardware.ctx); err != nil {
+				if _, err := readBlockMeasure(log, block, ctxWork); err != nil {
 					return err
 				}
 			}
@@ -133,84 +131,68 @@ func (_ runner) RunReadCurrent() {
 	})
 }
 
-type WorkFunc = func() error
+type WorkFunc = func(log *structlog.Logger) error
 
 func runHardware(workName string, work WorkFunc) {
 
-	hardware.cancelFunc()
-	hardware.WaitGroup.Wait()
-	hardware.WaitGroup = sync.WaitGroup{}
-	hardware.ctx, hardware.cancelFunc = context.WithCancel(ctxApp)
+	log := gohelp.NewLogWithSuffixKeys("работа", workName)
 
-	hardware.WaitGroup.Add(1)
-
-	log = gohelp.NewLogWithSuffixKeys("работа", workName)
-
+	cancelWorkFunc()
+	wgWork.Wait()
+	wgWork = sync.WaitGroup{}
+	ctxWork, cancelWorkFunc = context.WithCancel(ctxApp)
+	wgWork.Add(1)
 	go func() {
-		defer hardware.WaitGroup.Done()
+
 		defer func() {
-			log = structlog.New()
+			notify.Status(log, "Остановка работы оборудования")
+
+			log.ErrIfFail(portMeasurer.Close, "close_hardware", "port measurer")
+			if portGas.Opened() {
+
+				log.ErrIfFail(func() error {
+					return switchGasWithoutWarn(log, 0)
+				}, "close_hardware", "switch off gas")
+
+				log.ErrIfFail(portGas.Close, "close_hardware", "port gas")
+
+			}
+
+			if i, err := ktx500.GetLast(); err == nil {
+				if i.On {
+					log.ErrIfFail(func() error {
+						return ktx500.WriteCoolOnOff(false)
+					}, "close_hardware", "отключение компрессора")
+				}
+				if i.CoolOn {
+					log.ErrIfFail(func() error {
+						return ktx500.WriteOnOff(false)
+					}, "выключение термокамеры")
+				}
+			}
+
+			notify.WorkStoppedf(log, "выполнение окончено: %s", workName)
+			wgWork.Done()
 		}()
-		defer notify.WorkStoppedf(log, "выполнение окончено: %s", workName)
-		defer closeHardware()
 
 		notify.WorkStarted(log, workName)
-
-		switch err := work(); err {
-		case nil:
+		err := work(log)
+		if err == nil {
 			log.Info("выполнено успешно")
 			notify.WorkCompletef(log, "%s: выполнено успешно", workName)
-		case context.Canceled:
+			return
+		}
+		if merry.Is(err, context.Canceled) {
 			log.Warn("выполнение прервано")
-			notify.WorkCompletef(log, "%s: выполнение прервано", workName)
-		default:
-			notifyErr(err)
+			return
 		}
+
+		kvs := merryKeysValues(err)
+		if merry.Is(err, context.Canceled) {
+			log.Warn("выполнение прервано", kvs...)
+			return
+		}
+		notify.ErrorOccurredf(log, err.Error())
+		log.PrintErr(err, append(kvs, "stack", merryStacktrace(err))...)
 	}()
-}
-
-func notifyErr(err error) {
-	if merry.Is(err, context.Canceled) {
-		log.Warn("выполнение прервано")
-		return
-	}
-	var kvs []interface{}
-	for k, v := range merry.Values(err) {
-		strK := fmt.Sprintf("%v", k)
-		if strK != "stack" && strK != "msg" && strK != "message" {
-			kvs = append(kvs, k, v)
-		}
-	}
-
-	if merry.Is(err, context.Canceled) {
-		log.Warn("выполнение прервано", kvs...)
-		return
-	}
-	kvs = append(kvs, "stack", merryStacktrace(err))
-	log.PrintErr(err, kvs...)
-
-	notify.ErrorOccurredf(log, err.Error())
-}
-
-func closeHardware() {
-
-	log.ErrIfFail(portMeasurer.Close, "close_hardware", "port measurer")
-	if portGas.Opened() {
-		log.ErrIfFail(func() error {
-			return switchGasWithoutWarn(0)
-		}, "close_hardware", "switch off gas")
-	}
-	log.ErrIfFail(portGas.Close, "close_hardware", "port gas")
-	if i, err := ktx500.GetLast(); err == nil {
-		if i.On {
-			log.ErrIfFail(func() error {
-				return ktx500.WriteCoolOnOff(false)
-			}, "close_hardware", "отключение компрессора")
-		}
-		if i.CoolOn {
-			log.ErrIfFail(func() error {
-				return ktx500.WriteOnOff(false)
-			}, "выключение термокамеры")
-		}
-	}
 }

@@ -9,7 +9,6 @@ import (
 	"github.com/powerman/structlog"
 	"gopkg.in/reform.v1"
 	"gopkg.in/reform.v1/dialects/sqlite3"
-	"os"
 	"path/filepath"
 )
 
@@ -23,19 +22,16 @@ func Close() error {
 	return dbConn.Close()
 }
 
-func Open(createNew bool) {
+func Open() {
+	log := structlog.New()
+
 	dir, err := Dir()
 	if err != nil {
 		panic(err)
 	}
+
 	fileName := filepath.Join(dir, "elco.sqlite")
-	if createNew {
-		if _, err := os.Stat(fileName); err == nil {
-			if err := os.Remove(fileName); err != nil {
-				panic(merry.Appendf(err, "unable to delete database file: %s", fileName))
-			}
-		}
-	}
+
 	dbConn, err = sql.Open("sqlite3", fileName)
 	if err != nil {
 		panic(err)
@@ -50,7 +46,7 @@ func Open(createNew bool) {
 	if err = deleteEmptyParties(); err != nil {
 		panic(err)
 	}
-	structlog.New().Info("open sqlite db", "file", fileName)
+	log.Debug("open database", "file", fileName)
 	DB = reform.NewDB(dbConn, sqlite3.Dialect, nil)
 	DBx = sqlx.NewDb(dbConn, "sqlite3")
 }

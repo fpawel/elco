@@ -33,7 +33,7 @@ func newHelperWriteParty() helperWriteParty {
 	}
 }
 
-func writePartyFirmware() error {
+func writePartyFirmware(log *structlog.Logger) error {
 
 	startTime := time.Now()
 	party := data.GetLastParty(data.WithoutProducts)
@@ -42,7 +42,7 @@ func writePartyFirmware() error {
 		return merry.New("не выбрано ни одного прибора")
 	}
 
-	log := gohelp.LogPrependSuffixKeys(log,
+	log = gohelp.LogPrependSuffixKeys(log,
 		"party_id", party.PartyID,
 		"products", formatProducts(products),
 	)
@@ -112,6 +112,10 @@ func (x helperWriteParty) error() error {
 func (x helperWriteParty) verifyProductsFirmware(log *structlog.Logger, places []int) {
 
 	for _, place := range places {
+		calc, fPlace := x.bytes[place]
+		if !fPlace {
+			continue
+		}
 		log := gohelp.LogPrependSuffixKeys(log,
 			"place", data.FormatPlace(place))
 		_ = x.tryPlace(log, place, func() error {
@@ -120,8 +124,8 @@ func (x helperWriteParty) verifyProductsFirmware(log *structlog.Logger, places [
 				return err
 			}
 			for _, c := range firmwareAddresses {
+				calc := calc[c.addr1 : c.addr2+1]
 				read := b[c.addr1 : c.addr2+1]
-				calc := x.bytes[place][c.addr1 : c.addr2+1]
 				if !compareBytes(read, calc) {
 					return merry.Errorf(
 						"место %s: не совпадают данные по адресам %X...%X",
@@ -286,7 +290,7 @@ func readPlaceFirmware(log *structlog.Logger, place int) ([]byte, error) {
 			"bytes_count", count,
 		)
 
-		resp, err := req.GetResponse(log, hardware.ctx, portMeasurer, func(request, response []byte) (string, error) {
+		resp, err := req.GetResponse(log, ctxWork, portMeasurer, func(request, response []byte) (string, error) {
 			if len(response) != 10+int(count) {
 				return "", comm.ErrProtocol.Here().WithMessagef("ожидалось %d байт ответа, получено %d",
 					10+int(count), len(response))
@@ -385,7 +389,7 @@ func waitStatus45(log *structlog.Logger, block int, placesMask byte) error {
 	}()
 
 	t := time.Duration(cfg.Cfg.Predefined().StatusTimeoutSeconds) * time.Second
-	ctx, _ := context.WithTimeout(hardware.ctx, t)
+	ctx, _ := context.WithTimeout(ctxWork, t)
 	for {
 
 		select {
@@ -443,7 +447,7 @@ func readStatus45(log *structlog.Logger, block int) ([]byte, error) {
 	}
 
 	log = gohelp.LogPrependSuffixKeys(log, "block", block)
-	return request.GetResponse(log, hardware.ctx, portMeasurer, func(request, response []byte) (string, error) {
+	return request.GetResponse(log, ctxWork, portMeasurer, func(request, response []byte) (string, error) {
 		if len(response) != 12 {
 			return "", comm.ErrProtocol.Here().WithMessagef("ожидалось 12 байт ответа, получено %d", len(response))
 		}
@@ -477,7 +481,7 @@ func writePreparedDataToFlash(log *structlog.Logger, block int, placesMask byte,
 		"addr", fmt.Sprintf("%X", addr),
 		"bytes_count", count)
 
-	_, err := req.GetResponse(log, hardware.ctx, portMeasurer, func(request, response []byte) (string, error) {
+	_, err := req.GetResponse(log, ctxWork, portMeasurer, func(request, response []byte) (string, error) {
 		if !compareBytes(response, request) {
 			return "", merry.New("запрос не равен ответу")
 		}
@@ -509,7 +513,7 @@ func sendDataToWrite42(log *structlog.Logger, block, placeInBlock int, b []byte)
 		}, b...),
 	}
 
-	_, err := req.GetResponse(log, hardware.ctx, portMeasurer, func(request, response []byte) (string, error) {
+	_, err := req.GetResponse(log, ctxWork, portMeasurer, func(request, response []byte) (string, error) {
 		if len(response) != 7 {
 			return "", merry.Errorf("длина ответа %d не равна 7", len(response))
 		}

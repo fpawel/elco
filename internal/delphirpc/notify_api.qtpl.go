@@ -80,17 +80,21 @@ const (
 		//line notify_api.qtpl:20
 		qw422016.N().S(`) {
     if log != nil {
-        log.Debug(elco.PeerWindowClassName, "`)
+        msg`)
 		//line notify_api.qtpl:22
 		qw422016.E().S(m.serviceName)
 		//line notify_api.qtpl:22
-		qw422016.N().S(`", arg, "MSG", msg`)
+		qw422016.N().S(`.Log(log)(peer.WindowClassName + ": `)
 		//line notify_api.qtpl:22
 		qw422016.E().S(m.serviceName)
 		//line notify_api.qtpl:22
-		qw422016.N().S(`)
+		qw422016.N().S(`: "+ fmt.Sprintf("%+v",arg), "MSG", msg`)
+		//line notify_api.qtpl:22
+		qw422016.E().S(m.serviceName)
+		//line notify_api.qtpl:22
+		qw422016.N().S(`, )
     }
-    go W.`)
+    go peer.`)
 		//line notify_api.qtpl:24
 		qw422016.E().S(m.notifyFunc)
 		//line notify_api.qtpl:24
@@ -115,17 +119,21 @@ func `)
 			//line notify_api.qtpl:27
 			qw422016.N().S(`f(log *structlog.Logger, format string, a ...interface{}) {
     if log != nil {
-        log.Debug(elco.PeerWindowClassName, "`)
+        msg`)
 			//line notify_api.qtpl:29
 			qw422016.E().S(m.serviceName)
 			//line notify_api.qtpl:29
-			qw422016.N().S(`", fmt.Sprintf(format,a...), "MSG", msg`)
+			qw422016.N().S(`.Log(log)(peer.WindowClassName + ": `)
 			//line notify_api.qtpl:29
 			qw422016.E().S(m.serviceName)
 			//line notify_api.qtpl:29
-			qw422016.N().S(`)
+			qw422016.N().S(`: " + fmt.Sprintf(format,a...), "MSG", msg`)
+			//line notify_api.qtpl:29
+			qw422016.E().S(m.serviceName)
+			//line notify_api.qtpl:29
+			qw422016.N().S(`, )
     }
-    go W.Notifyf( uintptr(msg`)
+    go peer.Notifyf( uintptr(msg`)
 			//line notify_api.qtpl:31
 			qw422016.E().S(m.serviceName)
 			//line notify_api.qtpl:31

@@ -1,15 +1,18 @@
 package notify
 
 import (
-	"github.com/fpawel/elco/internal/elco"
-	"github.com/fpawel/gohelp/copydata"
+	"github.com/powerman/structlog"
 )
 
-// окно для отправки сообщений WM_COPYDATA дельфи-приложению
-var W *copydata.NotifyWindow
+var infoMSGs = map[msg]struct{}{
+	msgWorkStarted:  {},
+	msgWorkComplete: {},
+	msgStatus:       {},
+}
 
-func InitWindow(sourceWindowClassNameSuffix string) {
-	W = copydata.NewNotifyWindow(
-		elco.ServerWindowClassName+sourceWindowClassNameSuffix,
-		elco.PeerWindowClassName)
+func (x msg) Log(log *structlog.Logger) func(interface{}, ...interface{}) {
+	if _, f := infoMSGs[x]; f {
+		return log.Info
+	}
+	return log.Debug
 }

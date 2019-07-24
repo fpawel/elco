@@ -2,9 +2,10 @@ package app
 
 import (
 	"github.com/fpawel/elco/internal/api"
-	"github.com/fpawel/elco/internal/api/notify"
+	"github.com/fpawel/elco/internal/peer"
 	"github.com/powerman/must"
 	"github.com/powerman/rpc-codec/jsonrpc2"
+	"github.com/powerman/structlog"
 	"golang.org/x/sys/windows/registry"
 	"net"
 	"net/http"
@@ -12,6 +13,8 @@ import (
 )
 
 func startHttpServer() func() {
+
+	log := structlog.New()
 
 	for _, svcObj := range []interface{}{
 		new(api.PartiesCatalogueSvc),
@@ -68,11 +71,11 @@ func startHttpServer() func() {
 type peerNotifier struct{}
 
 func (_ peerNotifier) OnStarted() {
-	notify.W.InitPeer()
-	hardware.cancelFunc()
+	peer.InitPeer()
+	cancelWorkFunc()
 }
 
 func (_ peerNotifier) OnClosed() {
-	notify.W.ResetPeer()
-	hardware.cancelFunc()
+	peer.ResetPeer()
+	cancelWorkFunc()
 }
