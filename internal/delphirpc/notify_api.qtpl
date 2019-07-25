@@ -21,26 +21,14 @@ const (
     if log != nil {
         msg{%s m.serviceName %}.Log(log)(peer.WindowClassName + ": {%s m.serviceName %}: "+ fmt.Sprintf("%+v",arg), "MSG", msg{%s m.serviceName %}, )
     }
-    go peer.{%s m.notifyFunc %}( uintptr(msg{%s m.serviceName %}), {%s= m.instructionArg %} )
-}
-func {%s m.serviceName %}Sync(log *structlog.Logger, arg {%s m.goType %}) {
-    if log != nil {
-        msg{%s m.serviceName %}.Log(log)(peer.WindowClassName + ": {%s m.serviceName %}: "+ fmt.Sprintf("%+v",arg), "MSG", msg{%s m.serviceName %}, )
-    }
-    peer.{%s m.notifyFunc %}( uintptr(msg{%s m.serviceName %}), {%s= m.instructionArg %} )
+    {% if m.serviceName != "Warning" %}go {% endif %}peer.{%s m.notifyFunc %}( uintptr(msg{%s m.serviceName %}), {%s= m.instructionArg %} )
 }
 {% if m.notifyFunc == "NotifyStr" %}
 func {%s m.serviceName %}f(log *structlog.Logger, format string, a ...interface{}) {
     if log != nil {
         msg{%s m.serviceName %}.Log(log)(peer.WindowClassName + ": {%s m.serviceName %}: " + fmt.Sprintf(format,a...), "MSG", msg{%s m.serviceName %}, )
     }
-    go peer.Notifyf( uintptr(msg{%s m.serviceName %}), format, a... )
-}
-func {%s m.serviceName %}Syncf(log *structlog.Logger, format string, a ...interface{}) {
-    if log != nil {
-        msg{%s m.serviceName %}.Log(log)(peer.WindowClassName + ": {%s m.serviceName %}: " + fmt.Sprintf(format,a...), "MSG", msg{%s m.serviceName %}, )
-    }
-    peer.Notifyf( uintptr(msg{%s m.serviceName %}), format, a... )
+    {% if m.serviceName != "Warning" %}go {% endif %}peer.Notifyf( uintptr(msg{%s m.serviceName %}), format, a... )
 }{% endif %}
 {% endfor %}
 

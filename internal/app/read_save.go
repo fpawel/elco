@@ -85,7 +85,7 @@ func readSaveForDBColumn(log *structlog.Logger, dbColumn string) error {
 			if merry.Is(err, context.Canceled) {
 				return err
 			}
-			notify.WarningSync(log, fmt.Sprintf("блок измерения %d: %v", block+1, err))
+			notify.Warning(log, fmt.Sprintf("блок измерения %d: %v", block+1, err))
 			if ctxWork.Err() == context.Canceled {
 				return err
 			}

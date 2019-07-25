@@ -66,6 +66,34 @@ func (_ runner) RunMain(nku, variation, minus, plus bool) {
 
 	runHardware("Снятие", func(log *structlog.Logger) error {
 
+		defer func() {
+			notify.Status(log, "Остановка работы оборудования")
+
+			log.ErrIfFail(portMeasurer.Close, "close_hardware", "port measurer")
+			if portGas.Opened() {
+
+				log.ErrIfFail(func() error {
+					return switchGasWithoutWarn(log, 0)
+				}, "close_hardware", "switch off gas")
+
+				log.ErrIfFail(portGas.Close, "close_hardware", "port gas")
+
+			}
+
+			if i, err := ktx500.GetLast(); err == nil {
+				if i.On {
+					log.ErrIfFail(func() error {
+						return ktx500.WriteCoolOnOff(false)
+					}, "close_hardware", "отключение компрессора")
+				}
+				if i.CoolOn {
+					log.ErrIfFail(func() error {
+						return ktx500.WriteOnOff(false)
+					}, "выключение термокамеры")
+				}
+			}
+		}()
+
 		if nku || variation {
 			if err := setupAndHoldTemperature(log, 20); err != nil {
 				return err
@@ -147,32 +175,6 @@ func runHardware(workName string, work WorkFunc) {
 	go func() {
 
 		defer func() {
-			notify.Status(log, "Остановка работы оборудования")
-
-			log.ErrIfFail(portMeasurer.Close, "close_hardware", "port measurer")
-			if portGas.Opened() {
-
-				log.ErrIfFail(func() error {
-					return switchGasWithoutWarn(log, 0)
-				}, "close_hardware", "switch off gas")
-
-				log.ErrIfFail(portGas.Close, "close_hardware", "port gas")
-
-			}
-
-			if i, err := ktx500.GetLast(); err == nil {
-				if i.On {
-					log.ErrIfFail(func() error {
-						return ktx500.WriteCoolOnOff(false)
-					}, "close_hardware", "отключение компрессора")
-				}
-				if i.CoolOn {
-					log.ErrIfFail(func() error {
-						return ktx500.WriteOnOff(false)
-					}, "выключение термокамеры")
-				}
-			}
-
 			notify.WorkStoppedf(log, "выполнение окончено: %s", workName)
 			wgWork.Done()
 		}()

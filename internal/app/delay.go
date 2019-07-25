@@ -15,84 +15,88 @@ import (
 
 func delay(log *structlog.Logger, what string, duration time.Duration) error {
 
-	startTime := time.Now()
+	fd := helpstr.FormatDuration
 
-	log = gohelp.LogPrependSuffixKeys(log,
-		"delay", what,
-		"duration", helpstr.FormatDuration(duration),
-		"start", startTime.Format("15:04:05"),
-	)
-	log.Info("Задержка: начало")
+	return merry.Appendf(func() error {
+		startTime := time.Now()
 
-	if err := func() error {
+		log = gohelp.LogPrependSuffixKeys(log,
+			"delay", what,
+			"duration", fd(duration),
+			"start", startTime.Format("15:04:05"),
+		)
+		log.Info("Задержка: начало")
 
-		ctx, skipDelay := context.WithTimeout(ctxWork, duration)
+		if err := func() error {
 
-		skipDelayFunc = func() {
-			skipDelay()
-			log.Info("задержка прервана",
-				"elapsed",
-				helpstr.FormatDuration(time.Since(startTime)))
-		}
+			ctx, skipDelay := context.WithTimeout(ctxWork, duration)
 
-		defer func() {
-			notify.EndDelay(log, "")
-		}()
-		for {
-			products := data.GetLastPartyProducts(data.WithSerials, data.WithProduction)
-
-			if len(products) == 0 {
-				return merry.New("фоновый опрос: не выбрано ни одного прибора")
+			skipDelayFunc = func() {
+				skipDelay()
+				log.Info("задержка прервана",
+					"elapsed",
+					fd(time.Since(startTime)))
 			}
-			for _, products := range GroupProductsByBlocks(products) {
 
-				if ctx.Err() != nil {
-					return nil
+			defer func() {
+				notify.EndDelay(log, "")
+			}()
+			for {
+				products := data.GetLastPartyProducts(data.WithSerials, data.WithProduction)
+
+				if len(products) == 0 {
+					return merry.New("фоновый опрос: не выбрано ни одного прибора")
 				}
+				for _, products := range GroupProductsByBlocks(products) {
 
-				if ctxWork.Err() != nil {
-					return ctxWork.Err()
+					if ctx.Err() != nil {
+						return nil
+					}
+
+					if ctxWork.Err() != nil {
+						return ctxWork.Err()
+					}
+
+					block := products[0].Place / 8
+
+					log := gohelp.LogPrependSuffixKeys(log, "block", block)
+
+					notify.Delay(nil, api.DelayInfo{
+						What:           what,
+						TotalSeconds:   int(duration.Seconds()),
+						ElapsedSeconds: int(time.Since(startTime).Seconds()),
+					})
+
+					_, err := readBlockMeasure(log, block, ctx)
+
+					if err == nil {
+						pause(ctx.Done(), intSeconds(cfg.Cfg.Predefined().ReadBlockPauseSeconds))
+						continue
+					}
+
+					if ctx.Err() != nil {
+						return nil
+					}
+
+					if ctxWork.Err() != nil {
+						return ctxWork.Err()
+					}
+
+					notify.Warningf(log, "фоновый опрос: блок измерения %d: %v", block, err)
+
+					if merry.Is(ctxWork.Err(), context.Canceled) {
+						return err
+					}
+					log.Warn("%s: фоновый опрос: проигнорирована ошибка связи с блоком измерительным %d: %v", block, err)
 				}
-
-				block := products[0].Place / 8
-
-				log := gohelp.LogPrependSuffixKeys(log, "block", block)
-
-				notify.Delay(nil, api.DelayInfo{
-					What:           what,
-					TotalSeconds:   int(duration.Seconds()),
-					ElapsedSeconds: int(time.Since(startTime).Seconds()),
-				})
-
-				_, err := readBlockMeasure(log, block, ctx)
-
-				if err == nil {
-					pause(ctx.Done(), intSeconds(cfg.Cfg.Predefined().ReadBlockPauseSeconds))
-					continue
-				}
-
-				if ctx.Err() != nil {
-					return nil
-				}
-
-				if ctxWork.Err() != nil {
-					return ctxWork.Err()
-				}
-
-				notify.Warningf(log, "фоновый опрос: блок измерения %d: %v", block, err)
-
-				if merry.Is(ctxWork.Err(), context.Canceled) {
-					return err
-				}
-				log.Warn("%s: фоновый опрос: проигнорирована ошибка связи с блоком измерительным %d: %v", block, err)
 			}
+		}(); err != nil {
+			return merry.Appendf(err, "%s: %s: %s",
+				what,
+				fd(duration),
+				fd(time.Since(startTime)))
 		}
-	}(); err != nil {
-		return merry.Appendf(err, "%s: %s: %s",
-			what,
-			helpstr.FormatDuration(duration),
-			helpstr.FormatDuration(time.Since(startTime)))
-	}
-	log.Info("Задержка: выполнено без ошибок")
-	return nil
+		log.Info("Задержка: выполнено без ошибок")
+		return nil
+	}(), what+", "+fd(duration))
 }

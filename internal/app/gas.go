@@ -35,7 +35,7 @@ func switchGasWithWarn(log *structlog.Logger, n int) error {
 		s += fmt.Sprintf("Подайте ПГС%d", n)
 	}
 	s += " вручную."
-	notify.WarningSync(log, s)
+	notify.Warning(log, s)
 	if merry.Is(ctxWork.Err(), context.Canceled) {
 		return err
 	}
@@ -45,65 +45,69 @@ func switchGasWithWarn(log *structlog.Logger, n int) error {
 }
 
 func switchGasWithoutWarn(log *structlog.Logger, n int) error {
+	return merry.Appendf(func() error {
+		req := modbus.Request{
+			Addr:     5,
+			ProtoCmd: 0x10,
+			Data: []byte{
+				0, 0x32, 0, 1, 2, 0, 0,
+			},
+		}
+		switch n {
+		case 0:
+			req.Data[6] = 0
+		case 1:
+			req.Data[6] = 1
+		case 2:
+			req.Data[6] = 2
+		case 3:
+			req.Data[6] = 4
+		default:
+			return merry.Errorf("wrong gas code: %d", n)
+		}
 
-	req := modbus.Request{
-		Addr:     5,
-		ProtoCmd: 0x10,
-		Data: []byte{
-			0, 0x32, 0, 1, 2, 0, 0,
-		},
-	}
-	switch n {
-	case 0:
-		req.Data[6] = 0
-	case 1:
-		req.Data[6] = 1
-	case 2:
-		req.Data[6] = 2
-	case 3:
-		req.Data[6] = 4
-	default:
-		return merry.Errorf("wrong gas code: %d", n)
-	}
+		log = gohelp.LogPrependSuffixKeys(log, "gas", n)
 
-	log = gohelp.LogPrependSuffixKeys(log, "gas", n)
+		if os.Getenv("ELCO_DEBUG_NO_HARDWARE") == "true" {
+			log.Warn("skip because ELCO_DEBUG_NO_HARDWARE==true")
+			return nil
+		}
 
-	if os.Getenv("ELCO_DEBUG_NO_HARDWARE") == "true" {
-		log.Warn("skip because ELCO_DEBUG_NO_HARDWARE==true")
+		log.Info("переключение клапана")
+
+		if _, err := req.GetResponse(log, ctxWork, portGas, nil); err != nil {
+			return err
+		}
+
+		req = modbus.Request{
+			Addr:     1,
+			ProtoCmd: 6,
+			Data: []byte{
+				0, 4, 0, 0,
+			},
+		}
+		if n > 0 {
+			req.Data[2] = 0x14
+			req.Data[3] = 0xD5
+		}
+
+		log.Info("установка расхода")
+
+		if _, err := req.GetResponse(log, ctxWork, portGas, nil); err != nil {
+			return err
+		}
+
 		return nil
-	}
-
-	log.Info("переключение клапана")
-
-	if _, err := req.GetResponse(log, ctxWork, portGas, nil); err != nil {
-		return err
-	}
-
-	req = modbus.Request{
-		Addr:     1,
-		ProtoCmd: 6,
-		Data: []byte{
-			0, 4, 0, 0,
-		},
-	}
-	if n > 0 {
-		req.Data[2] = 0x14
-		req.Data[3] = 0xD5
-	}
-
-	log.Info("установка расхода")
-
-	if _, err := req.GetResponse(log, ctxWork, portGas, nil); err != nil {
-		return err
-	}
-
-	return nil
+	}(),
+		"газовый блок: %d", n)
 }
 
 func blowGas(log *structlog.Logger, nGas int) error {
-	if err := switchGasWithWarn(log, nGas); err != nil {
-		return err
-	}
-	duration := time.Minute * time.Duration(cfg.Cfg.User().BlowGasMinutes)
-	return delay(log, fmt.Sprintf("продувка ПГС%d", nGas), duration)
+	return merry.Appendf(func() error {
+		if err := switchGasWithWarn(log, nGas); err != nil {
+			return err
+		}
+		duration := time.Minute * time.Duration(cfg.Cfg.User().BlowGasMinutes)
+		return delay(log, fmt.Sprintf("продувка ПГС%d", nGas), duration)
+	}(), "продувка ПГС%d", nGas)
 }

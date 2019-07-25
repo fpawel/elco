@@ -94,7 +94,15 @@ const (
 		//line notify_api.qtpl:22
 		qw422016.N().S(`, )
     }
-    go peer.`)
+    `)
+		//line notify_api.qtpl:24
+		if m.serviceName != "Warning" {
+			//line notify_api.qtpl:24
+			qw422016.N().S(`go `)
+			//line notify_api.qtpl:24
+		}
+		//line notify_api.qtpl:24
+		qw422016.N().S(`peer.`)
 		//line notify_api.qtpl:24
 		qw422016.E().S(m.notifyFunc)
 		//line notify_api.qtpl:24
@@ -106,141 +114,85 @@ const (
 		//line notify_api.qtpl:24
 		qw422016.N().S(m.instructionArg)
 		//line notify_api.qtpl:24
-		qw422016.N().S(` )
-}
-func `)
-		//line notify_api.qtpl:26
-		qw422016.E().S(m.serviceName)
-		//line notify_api.qtpl:26
-		qw422016.N().S(`Sync(log *structlog.Logger, arg `)
-		//line notify_api.qtpl:26
-		qw422016.E().S(m.goType)
-		//line notify_api.qtpl:26
-		qw422016.N().S(`) {
-    if log != nil {
-        msg`)
-		//line notify_api.qtpl:28
-		qw422016.E().S(m.serviceName)
-		//line notify_api.qtpl:28
-		qw422016.N().S(`.Log(log)(peer.WindowClassName + ": `)
-		//line notify_api.qtpl:28
-		qw422016.E().S(m.serviceName)
-		//line notify_api.qtpl:28
-		qw422016.N().S(`: "+ fmt.Sprintf("%+v",arg), "MSG", msg`)
-		//line notify_api.qtpl:28
-		qw422016.E().S(m.serviceName)
-		//line notify_api.qtpl:28
-		qw422016.N().S(`, )
-    }
-    peer.`)
-		//line notify_api.qtpl:30
-		qw422016.E().S(m.notifyFunc)
-		//line notify_api.qtpl:30
-		qw422016.N().S(`( uintptr(msg`)
-		//line notify_api.qtpl:30
-		qw422016.E().S(m.serviceName)
-		//line notify_api.qtpl:30
-		qw422016.N().S(`), `)
-		//line notify_api.qtpl:30
-		qw422016.N().S(m.instructionArg)
-		//line notify_api.qtpl:30
 		qw422016.N().S(` )
 }
 `)
-		//line notify_api.qtpl:32
+		//line notify_api.qtpl:26
 		if m.notifyFunc == "NotifyStr" {
-			//line notify_api.qtpl:32
+			//line notify_api.qtpl:26
 			qw422016.N().S(`
 func `)
-			//line notify_api.qtpl:33
+			//line notify_api.qtpl:27
 			qw422016.E().S(m.serviceName)
-			//line notify_api.qtpl:33
+			//line notify_api.qtpl:27
 			qw422016.N().S(`f(log *structlog.Logger, format string, a ...interface{}) {
     if log != nil {
         msg`)
-			//line notify_api.qtpl:35
+			//line notify_api.qtpl:29
 			qw422016.E().S(m.serviceName)
-			//line notify_api.qtpl:35
+			//line notify_api.qtpl:29
 			qw422016.N().S(`.Log(log)(peer.WindowClassName + ": `)
-			//line notify_api.qtpl:35
+			//line notify_api.qtpl:29
 			qw422016.E().S(m.serviceName)
-			//line notify_api.qtpl:35
+			//line notify_api.qtpl:29
 			qw422016.N().S(`: " + fmt.Sprintf(format,a...), "MSG", msg`)
-			//line notify_api.qtpl:35
+			//line notify_api.qtpl:29
 			qw422016.E().S(m.serviceName)
-			//line notify_api.qtpl:35
+			//line notify_api.qtpl:29
 			qw422016.N().S(`, )
     }
-    go peer.Notifyf( uintptr(msg`)
-			//line notify_api.qtpl:37
+    `)
+			//line notify_api.qtpl:31
+			if m.serviceName != "Warning" {
+				//line notify_api.qtpl:31
+				qw422016.N().S(`go `)
+				//line notify_api.qtpl:31
+			}
+			//line notify_api.qtpl:31
+			qw422016.N().S(`peer.Notifyf( uintptr(msg`)
+			//line notify_api.qtpl:31
 			qw422016.E().S(m.serviceName)
-			//line notify_api.qtpl:37
-			qw422016.N().S(`), format, a... )
-}
-func `)
-			//line notify_api.qtpl:39
-			qw422016.E().S(m.serviceName)
-			//line notify_api.qtpl:39
-			qw422016.N().S(`Syncf(log *structlog.Logger, format string, a ...interface{}) {
-    if log != nil {
-        msg`)
-			//line notify_api.qtpl:41
-			qw422016.E().S(m.serviceName)
-			//line notify_api.qtpl:41
-			qw422016.N().S(`.Log(log)(peer.WindowClassName + ": `)
-			//line notify_api.qtpl:41
-			qw422016.E().S(m.serviceName)
-			//line notify_api.qtpl:41
-			qw422016.N().S(`: " + fmt.Sprintf(format,a...), "MSG", msg`)
-			//line notify_api.qtpl:41
-			qw422016.E().S(m.serviceName)
-			//line notify_api.qtpl:41
-			qw422016.N().S(`, )
-    }
-    peer.Notifyf( uintptr(msg`)
-			//line notify_api.qtpl:43
-			qw422016.E().S(m.serviceName)
-			//line notify_api.qtpl:43
+			//line notify_api.qtpl:31
 			qw422016.N().S(`), format, a... )
 }`)
-			//line notify_api.qtpl:44
+			//line notify_api.qtpl:32
 		}
-		//line notify_api.qtpl:44
+		//line notify_api.qtpl:32
 		qw422016.N().S(`
 `)
-		//line notify_api.qtpl:45
+		//line notify_api.qtpl:33
 	}
-	//line notify_api.qtpl:45
+	//line notify_api.qtpl:33
 	qw422016.N().S(`
 
 
 
 `)
-//line notify_api.qtpl:49
+//line notify_api.qtpl:37
 }
 
-//line notify_api.qtpl:49
+//line notify_api.qtpl:37
 func (x *NotifyServicesSrc) WriteGoFile(qq422016 qtio422016.Writer) {
-	//line notify_api.qtpl:49
+	//line notify_api.qtpl:37
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line notify_api.qtpl:49
+	//line notify_api.qtpl:37
 	x.StreamGoFile(qw422016)
-	//line notify_api.qtpl:49
+	//line notify_api.qtpl:37
 	qt422016.ReleaseWriter(qw422016)
-//line notify_api.qtpl:49
+//line notify_api.qtpl:37
 }
 
-//line notify_api.qtpl:49
+//line notify_api.qtpl:37
 func (x *NotifyServicesSrc) GoFile() string {
-	//line notify_api.qtpl:49
+	//line notify_api.qtpl:37
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line notify_api.qtpl:49
+	//line notify_api.qtpl:37
 	x.WriteGoFile(qb422016)
-	//line notify_api.qtpl:49
+	//line notify_api.qtpl:37
 	qs422016 := string(qb422016.B)
-	//line notify_api.qtpl:49
+	//line notify_api.qtpl:37
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line notify_api.qtpl:49
+	//line notify_api.qtpl:37
 	return qs422016
-//line notify_api.qtpl:49
+//line notify_api.qtpl:37
 }

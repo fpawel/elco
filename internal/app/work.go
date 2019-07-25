@@ -31,7 +31,7 @@ func setupTemperature(log *structlog.Logger, destinationTemperature float64) err
 		if !merry.Is(err, ktx500.Err) {
 			return err
 		}
-		notify.WarningSyncf(log, `Не удалось установить температуру: %v⁰C: %v`, destinationTemperature, err)
+		notify.Warningf(log, `Не удалось установить температуру: %v⁰C: %v`, destinationTemperature, err)
 		if merry.Is(ctxWork.Err(), context.Canceled) {
 			return err
 		}
@@ -40,32 +40,37 @@ func setupTemperature(log *structlog.Logger, destinationTemperature float64) err
 		return nil
 	}
 
-	productsWithSerials := data.GetLastPartyProducts(data.WithSerials)
+	return merry.Appendf(func() error {
 
-	if len(productsWithSerials) == 0 {
-		return merry.New("фоновый опрос: не выбрано ни одного прибора")
-	}
+		productsWithSerials := data.GetLastPartyProducts(data.WithSerials)
 
-	for {
-		for _, products := range GroupProductsByBlocks(productsWithSerials) {
-			currentTemperature, err := ktx500.ReadTemperature()
-			if err != nil {
-				return err
-			}
-			if math.Abs(currentTemperature-destinationTemperature) < 2 {
-				return nil
-			}
-
-			block := products[0].Place / 8
-			if _, err = readBlockMeasure(
-				gohelp.LogPrependSuffixKeys(log, "фоновый_опрос",
-					fmt.Sprintf("установка температуры %v⁰C", destinationTemperature)),
-				block, ctxWork); err != nil {
-				return err
-			}
-			notify.Statusf(log, "установка температуры %v⁰C: %v⁰C", destinationTemperature, currentTemperature)
+		if len(productsWithSerials) == 0 {
+			return merry.New("фоновый опрос: не выбрано ни одного прибора")
 		}
-	}
+
+		for {
+			for _, products := range GroupProductsByBlocks(productsWithSerials) {
+				currentTemperature, err := ktx500.ReadTemperature()
+				if err != nil {
+					return err
+				}
+				if math.Abs(currentTemperature-destinationTemperature) < 2 {
+					return nil
+				}
+
+				block := products[0].Place / 8
+				if _, err = readBlockMeasure(
+					gohelp.LogPrependSuffixKeys(log, "фоновый_опрос",
+						fmt.Sprintf("установка температуры %v⁰C", destinationTemperature)),
+					block, ctxWork); err != nil {
+					return err
+				}
+				notify.Statusf(log, "установка температуры %v⁰C: %v⁰C", destinationTemperature, currentTemperature)
+			}
+		}
+
+	}(), "установка %v⁰C, фоновый опрос", destinationTemperature)
+
 }
 
 func setupAndHoldTemperature(log *structlog.Logger, temperature data.Temperature) error {
@@ -109,7 +114,7 @@ func readBlockMeasure(log *structlog.Logger, block int, ctx context.Context) ([]
 		})
 		return values, nil
 	}
-	return nil, merry.WithValue(err, "block", block)
+	return nil, merry.Appendf(err, "блок измерения %d", block)
 }
 
 func init() {
