@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/elco/internal/api/notify"
+	"github.com/fpawel/elco/internal/cfg"
 	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/elco/internal/ktx500"
 	"github.com/fpawel/gohelp"
@@ -126,6 +127,7 @@ func (_ runner) RunReadCurrent() {
 				if _, err := readBlockMeasure(log, block, ctxWork); err != nil {
 					return err
 				}
+				pause(ctxWork.Done(), intSeconds(cfg.Cfg.Predefined().ReadBlockPauseSeconds))
 			}
 		}
 	})

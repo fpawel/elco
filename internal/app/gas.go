@@ -9,6 +9,7 @@ import (
 	"github.com/fpawel/elco/internal/cfg"
 	"github.com/fpawel/gohelp"
 	"github.com/powerman/structlog"
+	"os"
 	"time"
 )
 
@@ -34,7 +35,7 @@ func switchGasWithWarn(log *structlog.Logger, n int) error {
 		s += fmt.Sprintf("Подайте ПГС%d", n)
 	}
 	s += " вручную."
-	notify.Warning(log, s)
+	notify.WarningSync(log, s)
 	if merry.Is(ctxWork.Err(), context.Canceled) {
 		return err
 	}
@@ -67,8 +68,8 @@ func switchGasWithoutWarn(log *structlog.Logger, n int) error {
 
 	log = gohelp.LogPrependSuffixKeys(log, "gas", n)
 
-	if gohelp.GetEnvWithLog("ELCO_DEBUG_NO_HARDWARE") == "true" {
-		log.Warn("skip because ELCO_DEBUG_NO_HARDWARE set to true")
+	if os.Getenv("ELCO_DEBUG_NO_HARDWARE") == "true" {
+		log.Warn("skip because ELCO_DEBUG_NO_HARDWARE==true")
 		return nil
 	}
 
@@ -103,6 +104,6 @@ func blowGas(log *structlog.Logger, nGas int) error {
 	if err := switchGasWithWarn(log, nGas); err != nil {
 		return err
 	}
-	duration := time.Minute * time.Duration(cfg.Cfg.Predefined().BlowGasMinutes)
+	duration := time.Minute * time.Duration(cfg.Cfg.User().BlowGasMinutes)
 	return delay(log, fmt.Sprintf("продувка ПГС%d", nGas), duration)
 }

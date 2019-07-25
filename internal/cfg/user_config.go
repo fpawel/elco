@@ -12,10 +12,12 @@ import (
 )
 
 type UserConfig struct {
-	ComportMeasurer    string
-	ComportGas         string
-	ChipType           int
-	AmbientTemperature float64
+	ComportMeasurer        string
+	ComportGas             string
+	ChipType               int
+	AmbientTemperature     float64
+	BlowGasMinutes         int
+	HoldTemperatureMinutes int
 }
 
 func (x *UserConfig) Sections() []ConfigSection {
@@ -126,9 +128,11 @@ func (x *UserConfig) setValue(section, property, value string) error {
 
 func defaultUserConfig() *UserConfig {
 	return &UserConfig{
-		ChipType:        16,
-		ComportMeasurer: "COM1",
-		ComportGas:      "COM2",
+		ChipType:               16,
+		ComportMeasurer:        "COM1",
+		ComportGas:             "COM2",
+		BlowGasMinutes:         5,
+		HoldTemperatureMinutes: 120,
 	}
 }
 

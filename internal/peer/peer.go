@@ -67,6 +67,11 @@ func InitPeer() {
 	notifyWindow.InitPeer()
 }
 
+func InitNotifyWindow(serverWindowClassNameSuffix string) {
+	notifyWindow = copydata.NewNotifyWindow(ServerWindowClassName+serverWindowClassNameSuffix,
+		WindowClassName)
+}
+
 func Init(serverWindowClassNameSuffix string) {
 	if notifyWindow != nil {
 		panic("already init")
@@ -80,8 +85,8 @@ func Init(serverWindowClassNameSuffix string) {
 		win.SetForegroundWindow(hWnd)
 		log.Fatal("elco.exe already executing")
 	}
-	notifyWindow = copydata.NewNotifyWindow(ServerWindowClassName,
-		WindowClassName+os.Getenv(serverWindowClassNameSuffix))
+	InitNotifyWindow(serverWindowClassNameSuffix)
+
 	if os.Getenv("ELCO_SKIP_RUN_PEER") == "true" {
 		log.Warn("ELCO_SKIP_RUN_PEER")
 	} else {

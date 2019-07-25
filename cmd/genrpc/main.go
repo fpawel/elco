@@ -21,6 +21,7 @@ func main() {
 		r.TypeOf((*api.RunnerSvc)(nil)),
 		r.TypeOf((*api.PdfSvc)(nil)),
 		r.TypeOf((*api.PeerSvc)(nil)),
+		r.TypeOf((*api.ConfigSvc)(nil)),
 	}
 	m := map[string]string{
 		"ProductInfo": "Product",

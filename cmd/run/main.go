@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"github.com/fpawel/elco/internal/api/notify"
+	"github.com/fpawel/elco/internal/peer"
 	"github.com/fpawel/gorunex/pkg/gorunex"
 	"github.com/powerman/must"
 	"log"
@@ -17,12 +18,11 @@ func main() {
 	flag.StringVar(&exeName, "exe", "elco.exe", "path to elco.exe")
 	flag.Parse()
 	log.Println("log file:", gorunex.LogFileName())
-	notify.InitWindow("_" + os.Args[0])
-
-	defer notify.W.Close()
+	peer.InitNotifyWindow("_" + os.Args[0])
 	must.AbortIf(gorunex.Process(exeName, args, func() {
 		notify.Panic(nil, "Произошла ошибка ПО. Подробности в лог-файле "+gorunex.LogFileName())
 	}, notifyWriter{}))
+	peer.Close()
 }
 
 type notifyWriter struct{}

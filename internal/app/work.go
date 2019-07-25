@@ -27,7 +27,17 @@ func setupTemperature(log *structlog.Logger, destinationTemperature float64) err
 	}
 
 	if err := ktx500.SetupTemperature(destinationTemperature); err != nil {
-		return err
+
+		if !merry.Is(err, ktx500.Err) {
+			return err
+		}
+		notify.WarningSyncf(log, `Не удалось установить температуру: %v⁰C: %v`, destinationTemperature, err)
+		if merry.Is(ctxWork.Err(), context.Canceled) {
+			return err
+		}
+		log.Warn("проигнорирована ошибка связи с термокамерой",
+			"setup_temperature", destinationTemperature, "error", err)
+		return nil
 	}
 
 	productsWithSerials := data.GetLastPartyProducts(data.WithSerials)
@@ -62,18 +72,10 @@ func setupAndHoldTemperature(log *structlog.Logger, temperature data.Temperature
 
 	err := setupTemperature(log, float64(temperature))
 	if err != nil {
-		if !merry.Is(err, ktx500.Err) {
-			return err
-		}
-		notify.Warningf(log, `Не удалось установить температуру: %v⁰C: %v`, temperature, err)
-		if merry.Is(ctxWork.Err(), context.Canceled) {
-			return err
-		}
-		log.Warn("проигнорирована ошибка связи с термокамерой",
-			"setup_temperature", temperature, "error", err)
+		return err
 	}
 
-	duration := time.Minute * time.Duration(cfg.Cfg.Predefined().HoldTemperatureMinutes)
+	duration := time.Minute * time.Duration(cfg.Cfg.User().HoldTemperatureMinutes)
 	return delay(log, fmt.Sprintf("выдержка термокамеры: %v⁰C", temperature), duration)
 }
 
@@ -100,18 +102,14 @@ func readBlockMeasure(log *structlog.Logger, block int, ctx context.Context) ([]
 
 	values, err := modbus.Read3BCDs(log, ctx, portMeasurer, modbus.Addr(block+101), 0, 8)
 
-	switch err {
-
-	case nil:
+	if err == nil {
 		notify.ReadCurrent(nil, api.ReadCurrent{
 			Block:  block,
 			Values: values,
 		})
 		return values, nil
-
-	default:
-		return nil, merry.WithValue(err, "block", block)
 	}
+	return nil, merry.WithValue(err, "block", block)
 }
 
 func init() {

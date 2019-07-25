@@ -9,7 +9,25 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
+	"time"
 )
+
+func pause(chDone <-chan struct{}, d time.Duration) {
+	timer := time.NewTimer(d)
+	for {
+		select {
+		case <-timer.C:
+			return
+		case <-chDone:
+			timer.Stop()
+			return
+		}
+	}
+}
+
+func intSeconds(n int) time.Duration {
+	return time.Duration(n) * time.Second
+}
 
 func formatProducts(products []data.Product) (s string) {
 	var places []int

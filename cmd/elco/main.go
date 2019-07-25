@@ -6,7 +6,6 @@ import (
 	"github.com/fpawel/elco/internal/cfg"
 	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/elco/internal/peer"
-	"github.com/fpawel/gohelp"
 	"github.com/lxn/win"
 	"github.com/powerman/must"
 	"github.com/powerman/structlog"
@@ -17,8 +16,7 @@ import (
 
 func main() {
 
-	defaultLogLevelStr := gohelp.GetEnvWithLog("ELCO_LOG_LEVEL")
-
+	defaultLogLevelStr := os.Getenv("ELCO_LOG_LEVEL")
 	if len(strings.TrimSpace(defaultLogLevelStr)) == 0 {
 		defaultLogLevelStr = "info"
 	}

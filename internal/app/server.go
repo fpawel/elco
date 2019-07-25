@@ -25,6 +25,7 @@ func startHttpServer() func() {
 		new(api.PdfSvc),
 		&api.RunnerSvc{runner{}},
 		api.NewPeerSvc(peerNotifier{}),
+		new(api.ConfigSvc),
 	} {
 		must.AbortIf(rpc.Register(svcObj))
 	}

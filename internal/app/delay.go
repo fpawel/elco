@@ -5,6 +5,7 @@ import (
 	"github.com/ansel1/merry"
 	"github.com/fpawel/elco/internal/api"
 	"github.com/fpawel/elco/internal/api/notify"
+	"github.com/fpawel/elco/internal/cfg"
 	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/gohelp"
 	"github.com/fpawel/gohelp/helpstr"
@@ -66,6 +67,7 @@ func delay(log *structlog.Logger, what string, duration time.Duration) error {
 				_, err := readBlockMeasure(log, block, ctx)
 
 				if err == nil {
+					pause(ctx.Done(), intSeconds(cfg.Cfg.Predefined().ReadBlockPauseSeconds))
 					continue
 				}
 

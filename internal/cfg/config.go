@@ -36,14 +36,13 @@ type Config struct {
 }
 
 type PredefinedConfig struct {
-	FinsNetwork            FinsNetwork `toml:"fins" comment:"параметры протокола связи с теромкамерой"`
-	ComportMeasurer        comm.Config `toml:"measurer" comment:"измерительный блок"`
-	ComportGas             comm.Config `toml:"gas_block" comment:"газовый блок"`
-	BlowGasMinutes         int         `toml:"blow_gas_minutes" comment:"длительность продувки газа, мин."`
-	HoldTemperatureMinutes int         `toml:"hold_temperature_minutes" comment:"длительность выдержки термокамеры, мин."`
-	StatusTimeoutSeconds   int         `toml:"status_timeout_seconds" comment:"таймаут статуса прошивки, с"`
-	ReadRangeDelayMillis   int         `toml:"read_range_delay_millis" comment:"задержка при считывании диапазонов, мс"`
-	WaitFlashStatusDelay   int         `toml:"wait_flash_status_delay_ms" comment:"задержка при считывании статуса записи, мс"`
+	FinsNetwork           FinsNetwork `toml:"fins" comment:"параметры протокола связи с теромкамерой"`
+	ComportMeasurer       comm.Config `toml:"measurer" comment:"измерительный блок"`
+	ComportGas            comm.Config `toml:"gas_block" comment:"газовый блок"`
+	StatusTimeoutSeconds  int         `toml:"status_timeout_seconds" comment:"таймаут статуса прошивки, с"`
+	ReadRangeDelayMillis  int         `toml:"read_range_delay_millis" comment:"задержка при считывании диапазонов, мс"`
+	WaitFlashStatusDelay  int         `toml:"wait_flash_status_delay_ms" comment:"задержка при считывании статуса записи, мс"`
+	ReadBlockPauseSeconds int         `toml:"read_block_pause_seconds" comment:"задержка между опросом блоков измерительных, с"`
 }
 
 type FinsNetwork struct {
@@ -153,9 +152,8 @@ func (x *Config) SetValue(section, property, value string) error {
 
 func DefaultPredefinedConfig() PredefinedConfig {
 	return PredefinedConfig{
-		WaitFlashStatusDelay:   1000,
-		BlowGasMinutes:         5,
-		HoldTemperatureMinutes: 120,
+		WaitFlashStatusDelay:  1000,
+		ReadBlockPauseSeconds: 1,
 		ComportGas: comm.Config{
 			ReadByteTimeoutMillis: 50,
 			ReadTimeoutMillis:     1000,
