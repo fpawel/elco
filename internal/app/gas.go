@@ -1,51 +1,37 @@
 package app
 
 import (
-	"context"
 	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/comm/modbus"
-	"github.com/fpawel/elco/internal/api/notify"
 	"github.com/fpawel/elco/internal/cfg"
-	"github.com/fpawel/gohelp"
-	"github.com/powerman/structlog"
 	"os"
 	"time"
 )
 
-func switchGasWithWarn(log *structlog.Logger, n int) error {
-
-	err := switchGasWithoutWarn(log, n)
-	if err == nil {
-		return nil
-	}
-
-	s := "Не удалось "
+func switchGasWithWarn(x worker, n int) error {
+	var s string
 	if n == 0 {
-		s += "отключить газ"
+		s = "отключить газ"
 	} else {
-		s += fmt.Sprintf("подать ПГС%d", n)
+		s = fmt.Sprintf("подать ПГС%d", n)
 	}
-
-	s += ": " + err.Error() + ".\n\n"
-
-	if n == 0 {
-		s += "Отключите газ"
-	} else {
-		s += fmt.Sprintf("Подайте ПГС%d", n)
-	}
-	s += " вручную."
-	notify.Warning(log, s)
-	if merry.Is(ctxWork.Err(), context.Canceled) {
-		return err
-	}
-	log.Warn("проигнорирована ошибка связи с газовым блоком", "gas", n, "error", err)
-
-	return nil
+	return x.perform(s, func(x worker) error {
+		return x.performWithWarn(func() error {
+			return switchGasWithoutWarn(x, n)
+		})
+	})
 }
 
-func switchGasWithoutWarn(log *structlog.Logger, n int) error {
-	return merry.Appendf(func() error {
+func switchGasWithoutWarn(x worker, n int) error {
+
+	var s string
+	if n == 0 {
+		s = "отключить газ"
+	} else {
+		s = fmt.Sprintf("подать ПГС%d", n)
+	}
+	return x.perform(s, func(x worker) error {
 		req := modbus.Request{
 			Addr:     5,
 			ProtoCmd: 0x10,
@@ -65,20 +51,14 @@ func switchGasWithoutWarn(log *structlog.Logger, n int) error {
 		default:
 			return merry.Errorf("wrong gas code: %d", n)
 		}
-
-		log = gohelp.LogPrependSuffixKeys(log, "gas", n)
-
 		if os.Getenv("ELCO_DEBUG_NO_HARDWARE") == "true" {
-			log.Warn("skip because ELCO_DEBUG_NO_HARDWARE==true")
+			x.log.Warn("skip because ELCO_DEBUG_NO_HARDWARE==true")
 			return nil
 		}
-
-		log.Info("переключение клапана")
-
-		if _, err := req.GetResponse(log, ctxWork, portGas, nil); err != nil {
+		x.log.Info("переключение клапана")
+		if _, err := req.GetResponse(x.log, x.ctx, x.portGas, nil); err != nil {
 			return err
 		}
-
 		req = modbus.Request{
 			Addr:     1,
 			ProtoCmd: 6,
@@ -90,24 +70,20 @@ func switchGasWithoutWarn(log *structlog.Logger, n int) error {
 			req.Data[2] = 0x14
 			req.Data[3] = 0xD5
 		}
-
-		log.Info("установка расхода")
-
-		if _, err := req.GetResponse(log, ctxWork, portGas, nil); err != nil {
+		x.log.Info("установка расхода")
+		if _, err := req.GetResponse(x.log, x.ctx, x.portGas, nil); err != nil {
 			return err
 		}
-
 		return nil
-	}(),
-		"газовый блок: %d", n)
+	})
 }
 
-func blowGas(log *structlog.Logger, nGas int) error {
-	return merry.Appendf(func() error {
-		if err := switchGasWithWarn(log, nGas); err != nil {
+func blowGas(x worker, n int) error {
+	return x.performf("продувка ПГС%d", n)(func(x worker) error {
+		if err := switchGasWithWarn(x, n); err != nil {
 			return err
 		}
 		duration := time.Minute * time.Duration(cfg.Cfg.User().BlowGasMinutes)
-		return delay(log, fmt.Sprintf("продувка ПГС%d", nGas), duration)
-	}(), "продувка ПГС%d", nGas)
+		return delayf(x, duration, "продувка ПГС%d", n)
+	})
 }

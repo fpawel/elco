@@ -2,27 +2,40 @@ package app
 
 import (
 	"context"
-	"github.com/fpawel/comm"
-	"github.com/fpawel/comm/comport"
-	"github.com/fpawel/elco/internal/cfg"
+	"github.com/fpawel/elco/internal/api"
 	"github.com/fpawel/elco/internal/ktx500"
 	"github.com/fpawel/elco/internal/peer"
+	"github.com/fpawel/gohelp/must"
 	"github.com/lxn/win"
 	_ "github.com/mattn/go-sqlite3"
+	"net/rpc"
 	"sync"
-	"time"
 )
 
 type App struct{}
 
 func Run() error {
 
+	var cancel func()
+	ctxApp, cancel = context.WithCancel(context.Background())
+
+	for _, svcObj := range []interface{}{
+		new(api.PartiesCatalogueSvc),
+		new(api.LastPartySvc),
+		new(api.ProductTypesSvc),
+		api.NewProductFirmware(runner{}),
+		new(api.SettingsSvc),
+		new(api.PdfSvc),
+		&api.RunnerSvc{Runner: runner{}},
+		api.NewPeerSvc(peerNotifier{}),
+		new(api.ConfigSvc),
+	} {
+		must.AbortIf(rpc.Register(svcObj))
+	}
+
 	closeHttpServer := startHttpServer()
 
 	peer.Init("")
-
-	var cancel func()
-	ctxApp, cancel = context.WithCancel(context.Background())
 
 	go ktx500.TraceTemperature()
 
@@ -35,36 +48,14 @@ func Run() error {
 		win.TranslateMessage(&msg)
 		win.DispatchMessage(&msg)
 	}
-
 	cancel()
 	closeHttpServer()
-
 	return nil
 }
 
 var (
 	ctxApp         context.Context
-	ctxWork        context.Context
 	cancelWorkFunc = func() {}
 	skipDelayFunc  = func() {}
 	wgWork         sync.WaitGroup
-	portMeasurer   = comport.NewReadWriter(func() comport.Config {
-		return comport.Config{
-			Baud:        115200,
-			ReadTimeout: time.Millisecond,
-			Name:        cfg.Cfg.User().ComportMeasurer,
-		}
-	}, func() comm.Config {
-		return cfg.Cfg.Predefined().ComportMeasurer
-	})
-
-	portGas = comport.NewReadWriter(func() comport.Config {
-		return comport.Config{
-			Baud:        9600,
-			ReadTimeout: time.Millisecond,
-			Name:        cfg.Cfg.User().ComportGas,
-		}
-	}, func() comm.Config {
-		return cfg.Cfg.Predefined().ComportGas
-	})
 )

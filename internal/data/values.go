@@ -159,7 +159,7 @@ func (s ProductInfo) Current(t Temperature, c ScaleType) sql.NullFloat64 {
 		}
 	}
 	log.Panicf("wrong point: %v: %v", t, c)
-	panic("")
+	return sql.NullFloat64{}
 }
 
 func (s ProductInfo) CurrentValue(t Temperature, c ScaleType) (float64, error) {

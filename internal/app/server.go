@@ -1,7 +1,6 @@
 package app
 
 import (
-	"github.com/fpawel/elco/internal/api"
 	"github.com/fpawel/elco/internal/peer"
 	"github.com/powerman/must"
 	"github.com/powerman/rpc-codec/jsonrpc2"
@@ -9,26 +8,11 @@ import (
 	"golang.org/x/sys/windows/registry"
 	"net"
 	"net/http"
-	"net/rpc"
 )
 
 func startHttpServer() func() {
 
 	log := structlog.New()
-
-	for _, svcObj := range []interface{}{
-		new(api.PartiesCatalogueSvc),
-		new(api.LastPartySvc),
-		new(api.ProductTypesSvc),
-		api.NewProductFirmware(runner{}),
-		new(api.SettingsSvc),
-		new(api.PdfSvc),
-		&api.RunnerSvc{runner{}},
-		api.NewPeerSvc(peerNotifier{}),
-		new(api.ConfigSvc),
-	} {
-		must.AbortIf(rpc.Register(svcObj))
-	}
 
 	// Server provide a HTTP transport on /rpc endpoint.
 	http.Handle("/rpc", jsonrpc2.HTTPHandler(nil))
