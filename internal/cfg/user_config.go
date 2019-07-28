@@ -4,10 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/fpawel/comm/comport"
-	"github.com/fpawel/gohelp/winapp"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
+	"github.com/powerman/structlog"
 	"io/ioutil"
+	"os"
+	"path/filepath"
 	"strconv"
 )
 
@@ -136,19 +137,18 @@ func defaultUserConfig() *UserConfig {
 	}
 }
 
+func configFileName() string {
+	return filepath.Join(filepath.Dir(os.Args[0]), "elco.config.json")
+}
+
 func openUserConfig() *UserConfig {
-	configFileName, err := winapp.ProfileFileName(".elco", "config.json")
-	if err != nil {
-		logrus.Errorln(err, configFileName)
-		return defaultUserConfig()
-	}
-	b, err := ioutil.ReadFile(configFileName)
+	b, err := ioutil.ReadFile(configFileName())
 	x := new(UserConfig)
 	if err == nil {
 		err = json.Unmarshal(b, x)
 	}
 	if err != nil {
-		logrus.Errorln(err, configFileName)
+		log.PrintErr(err, "file", configFileName())
 		return defaultUserConfig()
 	}
 	return x
@@ -159,9 +159,7 @@ func (x *UserConfig) save() error {
 	if err != nil {
 		return err
 	}
-	configFileName, err := winapp.ProfileFileName(".elco", "config.json")
-	if err != nil {
-		return err
-	}
-	return ioutil.WriteFile(configFileName, b, 0666)
+	return ioutil.WriteFile(configFileName(), b, 0666)
 }
+
+var log = structlog.New()

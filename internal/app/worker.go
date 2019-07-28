@@ -10,7 +10,6 @@ import (
 	"github.com/fpawel/elco/internal/cfg"
 	"github.com/fpawel/gohelp"
 	"github.com/powerman/structlog"
-	"github.com/prometheus/common/log"
 	"time"
 )
 
@@ -22,9 +21,9 @@ type worker struct {
 	portMeasurer, portGas *comport.ReadWriter
 }
 
-func newWorker(log *structlog.Logger, ctx context.Context, name string) worker {
+func newWorker(ctx context.Context, name string) worker {
 	return worker{
-		log:  gohelp.LogPrependSuffixKeys(log, "work", name),
+		log:  gohelp.NewLogWithSuffixKeys("work", fmt.Sprintf("`%s`", name)),
 		ctx:  ctx,
 		name: name,
 		portMeasurer: comport.NewReadWriter(func() comport.Config {
@@ -48,6 +47,11 @@ func newWorker(log *structlog.Logger, ctx context.Context, name string) worker {
 	}
 }
 
+func (x worker) withLogKeys(keyvals ...interface{}) worker {
+	x.log = gohelp.LogPrependSuffixKeys(x.log, keyvals...)
+	return x
+}
+
 func (x worker) performf(format string, args ...interface{}) func(func(x worker) error) error {
 	return func(work func(x worker) error) error {
 		return x.perform(fmt.Sprintf(format, args...), work)
@@ -55,25 +59,31 @@ func (x worker) performf(format string, args ...interface{}) func(func(x worker)
 }
 
 func (x worker) perform(name string, work func(x worker) error) error {
-	x.name = name
+	x.log.Info("выполнить: " + name)
+	prevName := x.name
+	x.name += ": " + name
 	x.level++
-	x.log = gohelp.LogPrependSuffixKeys(x.log, fmt.Sprintf("work%d", x.level))
-	notify.Status(x.log, x.name)
-	log.Info(x.name + ": начало выполнения")
-	err := work()
-	notify.Status(x.log, x.name)
-	return merry.Append(err, x.name)
+	x.log = gohelp.LogPrependSuffixKeys(x.log, fmt.Sprintf("work%d", x.level), fmt.Sprintf("`%s`", name))
+	notify.Status(nil, x.name)
+	if err := work(x); err != nil {
+		return merry.Append(err, name)
+	}
+	notify.Status(nil, prevName)
+	return nil
 }
 
-func (x worker) performWithWarn(work func() error) error {
+func performWithWarn(x worker, work func() error) error {
 	err := work()
 	if err == nil {
 		return nil
 	}
-	notify.Warningf(x.log, "Не удалось выполнить %q: %v\n\n.Выполните вручную.", x.name, err)
 	if merry.Is(x.ctx.Err(), context.Canceled) {
 		return err
 	}
-	x.log.Warn("проигнорирована ошибка связи с газовым блоком", "error", err)
+	notify.Warningf(x.log, "Не удалось выполнить %q: %v.\n\nВыполните вручную либо прервите выполнение.", x.name, err)
+	if merry.Is(x.ctx.Err(), context.Canceled) {
+		return err
+	}
+	x.log.Warn("проигнорирована ошибка: ", err.Error())
 	return nil
 }

@@ -50,6 +50,7 @@ func main() {
 			"запрос":            " %[1]s=`% [2]X`",
 			"ответ":             " %[1]s=`% [2]X`",
 			"работа":            " %[1]s=`%[2]s`",
+			"error":             " %[1]s=`%[2]s`",
 		}).SetTimeFormat("15:04:05").
 		SetLogLevel(structlog.ParseLevel(*logLevel))
 

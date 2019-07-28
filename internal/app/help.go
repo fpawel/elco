@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/ansel1/merry"
+	"github.com/fpawel/comm"
 	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/gohelp/intrng"
 	"path/filepath"
@@ -82,4 +83,34 @@ func merryStacktrace(e error) string {
 		return buf.String()
 	}
 	return ""
+}
+
+func groupProductsByBlocks(ps []data.Product) (gs [][]*data.Product) {
+	m := make(map[int][]*data.Product)
+	for i := range ps {
+		p := &ps[i]
+		v, _ := m[p.Place/8]
+		m[p.Place/8] = append(v, p)
+	}
+	for _, v := range m {
+		gs = append(gs, v)
+	}
+	sort.Slice(gs, func(i, j int) bool {
+		return gs[i][0].Place/8 < gs[j][0].Place
+	})
+	return
+}
+
+func init() {
+	merry.RegisterDetail("Запрос", "request")
+	merry.RegisterDetail("Ответ", "response")
+	merry.RegisterDetail("Длительность ожидания", comm.LogKeyDuration)
+	merry.RegisterDetail("Порт", "port")
+	merry.RegisterDetail("Прибор", "device")
+	merry.RegisterDetail("Блок измерительный", "block")
+	merry.RegisterDetail("Длительность ожидания статуса", "status_timeout")
+	merry.RegisterDetail("Место", "place")
+	merry.RegisterDetail("Код статуса", "status")
+	merry.RegisterDetail("Адрес", "addr")
+
 }

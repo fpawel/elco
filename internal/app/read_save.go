@@ -10,17 +10,15 @@ import (
 )
 
 func readSaveAtTemperature(x worker, temperature data.Temperature) error {
-	return x.performf("T=%v⁰C", temperature)(func(x worker) error {
+	return x.performf("снятие при T=%v⁰C", temperature)(func(x worker) error {
 		blowReadSaveScalePt := func(scale data.ScaleType) error {
-			s := "в начале шкалы"
+			s := "снятие в начале шкалы"
+			gas := 1
 			if scale == data.Sens {
-				s = "на конце шкалы"
+				s = "снятие: конце шкалы"
+				gas = 3
 			}
 			return x.perform(s, func(x worker) error {
-				gas := 1
-				if scale == data.Sens {
-					gas = 3
-				}
 				if err := blowGas(x, gas); err != nil {
 					return err
 				}
@@ -28,9 +26,17 @@ func readSaveAtTemperature(x worker, temperature data.Temperature) error {
 			})
 		}
 		defer func() {
-			x.log.ErrIfFail(func() error {
-				return switchGasWithoutWarn(x, 0)
-			}, "выключение", "газ")
+			if !x.portGas.Opened() {
+				return
+			}
+			x.log.Info("Будет выполнено отключение газв по завершении, поскольку COM порт пневмоблока открыт.")
+			_ = x.perform("отключить газ по завершении", func(x worker) error {
+				x.ctx = context.Background()
+				x.log.ErrIfFail(func() error {
+					return switchGasWithoutWarn(x, 0)
+				})
+				return nil
+			})
 		}()
 
 		if err := blowReadSaveScalePt(data.Fon); err != nil {
@@ -81,7 +87,7 @@ func readSaveForDBColumn(x worker, dbColumn string) error {
 
 		x.log = gohelp.LogPrependSuffixKeys(x.log, "products", formatProducts(productsToWork))
 
-		blockProducts := GroupProductsByBlocks(productsToWork)
+		blockProducts := groupProductsByBlocks(productsToWork)
 		for _, products := range blockProducts {
 			block := products[0].Place / 8
 			values, err := readBlockMeasure(x, block)

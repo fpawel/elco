@@ -39,7 +39,7 @@ func (_ runner) RunReadPlaceFirmware(place int) {
 		if err != nil {
 			return err
 		}
-		notify.ReadFirmware(x, data.FirmwareBytes(b).FirmwareInfo(place))
+		notify.ReadFirmware(x.log, data.FirmwareBytes(b).FirmwareInfo(place))
 		return nil
 	})
 	return
@@ -62,34 +62,32 @@ func (_ runner) RunSwitchGas(n int) {
 }
 
 func (_ runner) RunMain(nku, variation, minus, plus bool) {
-
 	runWork("Снятие", func(x worker) error {
-
 		defer func() {
 			_ = x.perform("остановка работы оборудования", func(x worker) error {
-				x.log.ErrIfFail(x.portMeasurer.Close, "close_hardware", "port measurer")
+				x.ctx = context.Background()
+				x.log.ErrIfFail(x.portMeasurer.Close, "main_work_close", "`закрыть СОМ-порт стенда`")
 				if x.portGas.Opened() {
 					x.log.ErrIfFail(func() error {
 						return switchGasWithoutWarn(x, 0)
-					}, "close_hardware", "switch off gas")
-					x.log.ErrIfFail(x.portGas.Close, "close_hardware", "port gas")
+					}, "main_work_close", "`отключить газ`")
+					x.log.ErrIfFail(x.portGas.Close, "main_work_close", "`закрыть СОМ-порт пневмоблока`")
 				}
 				if i, err := ktx500.GetLast(); err == nil {
 					if i.On {
 						x.log.ErrIfFail(func() error {
 							return ktx500.WriteCoolOnOff(false)
-						}, "close_hardware", "отключение компрессора")
+						}, "main_work_close", "`отключение компрессора`")
 					}
 					if i.CoolOn {
 						x.log.ErrIfFail(func() error {
 							return ktx500.WriteOnOff(false)
-						}, "выключение термокамеры")
+						}, "main_work_close", "выключение термокамеры")
 					}
 				}
 				return nil
 			})
 		}()
-
 		if nku || variation {
 			if err := setupAndHoldTemperature(x, 20); err != nil {
 				return err
@@ -164,32 +162,33 @@ func runWork(workName string, work func(x worker) error) {
 	ctxWork, cancelWorkFunc = context.WithCancel(ctxApp)
 	wgWork.Add(1)
 
-	log := structlog.New()
-	worker := newWorker(log, ctxWork, workName)
+	worker := newWorker(ctxWork, fmt.Sprintf("`%s`", workName))
 
 	go func() {
 		defer func() {
-			notify.WorkStoppedf(log, "выполнение окончено: %s", workName)
+			notify.WorkStoppedf(worker.log, "выполнение окончено: %s", workName)
 			wgWork.Done()
 		}()
 
-		notify.WorkStarted(log, workName)
+		notify.WorkStarted(worker.log, workName)
 		err := work(worker)
 		if err == nil {
-			log.Info("выполнено успешно")
-			notify.WorkCompletef(log, "%s: выполнено успешно", workName)
+			worker.log.Info("выполнено успешно")
+			notify.WorkCompletef(worker.log, "%s: выполнено успешно", workName)
 			return
 		}
-		if merry.Is(err, context.Canceled) {
-			log.Warn("выполнение прервано")
-			return
-		}
+
 		kvs := merryKeysValues(err)
 		if merry.Is(err, context.Canceled) {
-			log.Warn("выполнение прервано", kvs...)
+			worker.log.Warn("выполнение прервано", kvs...)
 			return
 		}
-		notify.ErrorOccurredf(log, err.Error())
-		log.PrintErr(err, append(kvs, "stack", merryStacktrace(err))...)
+		notify.ErrorOccurredf(worker.log, err.Error())
+		worker.log.PrintErr(err, append(kvs, "stack", merryStacktrace(err))...)
+
+		if merry.Is(err, ktx500.Err) {
+			worker.log.Warn("ОШИБКА УПРАВЛЕНИЯ ТЕРМОКАМЕРОЙ")
+			return
+		}
 	}()
 }

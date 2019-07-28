@@ -28,7 +28,7 @@ func delay(x worker, duration time.Duration, name string) error {
 		x.log.Info("задержка прервана", "elapsed", helpstr.FormatDuration(time.Since(startTime)))
 	}
 	ctxWork := x.ctx
-	return x.performf("%s: %s: %s", x.name, name, fd(duration))(func(x worker) error {
+	return x.performf("%s: %s", name, fd(duration))(func(x worker) error {
 		x.log.Info("задержка начата")
 		defer func() {
 			x.log.Debug("задержка окончена", "elapsed", fd(time.Since(startTime)))
@@ -39,7 +39,7 @@ func delay(x worker, duration time.Duration, name string) error {
 			if len(products) == 0 {
 				return merry.New("фоновый опрос: не выбрано ни одного прибора")
 			}
-			for _, products := range GroupProductsByBlocks(products) {
+			for _, products := range groupProductsByBlocks(products) {
 
 				block := products[0].Place / 8
 				notify.Delay(nil, api.DelayInfo{
@@ -47,24 +47,25 @@ func delay(x worker, duration time.Duration, name string) error {
 					TotalSeconds:   int(duration.Seconds()),
 					ElapsedSeconds: int(time.Since(startTime).Seconds()),
 				})
-
-				_, err := readBlockMeasure(x, block)
-				if err == nil {
+				err := performWithWarn(x, func() error {
+					if _, err := readBlockMeasure(x, block); err != nil {
+						return err
+					}
 					pause(x.ctx.Done(), intSeconds(cfg.Cfg.Predefined().ReadBlockPauseSeconds))
-					continue
+					return nil
+				})
+				if merry.Is(err, context.DeadlineExceeded) {
+					return nil // задержка истекла
 				}
-				if x.ctx.Err() != nil {
+				if merry.Is(err, context.Canceled) {
+					if x.ctx.Err() == context.Canceled {
+						return nil // задержка пропущена пользователем
+					}
+					if ctxWork.Err() == context.Canceled {
+						return context.Canceled // прервано пользователем
+					}
 					return nil
 				}
-				if ctxWork.Err() != nil {
-					return x.ctx.Err()
-				}
-				notify.Warningf(x.log, "фоновый опрос: блок измерения %d: %v", block, err)
-
-				if merry.Is(ctxWork.Err(), context.Canceled) {
-					return err
-				}
-				x.log.Warn("%s: фоновый опрос: проигнорирована ошибка связи с блоком измерительным %d: %v", block, err)
 			}
 		}
 	})

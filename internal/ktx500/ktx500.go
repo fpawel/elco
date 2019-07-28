@@ -105,7 +105,7 @@ func GetLast() (api.Ktx500Info, error) {
 
 func SetupTemperature(destinationTemperature float64) error {
 
-	return merry.Appendf(func() error {
+	err := func() error {
 		// запись уставки
 		if err := WriteDestination(destinationTemperature); err != nil {
 			return err
@@ -120,11 +120,16 @@ func SetupTemperature(destinationTemperature float64) error {
 			return err
 		}
 		return nil
-	}(), "установка %v⁰C", destinationTemperature)
+	}()
+
+	return merry.Appendf(err, "установка %v⁰C", destinationTemperature)
 }
 
-func newErr(err error) merry.Error {
-	return Err.Here().WithCause(err)
+func wrapErr(err error) merry.Error {
+	if merry.Is(err, Err) {
+		return merry.Wrap(err)
+	}
+	return merry.WithCause(err, Err)
 }
 
 func read(f func(*fins.Client) error) error {
@@ -142,25 +147,22 @@ func read(f func(*fins.Client) error) error {
 }
 
 func write(what string, f func(*fins.Client) error) error {
-
-	return merry.Append(func() error {
-		return withClient(func(client *fins.Client, config cfg.FinsNetwork) error {
-			var err error
-			for attempt := 0; attempt < config.MaxAttemptsRead; attempt++ {
-				if err = f(client); err == nil {
-					break
-				}
-				time.Sleep(time.Second)
+	err := withClient(func(client *fins.Client, config cfg.FinsNetwork) error {
+		var err error
+		for attempt := 0; attempt < config.MaxAttemptsRead; attempt++ {
+			if err = f(client); err == nil {
+				break
 			}
-			if err != nil {
-				err = merry.Append(err, what)
-				log.PrintErr(err, "ktx500", what)
-				return err
-			}
-			log.Info(what)
-			return nil
-		})
-	}(), "КТХ-500: "+what)
+			time.Sleep(time.Second)
+		}
+		if err != nil {
+			log.PrintErr(merry.Append(err, what))
+			return err
+		}
+		log.Info(what + ": ok")
+		return nil
+	})
+	return merry.Append(err, what)
 }
 
 func withClient(work func(*fins.Client, cfg.FinsNetwork) error) error {
@@ -169,16 +171,19 @@ func withClient(work func(*fins.Client, cfg.FinsNetwork) error) error {
 	defer muClient.Unlock()
 	client, err := config.NewFinsClient()
 	if err != nil {
-		return newErr(err).Append("установка соединения")
+		return wrapErr(err).Append("установка соединения")
 	}
 	defer client.Close()
-	return work(client, config)
+	if err = work(client, config); err != nil {
+		return wrapErr(err)
+	}
+	return nil
 }
 
 func readTemperature(c *fins.Client) (float64, error) {
 	temperature, err := finsReadFloat(c, 2)
 	if err != nil {
-		return 0, newErr(err).Append("запрос температуры")
+		return 0, wrapErr(err).Append("запрос температуры")
 	}
 	return temperature, nil
 }
@@ -194,17 +199,17 @@ func readInfo(x *api.Ktx500Info) error {
 
 		destination, err := finsReadFloat(c, 8)
 		if err != nil {
-			return newErr(err).Append("запрос уставки")
+			return wrapErr(err).Append("запрос уставки")
 		}
 
 		on, err = c.ReadBits(fins.MemoryAreaWRBit, 0, 0, 1)
 		if err != nil {
-			return newErr(err).Append("запрос состояния термокамеры")
+			return wrapErr(err).Append("запрос состояния термокамеры")
 		}
 
 		coolOn, err = c.ReadBits(fins.MemoryAreaWRBit, 0, 10, 1)
 		if err != nil {
-			return newErr(err).Append("запрос состояния компрессора")
+			return wrapErr(err).Append("запрос состояния компрессора")
 		}
 
 		*x = api.Ktx500Info{

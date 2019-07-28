@@ -7,7 +7,6 @@ import (
 var infoMSGs = map[msg]struct{}{
 	msgWorkStarted:  {},
 	msgWorkComplete: {},
-	msgStatus:       {},
 }
 
 func (x msg) Log(log *structlog.Logger) func(interface{}, ...interface{}) {
