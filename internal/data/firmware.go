@@ -182,7 +182,7 @@ func (s ProductInfo) TableSens3() (TableXY, error) {
 	if err == nil {
 
 		if y[-20] <= 1 {
-			return nil, merry.Errorf("y[-20]=%v: значение должно быть больше 1")
+			return nil, merry.Errorf("y[-20]=%v: значение должно быть больше 1", y[-20])
 		}
 
 		//if y[-20] > 0 && y[-20] < 0.45*y[20] {

@@ -61,7 +61,7 @@ func setupAndHoldTemperature(x worker, temperature data.Temperature) error {
 	if err != nil {
 		return err
 	}
-	duration := time.Minute * time.Duration(cfg.Cfg.User().HoldTemperatureMinutes)
+	duration := time.Minute * time.Duration(cfg.Cfg.Gui().HoldTemperatureMinutes)
 	return delayf(x, duration, "выдержка T=%v⁰C", temperature)
 }
 
@@ -142,6 +142,6 @@ func blowGas(x worker, n int) error {
 	if err := switchGasWithWarn(x, n); err != nil {
 		return err
 	}
-	duration := time.Minute * time.Duration(cfg.Cfg.User().BlowGasMinutes)
+	duration := time.Minute * time.Duration(cfg.Cfg.Gui().BlowGasMinutes)
 	return delayf(x, duration, "продувка ПГС%d", n)
 }

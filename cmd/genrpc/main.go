@@ -17,7 +17,6 @@ func main() {
 		r.TypeOf((*api.LastPartySvc)(nil)),
 		r.TypeOf((*api.ProductTypesSvc)(nil)),
 		r.TypeOf((*api.PlaceFirmware)(nil)),
-		r.TypeOf((*api.SettingsSvc)(nil)),
 		r.TypeOf((*api.RunnerSvc)(nil)),
 		r.TypeOf((*api.PdfSvc)(nil)),
 		r.TypeOf((*api.PeerSvc)(nil)),

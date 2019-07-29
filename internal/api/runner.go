@@ -1,5 +1,7 @@
 package api
 
+import "github.com/fpawel/elco/internal/data"
+
 type Runner interface {
 	RunReadCurrent()
 	StopHardware()
@@ -8,6 +10,7 @@ type Runner interface {
 	RunWritePartyFirmware()
 	RunSwitchGas(int)
 	RunReadAndSaveProductCurrents(field string)
+	CopyParty(partyID int64)
 }
 
 type RunnerSvc struct {
@@ -47,5 +50,10 @@ func (x *RunnerSvc) RunReadAndSaveProductCurrents(r [1]string, _ *struct{}) erro
 
 func (x *RunnerSvc) RunSwitchGas(r [1]int, _ *struct{}) error {
 	x.Runner.RunSwitchGas(r[0])
+	return nil
+}
+
+func (x *RunnerSvc) CopyParty(partyID [1]int64, p *data.Party) (err error) {
+	go x.Runner.CopyParty(partyID[0])
 	return nil
 }

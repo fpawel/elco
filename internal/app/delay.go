@@ -51,7 +51,7 @@ func delay(x worker, duration time.Duration, name string) error {
 					if _, err := readBlockMeasure(x, block); err != nil {
 						return err
 					}
-					pause(x.ctx.Done(), intSeconds(cfg.Cfg.Predefined().ReadBlockPauseSeconds))
+					pause(x.ctx.Done(), intSeconds(cfg.Cfg.Dev().ReadBlockPauseSeconds))
 					return nil
 				})
 				if merry.Is(err, context.DeadlineExceeded) {

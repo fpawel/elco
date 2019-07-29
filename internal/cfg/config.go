@@ -1,41 +1,47 @@
 package cfg
 
 import (
-	"database/sql"
+	"encoding/json"
+	"fmt"
 	"github.com/fpawel/comm"
 	"github.com/fpawel/gofins/fins"
+	"io/ioutil"
+	"os"
+	"path/filepath"
 	"sync"
 	"time"
 )
 
-type ConfigProperty struct {
-	Hint, Name,
-	Value,
-	Error string
-	Min, Max  sql.NullFloat64
-	ValueType ValueType
-	List      []string `json:",omitempty"`
+var Cfg = &Config{
+	d: DefaultDevSettings(),
+	u: openGuiSettings(),
 }
-
-type ValueType int
-
-const (
-	VtInt ValueType = iota
-	VtFloat
-	VtString
-	VtComportName
-	VtBaud
-	VtBool
-	VtNullFloat
-)
 
 type Config struct {
 	mu sync.Mutex
-	u  *UserConfig
-	p  PredefinedConfig
+	u  GuiSettings
+	d  DevSettings
 }
 
-type PredefinedConfig struct {
+type GuiSettings struct {
+	ComportMeasurer        string
+	ComportGas             string
+	ChipType               ChipType
+	AmbientTemperature     float64
+	BlowGasMinutes         int
+	HoldTemperatureMinutes int
+	EndScaleGas2           bool
+}
+
+type ChipType string
+
+const (
+	Chip16  = "24LC16"
+	Chip64  = "24LC64"
+	Chip256 = "24LC256"
+)
+
+type DevSettings struct {
 	FinsNetwork           FinsNetwork `toml:"fins" comment:"параметры протокола связи с теромкамерой"`
 	ComportMeasurer       comm.Config `toml:"measurer" comment:"измерительный блок"`
 	ComportGas            comm.Config `toml:"gas_block" comment:"газовый блок"`
@@ -49,11 +55,11 @@ type FinsNetwork struct {
 	MaxAttemptsRead int           `toml:"max_attempts_read" comment:"число попыток получения ответа"`
 	TimeoutMS       int           `toml:"timeout_ms" comment:"таймаут считывания, мс"`
 	PollSec         time.Duration `toml:"poll_sec" comment:"пауза опроса, с"`
-	Server          FinsConfig    `toml:"server" comment:"параметры ссервера omron fins"`
-	Client          FinsConfig    `toml:"client" comment:"параметры клиента omron fins"`
+	Server          FinsSettings  `toml:"server" comment:"параметры ссервера omron fins"`
+	Client          FinsSettings  `toml:"client" comment:"параметры клиента omron fins"`
 }
 
-type FinsConfig struct {
+type FinsSettings struct {
 	IP      string `toml:"ip" comment:"tcp адрес"`
 	Port    int    `toml:"port" comment:"tcp порт"`
 	Network byte   `toml:"network" comment:"fins network"`
@@ -61,23 +67,7 @@ type FinsConfig struct {
 	Unit    byte   `toml:"network" comment:"fins unit"`
 }
 
-type ConfigSection struct {
-	Name       string
-	Hint       string
-	Properties []ConfigProperty `json:",omitempty"`
-}
-
-type ConfigPropertyValue struct {
-	Value, Section, Name string
-}
-
-type ConfigSections struct {
-	Sections []ConfigSection
-}
-
-var Cfg *Config
-
-func (x PredefinedConfig) WaitFlashStatusDelayMS() time.Duration {
+func (x DevSettings) WaitFlashStatusDelayMS() time.Duration {
 	return time.Duration(x.WaitFlashStatusDelay) * time.Millisecond
 }
 
@@ -90,68 +80,37 @@ func (x FinsNetwork) NewFinsClient() (*fins.Client, error) {
 	return c, nil
 }
 
-func (x FinsConfig) Address() fins.Address {
+func (x FinsSettings) Address() fins.Address {
 	return fins.NewAddress(x.IP, x.Port, x.Network, x.Node, x.Unit)
 }
 
-func OpenConfig() {
-	Cfg = &Config{
-		p: DefaultPredefinedConfig(),
-		u: openUserConfig(),
-	}
-}
-
-func (x *Config) Predefined() PredefinedConfig {
+func (x *Config) Dev() DevSettings {
 	x.mu.Lock()
 	defer x.mu.Unlock()
-	return x.p
+	return x.d
 }
 
-func (x *Config) SetPredefined(c PredefinedConfig) {
+func (x *Config) SetDev(c DevSettings) {
 	x.mu.Lock()
 	defer x.mu.Unlock()
-	x.p = c
+	x.d = c
 }
 
-func (x *Config) User() UserConfig {
+func (x *Config) Gui() GuiSettings {
 	x.mu.Lock()
 	defer x.mu.Unlock()
-	return *x.u
+	return x.u
 }
 
-func (x *Config) Save() error {
+func (x *Config) SetGui(u GuiSettings) {
 	x.mu.Lock()
 	defer x.mu.Unlock()
-	return x.u.save()
+	x.u = u
+	x.u.save()
 }
 
-func (x *Config) Sections() (ConfigSections, error) {
-	x.mu.Lock()
-	defer x.mu.Unlock()
-	r := ConfigSections{}
-	c, err := PartyConfigProperties()
-	if err != nil {
-		return r, err
-	}
-	r.Sections = append(x.u.Sections(), ConfigSection{
-		Name:       "Party",
-		Hint:       "Партия",
-		Properties: c,
-	})
-	return r, nil
-}
-
-func (x *Config) SetValue(section, property, value string) error {
-	if section == "Party" {
-		return SetPartyConfigValue(property, value)
-	}
-	x.mu.Lock()
-	defer x.mu.Unlock()
-	return x.u.setValue(section, property, value)
-}
-
-func DefaultPredefinedConfig() PredefinedConfig {
-	return PredefinedConfig{
+func DefaultDevSettings() DevSettings {
+	return DevSettings{
 		WaitFlashStatusDelay:  1000,
 		ReadBlockPauseSeconds: 1,
 		ComportGas: comm.Config{
@@ -170,16 +129,66 @@ func DefaultPredefinedConfig() PredefinedConfig {
 			MaxAttemptsRead: 20,
 			PollSec:         2,
 			TimeoutMS:       1000,
-			Server: FinsConfig{
+			Server: FinsSettings{
 				IP:   "192.168.250.1",
 				Port: 9600,
 				Node: 1,
 			},
-			Client: FinsConfig{
+			Client: FinsSettings{
 				IP:   "192.168.250.3",
 				Port: 9600,
 				Node: 254,
 			},
 		},
+	}
+}
+
+func (x ChipType) Code() byte {
+	switch x {
+	case Chip16:
+		return 0
+	case Chip64:
+		return 1
+	case Chip256:
+		return 2
+	default:
+		panic("bad chip type")
+	}
+}
+func defaultUserConfig() GuiSettings {
+	return GuiSettings{
+		ChipType:               Chip16,
+		ComportMeasurer:        "COM1",
+		ComportGas:             "COM2",
+		BlowGasMinutes:         5,
+		HoldTemperatureMinutes: 120,
+	}
+}
+
+func configFileName() string {
+	return filepath.Join(filepath.Dir(os.Args[0]), "elco.config.json")
+}
+
+func openGuiSettings() GuiSettings {
+	x := defaultUserConfig()
+	b, err := ioutil.ReadFile(configFileName())
+	if err == nil {
+		err = json.Unmarshal(b, &x)
+	}
+	if err != nil {
+		fmt.Println(
+			"не удалось получить настройки приложения из файла конфигурации. Будут применены настройки приложения по умолчанию",
+			"error", err, "file", configFileName())
+	}
+	return x
+}
+
+func (x GuiSettings) save() {
+	b, err := json.MarshalIndent(&x, "", "    ")
+	if err != nil {
+		panic(err)
+	}
+	if err := ioutil.WriteFile(configFileName(), b, 0666); err != nil {
+		panic(err)
 	}
 }

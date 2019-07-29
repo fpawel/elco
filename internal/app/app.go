@@ -8,6 +8,7 @@ import (
 	"github.com/fpawel/gohelp/must"
 	"github.com/lxn/win"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/powerman/structlog"
 	"net/rpc"
 	"sync"
 )
@@ -24,7 +25,6 @@ func Run() error {
 		new(api.LastPartySvc),
 		new(api.ProductTypesSvc),
 		api.NewProductFirmware(runner{}),
-		new(api.SettingsSvc),
 		new(api.PdfSvc),
 		&api.RunnerSvc{Runner: runner{}},
 		api.NewPeerSvc(peerNotifier{}),
@@ -58,4 +58,5 @@ var (
 	cancelWorkFunc = func() {}
 	skipDelayFunc  = func() {}
 	wgWork         sync.WaitGroup
+	log            = structlog.New()
 )

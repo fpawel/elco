@@ -1,11 +1,9 @@
 package api
 
 import (
-	"database/sql"
 	"fmt"
 	"github.com/fpawel/elco/internal/data"
 	"strconv"
-	"time"
 )
 
 type PartiesCatalogueSvc struct {
@@ -93,39 +91,6 @@ DELETE FROM party
 WHERE cast(strftime('%Y', DATETIME(created_at, '+3 hours')) AS INTEGER) = ?`, v[0]); err != nil {
 		return err
 	}
-	return nil
-}
-
-func (x *PartiesCatalogueSvc) CopyParty(partyID [1]int64, party *data.Party) (err error) {
-
-	if err = data.DB.FindByPrimaryKeyTo(party, partyID[0]); err != nil {
-		return err
-	}
-	s := fmt.Sprintf("Копия партии %d %s", partyID[0],
-		party.CreatedAt.Format("2006.01.02"))
-	if party.Note.Valid {
-		s += ", " + party.Note.String
-	}
-	party.PartyID = 0
-	party.Note = sql.NullString{s, true}
-	party.CreatedAt = time.Now()
-	if err = data.DB.Save(party); err != nil {
-		return err
-	}
-
-	xsProducts, err := data.DB.SelectAllFrom(data.ProductTable, "WHERE party_id = ?", partyID[0])
-	if err != nil {
-		return err
-	}
-	for _, p := range xsProducts {
-		product := p.(*data.Product)
-		product.ProductID = 0
-		product.PartyID = party.PartyID
-		if err = data.DB.Save(product); err != nil {
-			return err
-		}
-	}
-	party.Products = data.GetProductsInfoWithPartyID(party.PartyID)
 	return nil
 }
 

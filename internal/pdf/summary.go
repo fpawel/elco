@@ -40,8 +40,9 @@ func doSummary(d *gofpdf.Fpdf, party data.Party, productType data.ProductType) {
 
 	d.SetX(spaceX)
 	d.SetFont("RobotoCondensed", "B", 13)
+
 	d.CellFormat(tableWidth, 6, tr(fmt.Sprintf(
-		"Итоговая таблица электрохимических ячеек №%d", party.PartyID)),
+		"Итоговая таблица ЭХЯ №%d", party.PartyID)),
 		"", 1, "C", false, 0, "")
 
 	d.SetX(spaceX)
@@ -50,11 +51,14 @@ func doSummary(d *gofpdf.Fpdf, party data.Party, productType data.ProductType) {
 		tr(fmt.Sprintf("ИБЯЛ.418425.%s, %s 0-%v %s, %d штук",
 			party.ProductTypeName,
 			productType.GasName, productType.Scale, productType.UnitsName,
-			len(party.Products)+1)),
+			len(party.Products))),
 		"", 0, "", false, 0, "")
 
 	d.SetX(spaceX)
-	d.CellFormat(tableWidth, 6, time.Now().Format("02.01.2006"),
+
+	strDate := time.Now().Format("02.01.2006")
+
+	d.CellFormat(tableWidth, 6, strDate,
 		"", 1, "R", false, 0, "")
 
 	d.SetFont("RobotoCondensed-Light", "", 9.5)
@@ -62,46 +66,60 @@ func doSummary(d *gofpdf.Fpdf, party data.Party, productType data.ProductType) {
 	colWidth1 := d.GetStringWidth("№ п/п")
 	colWidth := (pageWidth - colWidth1 - 2.*spaceX) / 9.
 
-	for i, str := range []string{
-		"№ п/п",
-		"Зав.№",
-		"Iфон, мкА",
-		"Dф50, мкА",
-		"Кч-20, %",
-		"Kч50, %",
-		"Uсоу, мВ",
-		"Uстг, мВ",
-		"Код 1",
-		"Код 2",
-	} {
-		w := colWidth
-		if i == 0 {
-			w = colWidth1
-		}
-		f := i == 5 || i == 7
-		if f {
-			d.SetFont("RobotoCondensed-Light", "", 8)
+	writeHeader := func(cont bool) {
+		if cont {
+			d.CellFormat(tableWidth, 6, tr(fmt.Sprintf(
+				"Итоговая таблица ЭХЯ №%d, %d шт, продолжение, %s", party.PartyID, len(party.Products),
+				strDate)),
+				"", 1, "R", false, 0, "")
+			d.SetX(spaceX)
 		}
 
-		borderStr := "LT"
-		if i > 0 {
-			borderStr += "R"
-		}
+		for i, str := range []string{
+			"№ п/п",
+			"Зав.№",
+			"Iфон, мкА",
+			"Dф50, мкА",
+			"Кч-20, %",
+			"Kч50, %",
+			"Uсоу, мВ",
+			"Uстг, мВ",
+			"Код 1",
+			"Код 2",
+		} {
+			w := colWidth
+			if i == 0 {
+				w = colWidth1
+			}
+			f := i == 5 || i == 7
+			if f {
+				d.SetFont("RobotoCondensed-Light", "", 8)
+			}
 
-		d.CellFormat(w, 6, tr(str), "LRT", 0, "C", false, 0, "")
-		if f {
-			d.SetFont("RobotoCondensed-Light", "", 9.5)
+			borderStr := "LT"
+			if i > 0 {
+				borderStr += "R"
+			}
+
+			d.CellFormat(w, 6, tr(str), "LRT", 0, "C", false, 0, "")
+			if f {
+				d.SetFont("RobotoCondensed-Light", "", 9.5)
+			}
 		}
+		d.Ln(-1)
 	}
-	d.Ln(-1)
 
 	const collHeight = 4
 	cf := func(txtStr, borderStr string, ln int, alignStr string) {
 		d.CellFormat(colWidth, collHeight, txtStr, borderStr, ln, alignStr, false, 0, "")
 	}
 	for row, p := range party.Products {
+		if row == 0 || row == 62 {
+			writeHeader(row == 62)
+		}
+
 		borderStr := "TL"
-		if row == len(party.Products)-1 {
+		if row == len(party.Products)-1 || row == 61 {
 			borderStr += "B"
 		}
 		d.CellFormat(colWidth1, collHeight, strconv.Itoa(row+1), borderStr,

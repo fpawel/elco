@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"github.com/fpawel/elco/internal/app"
-	"github.com/fpawel/elco/internal/cfg"
 	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/elco/internal/peer"
 	"github.com/lxn/win"
@@ -58,12 +57,9 @@ func main() {
 
 	log := structlog.New()
 
-	cfg.OpenConfig()
 	data.Open()
 
 	must.AbortIf(app.Run())
 	peer.Close()
 	log.ErrIfFail(data.Close, "defer", "close products db")
-	log.ErrIfFail(cfg.Cfg.Save, "defer", "save config")
-
 }

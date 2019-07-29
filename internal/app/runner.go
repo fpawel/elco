@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/elco/internal/api/notify"
@@ -10,9 +11,47 @@ import (
 	"github.com/fpawel/elco/internal/ktx500"
 	"github.com/powerman/structlog"
 	"sync"
+	"time"
 )
 
 type runner struct{}
+
+func (_ runner) CopyParty(partyID int64) {
+	notify.WorkStarted(nil, "копирование данных загрузки")
+	var pp data.Party
+	if err := data.DB.FindByPrimaryKeyTo(&pp, partyID); err != nil {
+		panic(err)
+	}
+	log.Info("копирование партии", "party_id", pp.PartyID, "created_at", pp.CreatedAt)
+
+	s := fmt.Sprintf("Копия партии %d %s", partyID,
+		pp.CreatedAt.Format("2006.01.02"))
+	if pp.Note.Valid {
+		s += ", " + pp.Note.String
+	}
+	pp.PartyID = 0
+	pp.Note = sql.NullString{s, true}
+	pp.CreatedAt = time.Now()
+	if err := data.DB.Save(&pp); err != nil {
+		panic(err)
+	}
+
+	xsProducts, err := data.DB.SelectAllFrom(data.ProductTable, "WHERE party_id = ?", partyID)
+	if err != nil {
+		panic(err)
+	}
+	for _, p := range xsProducts {
+		p := p.(*data.Product)
+		p.ProductID = 0
+		p.PartyID = pp.PartyID
+		if err = data.DB.Save(p); err != nil {
+			panic(err)
+		}
+	}
+	notify.WorkComplete(nil, "скопированы данные загрузки")
+	notify.LastPartyChanged(nil, data.GetLastParty(data.WithProducts))
+	notify.WorkStoppedf(nil, "скопированы данные загрузки")
+}
 
 func (_ runner) RunReadAndSaveProductCurrents(dbColumn string) {
 	runWork(fmt.Sprintf("Снятие %q", dbColumn), func(x worker) error {
@@ -88,6 +127,7 @@ func (_ runner) RunMain(nku, variation, minus, plus bool) {
 				return nil
 			})
 		}()
+
 		if nku || variation {
 			if err := setupAndHoldTemperature(x, 20); err != nil {
 				return err
@@ -145,7 +185,7 @@ func (_ runner) RunReadCurrent() {
 				if _, err := readBlockMeasure(x, block); err != nil {
 					return err
 				}
-				pause(x.ctx.Done(), intSeconds(cfg.Cfg.Predefined().ReadBlockPauseSeconds))
+				pause(x.ctx.Done(), intSeconds(cfg.Cfg.Dev().ReadBlockPauseSeconds))
 			}
 		}
 	})
@@ -185,10 +225,5 @@ func runWork(workName string, work func(x worker) error) {
 		}
 		notify.ErrorOccurredf(worker.log, err.Error())
 		worker.log.PrintErr(err, append(kvs, "stack", merryStacktrace(err))...)
-
-		if merry.Is(err, ktx500.Err) {
-			worker.log.Warn("ОШИБКА УПРАВЛЕНИЯ ТЕРМОКАМЕРОЙ")
-			return
-		}
 	}()
 }

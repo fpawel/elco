@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/elco/internal/api/notify"
+	"github.com/fpawel/elco/internal/cfg"
 	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/gohelp"
 )
@@ -17,6 +18,9 @@ func readSaveAtTemperature(x worker, temperature data.Temperature) error {
 			if scale == data.Sens {
 				s = "снятие: конце шкалы"
 				gas = 3
+				if cfg.Cfg.Gui().EndScaleGas2 {
+					gas = 2
+				}
 			}
 			return x.perform(s, func(x worker) error {
 				if err := blowGas(x, gas); err != nil {

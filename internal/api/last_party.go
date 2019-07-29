@@ -1,6 +1,7 @@
 package api
 
 import (
+	"database/sql"
 	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/elco/internal/data/old"
 	"strings"
@@ -12,6 +13,47 @@ type LastPartySvc struct {
 func (x *LastPartySvc) Party(_ struct{}, r *data.Party) error {
 	*r = data.GetLastParty(data.WithProducts)
 	return nil
+}
+
+type LastPartyValues struct {
+	ProductTypeName string
+	Concentration1  float64
+	Concentration2  float64
+	Concentration3  float64
+	Note            sql.NullString
+	MinFon          sql.NullFloat64
+	MaxFon          sql.NullFloat64
+	MaxDFon         sql.NullFloat64
+	MinKSens20      sql.NullFloat64
+	MaxKSens20      sql.NullFloat64
+	MinKSens50      sql.NullFloat64
+	MaxKSens50      sql.NullFloat64
+	MinDTemp        sql.NullFloat64
+	MaxDTemp        sql.NullFloat64
+	MaxDNotMeasured sql.NullFloat64
+	PointsMethod    int64
+}
+
+func (x *LastPartySvc) SetValues(r struct{ Values LastPartyValues }, _ *struct{}) error {
+	p := data.GetLastParty(data.WithoutProducts)
+	y := r.Values
+	p.ProductTypeName = y.ProductTypeName
+	p.Concentration1 = y.Concentration1
+	p.Concentration2 = y.Concentration2
+	p.Concentration3 = y.Concentration3
+	p.Note = y.Note
+	p.MinFon = y.MinFon
+	p.MaxFon = y.MaxFon
+	p.MaxDFon = y.MaxDFon
+	p.MinKSens20 = y.MinKSens20
+	p.MaxKSens20 = y.MaxKSens20
+	p.MinKSens50 = y.MinKSens50
+	p.MaxKSens50 = y.MaxKSens50
+	p.MinDTemp = y.MinDTemp
+	p.MaxDTemp = y.MaxDTemp
+	p.MaxDNotMeasured = y.MaxDNotMeasured
+	p.PointsMethod = y.PointsMethod
+	return data.DB.Save(&p)
 }
 
 func (x *LastPartySvc) PartyID(_ struct{}, r *int64) error {

@@ -30,19 +30,19 @@ func newWorker(ctx context.Context, name string) worker {
 			return comport.Config{
 				Baud:        115200,
 				ReadTimeout: time.Millisecond,
-				Name:        cfg.Cfg.User().ComportMeasurer,
+				Name:        cfg.Cfg.Gui().ComportMeasurer,
 			}
 		}, func() comm.Config {
-			return cfg.Cfg.Predefined().ComportMeasurer
+			return cfg.Cfg.Dev().ComportMeasurer
 		}),
 		portGas: comport.NewReadWriter(func() comport.Config {
 			return comport.Config{
 				Baud:        9600,
 				ReadTimeout: time.Millisecond,
-				Name:        cfg.Cfg.User().ComportGas,
+				Name:        cfg.Cfg.Gui().ComportGas,
 			}
 		}, func() comm.Config {
-			return cfg.Cfg.Predefined().ComportGas
+			return cfg.Cfg.Dev().ComportGas
 		}),
 	}
 }
@@ -84,6 +84,6 @@ func performWithWarn(x worker, work func() error) error {
 	if merry.Is(x.ctx.Err(), context.Canceled) {
 		return err
 	}
-	x.log.Warn("проигнорирована ошибка: ", err.Error())
+	x.log.Warn("проигнорирована ошибка: " + err.Error())
 	return nil
 }

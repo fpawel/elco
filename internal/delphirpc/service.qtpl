@@ -25,7 +25,8 @@ end.{% endfunc %}
 {% func (x method) body(srvName string) %} 
 {%s= x.signature("T" + srvName + ".") %};
 var
-    req : ISuperobject;
+    req : ISuperobject;{%if x.hasStructureParam() %}
+    s:string;{% endif %}
 begin
     req := {%if x.namedParams %}SO{% else %}SA([]){% endif %};
     {% for _,p := range x.params %}{%s= x.genSetParam(p) %};

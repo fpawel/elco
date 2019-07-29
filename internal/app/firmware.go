@@ -206,7 +206,7 @@ func (hlp *helperWriteParty) writeBlock(x worker, products []*data.Product) erro
 			return err
 		}
 
-		time.Sleep(cfg.Cfg.Predefined().WaitFlashStatusDelayMS())
+		time.Sleep(cfg.Cfg.Dev().WaitFlashStatusDelayMS())
 
 		if err := waitStatus45(x, block, placesMask); err != nil {
 			if e, ok := err.(errorStatus45); ok {
@@ -221,7 +221,7 @@ func (hlp *helperWriteParty) writeBlock(x worker, products []*data.Product) erro
 		}
 
 		if i < len(firmwareAddresses)-1 {
-			time.Sleep(time.Duration(cfg.Cfg.Predefined().ReadRangeDelayMillis) * time.Millisecond)
+			time.Sleep(time.Duration(cfg.Cfg.Dev().ReadRangeDelayMillis) * time.Millisecond)
 		}
 	}
 
@@ -255,7 +255,7 @@ func readPlaceFirmware(x worker, place int) ([]byte, error) {
 
 	x.log = gohelp.LogPrependSuffixKeys(x.log,
 		"place", data.FormatPlace(place),
-		"chip", cfg.Cfg.User().ChipType,
+		"chip", cfg.Cfg.Gui().ChipType,
 		"total_read_bytes_count", len(b),
 	)
 
@@ -272,7 +272,7 @@ func readPlaceFirmware(x worker, place int) ([]byte, error) {
 			ProtoCmd: 0x44,
 			Data: []byte{
 				byte(placeInBlock + 1),
-				byte(cfg.Cfg.User().ChipType),
+				cfg.Cfg.Gui().ChipType.Code(),
 				byte(c.addr1 >> 8),
 				byte(c.addr1),
 				byte(count >> 8),
@@ -299,11 +299,10 @@ func readPlaceFirmware(x worker, place int) ([]byte, error) {
 		copy(b[c.addr1:c.addr1+count], resp[8:8+count])
 		if i < len(firmwareAddresses)-1 {
 			time.Sleep(time.Duration(
-				cfg.Cfg.Predefined().ReadRangeDelayMillis) *
+				cfg.Cfg.Dev().ReadRangeDelayMillis) *
 				time.Millisecond)
 		}
 	}
-
 	return b, nil
 }
 
@@ -316,7 +315,7 @@ func writePlaceFirmware(x worker, place int, bytes []byte) error {
 
 	x.log = gohelp.LogPrependSuffixKeys(x.log,
 		"place", data.FormatPlace(place),
-		"chip", cfg.Cfg.User().ChipType,
+		"chip", cfg.Cfg.Gui().ChipType,
 		"total_write_bytes_count", len(bytes),
 	)
 
@@ -329,7 +328,6 @@ func writePlaceFirmware(x worker, place int, bytes []byte) error {
 	notify.ReadPlace(x.log, place)
 
 	doAddresses := func(addr1, addr2 uint16) error {
-
 		x = x.withLogKeys("range", fmt.Sprintf("%X...%X", addr1, addr2),
 			"bytes_count", addr2+1-addr1,
 		)
@@ -339,7 +337,7 @@ func writePlaceFirmware(x worker, place int, bytes []byte) error {
 		if err := writePreparedDataToFlash(x, block, placesMask, addr1, int(addr2-addr1+1)); err != nil {
 			return merry.Wrap(err)
 		}
-		time.Sleep(cfg.Cfg.Predefined().WaitFlashStatusDelayMS())
+		time.Sleep(cfg.Cfg.Dev().WaitFlashStatusDelayMS())
 		if err := waitStatus45(x, block, placesMask); err != nil {
 			return merry.Wrap(err)
 		}
@@ -350,7 +348,6 @@ func writePlaceFirmware(x worker, place int, bytes []byte) error {
 			return merry.Wrap(err)
 		}
 	}
-
 	var p data.Product
 	switch err := data.GetLastPartyProductAtPlace(place, &p); err {
 	case nil:
@@ -364,7 +361,6 @@ func writePlaceFirmware(x worker, place int, bytes []byte) error {
 	default:
 		return err
 	}
-
 	return nil
 }
 
@@ -375,7 +371,7 @@ func waitStatus45(x worker, block int, placesMask byte) error {
 		notify.ReadBlock(x.log, -1)
 	}()
 
-	t := time.Duration(cfg.Cfg.Predefined().StatusTimeoutSeconds) * time.Second
+	t := time.Duration(cfg.Cfg.Dev().StatusTimeoutSeconds) * time.Second
 	ctx, _ := context.WithTimeout(x.ctx, t)
 	for {
 
@@ -458,7 +454,7 @@ func writePreparedDataToFlash(x worker, block int, placesMask byte, addr uint16,
 		ProtoCmd: 0x43,
 		Data: []byte{
 			placesMask,
-			byte(cfg.Cfg.User().ChipType),
+			cfg.Cfg.Gui().ChipType.Code(),
 			byte(addr >> 8),
 			byte(addr),
 			byte(count >> 8),
@@ -467,11 +463,11 @@ func writePreparedDataToFlash(x worker, block int, placesMask byte, addr uint16,
 	}
 	_, err := req.GetResponse(x.log, x.ctx, x.portMeasurer, func(request, response []byte) (string, error) {
 		if !compareBytes(response, request) {
-			return "", merry.New("запрос не равен ответу")
+			return "", merry.Errorf("запрос не равен ответу: блок измерения %d", block)
 		}
 		return "", nil
 	})
-	return err
+	return merry.Appendf(err, "блок измерения %d", block)
 }
 
 func sendDataToWrite42(x worker, block, placeInBlock int, b []byte) error {
@@ -499,10 +495,10 @@ func sendDataToWrite42(x worker, block, placeInBlock int, b []byte) error {
 
 	_, err := req.GetResponse(x.log, x.ctx, x.portMeasurer, func(request, response []byte) (string, error) {
 		if len(response) != 7 {
-			return "", merry.Errorf("длина ответа %d не равна 7", len(response))
+			return "", merry.Errorf("длина ответа %d не равна 7: блок измерения %d", len(response), block)
 		}
 		if !compareBytes(response[:5], request[:5]) {
-			return "", merry.Errorf("% X != % X", response[:5], request[:5])
+			return "", merry.Errorf("% X != % X: блок измерения %d", response[:5], request[:5], block)
 		}
 		return "", nil
 	})
