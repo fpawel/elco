@@ -4,8 +4,6 @@ import (
 	"database/sql"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
-	"gopkg.in/reform.v1"
-	"gopkg.in/reform.v1/dialects/sqlite3"
 	"io/ioutil"
 	"log"
 	"os"
@@ -34,10 +32,7 @@ func TestConcurrent(t *testing.T) {
 	dbConn.SetMaxOpenConns(1)
 	dbConn.SetConnMaxLifetime(0)
 
-	db, err := Open(false)
-	if err != nil {
-		t.Fatal(err)
-	}
+	Open()
 	dbx := sqlx.NewDb(dbConn, "sqlite3")
 
 	wg := sync.WaitGroup{}
@@ -45,7 +40,7 @@ func TestConcurrent(t *testing.T) {
 	for i := 0; i < 100; i++ {
 		i := i
 		go func() {
-			_, err := createNewPartyReform(reform.NewDB(db, sqlite3.Dialect, nil))
+			_, err := createNewPartyReform()
 			if err != nil {
 				t.Errorf("%d: %v", i, err)
 			}
@@ -62,8 +57,8 @@ func TestConcurrent(t *testing.T) {
 	wg.Wait()
 }
 
-func createNewPartyReform(db *reform.DB) (int64, error) {
-	r, err := db.Exec(`INSERT INTO party DEFAULT VALUES`)
+func createNewPartyReform() (int64, error) {
+	r, err := DB.Exec(`INSERT INTO party DEFAULT VALUES`)
 	if err != nil {
 		return 0, err
 	}
@@ -71,7 +66,7 @@ func createNewPartyReform(db *reform.DB) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	if r, err = db.Exec(`INSERT INTO product(party_id, serial, place) VALUES (?, 1, 0)`, partyID); err != nil {
+	if r, err = DB.Exec(`INSERT INTO product(party_id, serial, place) VALUES (?, 1, 0)`, partyID); err != nil {
 		return 0, err
 	}
 	log.Println("reform: new party created:", partyID)

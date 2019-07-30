@@ -33,18 +33,6 @@ const (
 	ProductFieldNote
 )
 
-func NotEmptyProductsFields(products []ProductInfo) (fields []ProductField) {
-	for f := ProductFieldPlace; f <= ProductFieldNote; f++ {
-		for _, p := range products {
-			if p.FieldValue(f) != nil {
-				fields = append(fields, f)
-				break
-			}
-		}
-	}
-	return
-}
-
 func (s ProductInfo) OkFieldValue(x ProductField) sql.NullBool {
 	switch x {
 

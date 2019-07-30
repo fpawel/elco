@@ -9,7 +9,7 @@ import (
 	"github.com/fpawel/elco/internal/cfg"
 	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/gohelp"
-	"github.com/fpawel/gohelp/helpstr"
+	"github.com/fpawel/gohelp/myfmt"
 	"time"
 )
 
@@ -18,14 +18,14 @@ func delayf(x worker, duration time.Duration, format string, a ...interface{}) e
 }
 
 func delay(x worker, duration time.Duration, name string) error {
-	fd := helpstr.FormatDuration
+	fd := myfmt.FormatDuration
 	startTime := time.Now()
 	x.log = gohelp.LogPrependSuffixKeys(x.log, "start", startTime.Format("15:04:05"))
 	var skipDelay context.CancelFunc
 	x.ctx, skipDelay = context.WithTimeout(x.ctx, duration)
 	skipDelayFunc = func() {
 		skipDelay()
-		x.log.Info("задержка прервана", "elapsed", helpstr.FormatDuration(time.Since(startTime)))
+		x.log.Info("задержка прервана", "elapsed", myfmt.FormatDuration(time.Since(startTime)))
 	}
 	ctxWork := x.ctx
 	return x.performf("%s: %s", name, fd(duration))(func(x worker) error {
@@ -35,7 +35,7 @@ func delay(x worker, duration time.Duration, name string) error {
 			notify.EndDelay(x.log, "")
 		}()
 		for {
-			products := data.GetLastPartyProducts(data.WithSerials, data.WithProduction)
+			products := data.GetLastPartyProducts(data.WithProduction)
 			if len(products) == 0 {
 				return merry.New("фоновый опрос: не выбрано ни одного прибора")
 			}
@@ -47,13 +47,11 @@ func delay(x worker, duration time.Duration, name string) error {
 					TotalSeconds:   int(duration.Seconds()),
 					ElapsedSeconds: int(time.Since(startTime).Seconds()),
 				})
-				err := performWithWarn(x, func() error {
-					if _, err := readBlockMeasure(x, block); err != nil {
-						return err
-					}
+				_, err := readBlockMeasure(x, block)
+				if err == nil {
 					pause(x.ctx.Done(), intSeconds(cfg.Cfg.Dev().ReadBlockPauseSeconds))
-					return nil
-				})
+					continue
+				}
 				if merry.Is(err, context.DeadlineExceeded) {
 					return nil // задержка истекла
 				}
@@ -66,6 +64,7 @@ func delay(x worker, duration time.Duration, name string) error {
 					}
 					return nil
 				}
+				return err
 			}
 		}
 	})

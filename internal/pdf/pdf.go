@@ -55,7 +55,7 @@ func RunProductID(productID int64) error {
 
 func RunPartyID(partyID int64) error {
 
-	party, err := data.GetParty(partyID, data.WithProducts, data.WithProduction, data.WithSerials)
+	party, err := data.GetParty(partyID, data.WithProduction)
 	if err != nil {
 		return err
 	}
@@ -73,9 +73,7 @@ func RunPartyID(partyID int64) error {
 	if err = passportDax(dir, party); err != nil {
 		return err
 	}
-	if err = passportTempCodes(dir, party); err != nil {
-		return err
-	}
+
 	if err = exec.Command("Explorer.exe", dir).Start(); err != nil {
 		return err
 	}

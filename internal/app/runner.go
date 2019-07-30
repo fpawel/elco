@@ -9,6 +9,7 @@ import (
 	"github.com/fpawel/elco/internal/cfg"
 	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/elco/internal/ktx500"
+	"github.com/fpawel/gohelp/myfmt"
 	"github.com/powerman/structlog"
 	"sync"
 	"time"
@@ -49,7 +50,7 @@ func (_ runner) CopyParty(partyID int64) {
 		}
 	}
 	notify.WorkComplete(nil, "скопированы данные загрузки")
-	notify.LastPartyChanged(nil, data.GetLastParty(data.WithProducts))
+	notify.LastPartyChanged(nil, data.GetLastParty(data.WithAllProducts))
 	notify.WorkStoppedf(nil, "скопированы данные загрузки")
 }
 
@@ -113,7 +114,7 @@ func (_ runner) RunMain(nku, variation, minus, plus bool) {
 					x.log.ErrIfFail(x.portGas.Close, "main_work_close", "`закрыть СОМ-порт пневмоблока`")
 				}
 				if i, err := ktx500.GetLast(); err == nil {
-					if i.On {
+					if i.TemperatureOn {
 						x.log.ErrIfFail(func() error {
 							return ktx500.WriteCoolOnOff(false)
 						}, "main_work_close", "`отключение компрессора`")
@@ -127,6 +128,9 @@ func (_ runner) RunMain(nku, variation, minus, plus bool) {
 				return nil
 			})
 		}()
+		if err := x.portMeasurer.Open(x.log, x.ctx); err != nil {
+			return err
+		}
 
 		if nku || variation {
 			if err := setupAndHoldTemperature(x, 20); err != nil {
@@ -224,6 +228,6 @@ func runWork(workName string, work func(x worker) error) {
 			return
 		}
 		notify.ErrorOccurredf(worker.log, err.Error())
-		worker.log.PrintErr(err, append(kvs, "stack", merryStacktrace(err))...)
+		worker.log.PrintErr(err, append(kvs, "stack", myfmt.FormatMerryStacktrace(err))...)
 	}()
 }

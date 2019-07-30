@@ -54,12 +54,8 @@ func main() {
 		SetLogLevel(structlog.ParseLevel(*logLevel))
 
 	must.AbortIf = must.PanicIf
-
-	log := structlog.New()
-
 	data.Open()
-
 	must.AbortIf(app.Run())
 	peer.Close()
-	log.ErrIfFail(data.Close, "defer", "close products db")
+	data.Close()
 }

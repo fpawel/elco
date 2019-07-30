@@ -102,7 +102,7 @@ func (x Party) Party() (p data.Party, products []data.Product) {
 	return
 }
 
-func NewOldParty(s data.Party, products []data.Product) (p Party) {
+func NewOldParty(s data.Party) (p Party) {
 
 	t := time.Now()
 	p = Party{
@@ -132,7 +132,7 @@ func NewOldParty(s data.Party, products []data.Product) (p Party) {
 		return &v
 	}
 
-	for i, y := range products {
+	for i, y := range s.Products {
 
 		p.Products[y.Place].N = i
 		if y.Place >= 64 {

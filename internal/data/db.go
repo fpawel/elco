@@ -18,20 +18,16 @@ var (
 	dbConn *sql.DB
 )
 
-func Close() error {
-	return dbConn.Close()
+func Close() {
+	log.ErrIfFail(dbConn.Close)
 }
 
 func Open() {
-	log := structlog.New()
-
 	dir, err := Dir()
 	if err != nil {
 		panic(err)
 	}
-
 	fileName := filepath.Join(dir, "elco.sqlite")
-
 	dbConn, err = sql.Open("sqlite3", fileName)
 	if err != nil {
 		panic(err)
@@ -93,3 +89,5 @@ WHERE NOT EXISTS(SELECT product_id FROM product WHERE party.party_id = product.p
 `)
 	return err
 }
+
+var log = structlog.New()

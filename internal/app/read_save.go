@@ -12,6 +12,7 @@ import (
 
 func readSaveAtTemperature(x worker, temperature data.Temperature) error {
 	return x.performf("снятие при T=%v⁰C", temperature)(func(x worker) error {
+
 		blowReadSaveScalePt := func(scale data.ScaleType) error {
 			s := "снятие в начале шкалы"
 			gas := 1
@@ -22,13 +23,14 @@ func readSaveAtTemperature(x worker, temperature data.Temperature) error {
 					gas = 2
 				}
 			}
+			if err := x.perform(s, func(x worker) error { return blowGas(x, gas) }); err != nil {
+				return err
+			}
 			return x.perform(s, func(x worker) error {
-				if err := blowGas(x, gas); err != nil {
-					return err
-				}
 				return readSaveForDBColumn(x, data.TemperatureScaleField(temperature, scale))
 			})
 		}
+
 		defer func() {
 			if !x.portGas.Opened() {
 				return
@@ -84,7 +86,7 @@ func readSaveForMainError(x worker) error {
 
 func readSaveForDBColumn(x worker, dbColumn string) error {
 	return x.performf("снятие колоки %q", dbColumn)(func(x worker) error {
-		productsToWork := data.GetLastPartyProducts(data.WithSerials, data.WithProduction)
+		productsToWork := data.GetLastPartyProducts(data.WithProduction)
 		if len(productsToWork) == 0 {
 			return merry.Errorf("снятие \"%s\": не выбрано ни одного прибора", dbColumn)
 		}
@@ -117,7 +119,7 @@ func readSaveForDBColumn(x worker, dbColumn string) error {
 				log.Info("сохраненено в базе данных")
 			}
 		}
-		party := data.GetLastParty(data.WithProducts)
+		party := data.GetLastParty(data.WithAllProducts)
 		notify.LastPartyChanged(nil, party)
 		return nil
 	})

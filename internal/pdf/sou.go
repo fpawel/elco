@@ -166,4 +166,13 @@ func passportPart1(d *gofpdf.Fpdf, left, width float64, p data.ProductInfo) {
 	sentence1(fmt.Sprintf("Диапазон, мкА/%s: ", p.UnitsName))
 	sentenceB(fmt.Sprintf("0-%v", p.Scale))
 	d.Ln(lineSpace1)
+
+	d.SetX(left)
+	code1, code2 := tempCodes(p)
+	sentence1("Коды температурных характеристик: №1=")
+	sentenceB(code1)
+	sentence1(", №2=")
+	sentenceB(code2)
+	sentence1(".")
+	d.Ln(lineSpace1)
 }

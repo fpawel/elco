@@ -46,7 +46,7 @@ cast(strftime('%d', DATETIME(created_at, '+3 hours')) AS INTEGER) = ?`,
 }
 
 func (x *PartiesCatalogueSvc) Party(a [1]int64, r *data.Party) (err error) {
-	*r, err = data.GetParty(a[0], data.WithProducts)
+	*r, err = data.GetParty(a[0], data.WithAllProducts)
 	return
 }
 

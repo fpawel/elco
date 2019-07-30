@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/ansel1/merry"
-	"log"
 )
 
 type ScaleType int

@@ -22,36 +22,29 @@ func setupTemperature(x worker, destinationTemperature float64) error {
 	}
 
 	return x.performf("перевод термокамеры на Т=%v⁰C", destinationTemperature)(func(x worker) error {
-		if err := performWithWarn(x, func() error {
-			return ktx500.SetupTemperature(destinationTemperature)
-		}); err != nil {
-			return err
-		}
-
-		return x.performf("ожидание выхода на Т=%v⁰C", destinationTemperature)(func(x worker) error {
-			return performWithWarn(x, func() error {
-				productsWithSerials := data.GetLastPartyProducts(data.WithSerials)
-				if len(productsWithSerials) == 0 {
-					return merry.New("не выбрано ни одного прибора")
-				}
-				for {
-					for _, products := range groupProductsByBlocks(productsWithSerials) {
-						currentTemperature, err := ktx500.ReadTemperature()
-						if err != nil {
-							return err
-						}
-						if math.Abs(currentTemperature-destinationTemperature) < 2 {
-							return nil
-						}
-
-						block := products[0].Place / 8
-						if _, err = readBlockMeasure(x, block); err != nil {
-							return err
-						}
-						notify.Statusf(x.log, "ожидание выхода на Т=%v⁰C: %v⁰C", destinationTemperature, currentTemperature)
+		return performWithWarn(x, func() error {
+			if err := ktx500.SetupTemperature(destinationTemperature); err != nil {
+				return err
+			}
+			productsWithSerials := data.GetLastPartyProducts(data.WithProduction)
+			if len(productsWithSerials) == 0 {
+				return merry.New("не выбрано ни одного прибора")
+			}
+			for {
+				for _, products := range groupProductsByBlocks(productsWithSerials) {
+					if _, err := readBlockMeasure(x, products[0].Place/8); err != nil {
+						return err
 					}
+					currentTemperature, err := ktx500.ReadTemperature()
+					if err != nil {
+						return err
+					}
+					if math.Abs(currentTemperature-destinationTemperature) < 2 {
+						return nil
+					}
+					notify.Statusf(x.log, "ожидание выхода на Т=%v⁰C: %v⁰C", destinationTemperature, currentTemperature)
 				}
-			})
+			}
 		})
 	})
 }

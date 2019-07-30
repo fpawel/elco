@@ -2,7 +2,7 @@ package data
 
 func CalculateFonMinus20() error {
 
-	party := GetLastParty(WithProducts)
+	party := GetLastParty(WithAllProducts)
 	for _, p := range party.Products {
 		t, err := p.TableFon()
 		if err != nil {
@@ -16,7 +16,7 @@ func CalculateFonMinus20() error {
 }
 
 func CalculateSensMinus20(k float64) error {
-	party := GetLastParty(WithProducts)
+	party := GetLastParty(WithAllProducts)
 	for _, p := range party.Products {
 		if !(p.IFPlus20.Valid && p.ISPlus20.Valid && p.IFMinus20.Valid) {
 			continue
@@ -31,7 +31,7 @@ func CalculateSensMinus20(k float64) error {
 }
 
 func CalculateSensPlus50(k float64) error {
-	party := GetLastParty(WithProducts)
+	party := GetLastParty(WithAllProducts)
 	for _, p := range party.Products {
 		if !(p.IFPlus20.Valid && p.ISPlus20.Valid && p.IFPlus50.Valid) {
 			continue

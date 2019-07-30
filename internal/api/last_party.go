@@ -11,7 +11,7 @@ type LastPartySvc struct {
 }
 
 func (x *LastPartySvc) Party(_ struct{}, r *data.Party) error {
-	*r = data.GetLastParty(data.WithProducts)
+	*r = data.GetLastParty(data.WithAllProducts)
 	return nil
 }
 
@@ -63,7 +63,7 @@ func (x *LastPartySvc) PartyID(_ struct{}, r *int64) error {
 
 func (x *LastPartySvc) SelectOnlyOkProductsProduction(_ struct{}, r *data.Party) error {
 	data.SetOnlyOkProductsProduction()
-	*r = data.GetLastParty(data.WithProducts)
+	*r = data.GetLastParty(data.WithAllProducts)
 	return nil
 }
 
@@ -176,7 +176,7 @@ func (x *LastPartySvc) CalculateFonMinus20(_ struct{}, party *data.Party) error 
 	if err := data.CalculateFonMinus20(); err != nil {
 		return err
 	}
-	*party = data.GetLastParty(data.WithProducts)
+	*party = data.GetLastParty(data.WithAllProducts)
 	return nil
 }
 
@@ -184,7 +184,7 @@ func (x *LastPartySvc) CalculateSensMinus20(k [1]float64, party *data.Party) err
 	if err := data.CalculateSensMinus20(k[0]); err != nil {
 		return err
 	}
-	*party = data.GetLastParty(data.WithProducts)
+	*party = data.GetLastParty(data.WithAllProducts)
 	return nil
 }
 
@@ -192,6 +192,6 @@ func (x *LastPartySvc) CalculateSensPlus50(k [1]float64, party *data.Party) erro
 	if err := data.CalculateSensPlus50(k[0]); err != nil {
 		return err
 	}
-	*party = data.GetLastParty(data.WithProducts)
+	*party = data.GetLastParty(data.WithAllProducts)
 	return nil
 }

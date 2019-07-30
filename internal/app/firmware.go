@@ -11,8 +11,8 @@ import (
 	"github.com/fpawel/elco/internal/cfg"
 	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/gohelp"
-	"github.com/fpawel/gohelp/helpstr"
 	"github.com/fpawel/gohelp/intrng"
+	"github.com/fpawel/gohelp/myfmt"
 	"github.com/hako/durafmt"
 	"github.com/powerman/structlog"
 	"gopkg.in/reform.v1"
@@ -37,7 +37,7 @@ func writePartyFirmware(x worker) error {
 
 	startTime := time.Now()
 	party := data.GetLastParty(data.WithoutProducts)
-	products := data.GetLastPartyProducts(data.WithSerials, data.WithProduction)
+	products := data.GetLastPartyProducts(data.WithProduction)
 	if len(products) == 0 {
 		return merry.New("не выбрано ни одного прибора")
 	}
@@ -57,7 +57,7 @@ func writePartyFirmware(x worker) error {
 	}
 
 	x.log.Info("Write: ok. Verify.",
-		"elapsed", helpstr.FormatDuration(time.Since(startTime)),
+		"elapsed", myfmt.FormatDuration(time.Since(startTime)),
 	)
 
 	startTime = time.Now()
@@ -71,7 +71,7 @@ func writePartyFirmware(x worker) error {
 	}
 
 	x.log.Debug("verify complete",
-		"elapsed", helpstr.FormatDuration(time.Since(startTime)),
+		"elapsed", myfmt.FormatDuration(time.Since(startTime)),
 	)
 
 	party.Products = data.GetProductsInfoWithPartyID(party.PartyID)
@@ -181,7 +181,7 @@ func (hlp *helperWriteParty) writeBlock(x worker, products []*data.Product) erro
 	}
 
 	defer func() {
-		x.log.Debug("end write block", "elapsed", helpstr.FormatDuration(time.Since(startTime)))
+		x.log.Debug("end write block", "elapsed", myfmt.FormatDuration(time.Since(startTime)))
 	}()
 
 	for i, c := range firmwareAddresses {
@@ -262,7 +262,7 @@ func readPlaceFirmware(x worker, place int) ([]byte, error) {
 	defer func() {
 		x.log.Debug("end read firmware",
 			"bytes_read", len(b),
-			"elapsed", helpstr.FormatDuration(time.Since(startTime)))
+			"elapsed", myfmt.FormatDuration(time.Since(startTime)))
 	}()
 
 	for i, c := range firmwareAddresses {
@@ -287,7 +287,7 @@ func readPlaceFirmware(x worker, place int) ([]byte, error) {
 
 		resp, err := req.GetResponse(log, x.ctx, x.portMeasurer, func(request, response []byte) (string, error) {
 			if len(response) != 10+int(count) {
-				return "", comm.ErrProtocol.Here().WithMessagef("ожидалось %d байт ответа, получено %d",
+				return "", comm.Err.Here().Appendf("ожидалось %d байт ответа, получено %d",
 					10+int(count), len(response))
 			}
 			return "", nil
@@ -322,7 +322,7 @@ func writePlaceFirmware(x worker, place int, bytes []byte) error {
 	defer func() {
 		notify.ReadPlace(x.log, -1)
 		x.log.Debug("end read firmware",
-			"elapsed", helpstr.FormatDuration(time.Since(startTime)))
+			"elapsed", myfmt.FormatDuration(time.Since(startTime)))
 	}()
 
 	notify.ReadPlace(x.log, place)
@@ -384,7 +384,7 @@ func waitStatus45(x worker, block int, placesMask byte) error {
 			status := response[2:10]
 			for i, b := range status {
 				if (1<<byte(i))&placesMask != 0 && b != 0 {
-					return comm.ErrProtocol.Here().Appendf(
+					return comm.Err.Here().Appendf(
 						"%s: таймаут %s, статус[%d]=%X",
 						data.FormatPlace(block*8+i), durafmt.Parse(t), i, b)
 				}
@@ -430,7 +430,7 @@ func readStatus45(x worker, block int) ([]byte, error) {
 	}
 	return request.GetResponse(x.log, x.ctx, x.portMeasurer, func(request, response []byte) (string, error) {
 		if len(response) != 12 {
-			return "", comm.ErrProtocol.Here().WithMessagef("ожидалось 12 байт ответа, получено %d", len(response))
+			return "", comm.Err.Here().Appendf("ожидалось 12 байт ответа, получено %d", len(response))
 		}
 		return "", nil
 	})

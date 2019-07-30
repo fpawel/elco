@@ -16,5 +16,5 @@ type GetCheckBlocksArg struct {
 
 type Ktx500Info struct {
 	Temperature, Destination float64
-	On, CoolOn               bool
+	TemperatureOn, CoolOn    bool
 }

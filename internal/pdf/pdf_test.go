@@ -1,23 +1,12 @@
 package pdf
 
 import (
-	"github.com/fpawel/elco/internal/assets"
 	"github.com/fpawel/elco/internal/data"
-	"gopkg.in/reform.v1"
-	"gopkg.in/reform.v1/dialects/sqlite3"
+	"github.com/powerman/must"
 	"testing"
 )
 
 func TestPdf(t *testing.T) {
-	dbConn, err := data.Open(false)
-	if err != nil {
-		t.Error(err)
-	}
-	if err := RunPartyID(reform.NewDB(dbConn, sqlite3.Dialect, nil)); err != nil {
-		t.Error(err)
-	}
-}
-
-func init() {
-	assets.Ensure()
+	data.Open()
+	must.AbortIf(RunPartyID(data.GetLastPartyID()))
 }

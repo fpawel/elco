@@ -56,7 +56,7 @@ func TraceTemperature() {
 
 		x = y
 		log.Info(fmt.Sprintf("%v", x.Temperature),
-			"вкл", x.On,
+			"вкл", x.TemperatureOn,
 			"уставка", x.Destination,
 			"компрессор", x.CoolOn)
 		notify.Ktx500Info(nil, x)
@@ -69,9 +69,8 @@ func TraceTemperature() {
 }
 
 func ReadTemperature() (temperature float64, err error) {
-	_ = write("запрос температуры", func(c *fins.Client) error {
-		temperature, err = readTemperature(c)
-		return err
+	err = write("запрос температуры", func(c *fins.Client) error {
+		return readTemperature(c, &temperature)
 	})
 	return
 }
@@ -180,19 +179,22 @@ func withClient(work func(*fins.Client, cfg.FinsNetwork) error) error {
 	return nil
 }
 
-func readTemperature(c *fins.Client) (float64, error) {
-	temperature, err := finsReadFloat(c, 2)
+func readTemperature(c *fins.Client, temperature *float64) (err error) {
+	*temperature, err = finsReadFloat(c, 2)
 	if err != nil {
-		return 0, wrapErr(err).Append("запрос температуры")
+		return wrapErr(err).Append("запрос температуры")
 	}
-	return temperature, nil
+	return
 }
 
 func readInfo(x *api.Ktx500Info) error {
 	return read(func(c *fins.Client) error {
-		var coolOn, on []bool
+		var (
+			coolOn, temperatureOn []bool
+			temperature           float64
+		)
 
-		temperature, err := readTemperature(c)
+		err := readTemperature(c, &temperature)
 		if err != nil {
 			return err
 		}
@@ -202,7 +204,7 @@ func readInfo(x *api.Ktx500Info) error {
 			return wrapErr(err).Append("запрос уставки")
 		}
 
-		on, err = c.ReadBits(fins.MemoryAreaWRBit, 0, 0, 1)
+		temperatureOn, err = c.ReadBits(fins.MemoryAreaWRBit, 0, 0, 1)
 		if err != nil {
 			return wrapErr(err).Append("запрос состояния термокамеры")
 		}
@@ -213,10 +215,10 @@ func readInfo(x *api.Ktx500Info) error {
 		}
 
 		*x = api.Ktx500Info{
-			Temperature: math.Round(temperature*100.) / 100.,
-			Destination: destination,
-			On:          on[0],
-			CoolOn:      coolOn[0],
+			Temperature:   math.Round(temperature*100.) / 100.,
+			Destination:   destination,
+			TemperatureOn: temperatureOn[0],
+			CoolOn:        coolOn[0],
 		}
 		return nil
 	})
