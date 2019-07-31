@@ -76,19 +76,27 @@ func ReadTemperature() (temperature float64, err error) {
 }
 
 func WriteDestination(value float64) error {
-	return write(fmt.Sprintf("запись уставки: %v", value), func(c *fins.Client) error {
+	return write(fmt.Sprintf("запись уставки %v⁰C", value), func(c *fins.Client) error {
 		return finsWriteFloat(c, 8, value)
 	})
 }
 
 func WriteOnOff(value bool) error {
-	return write(fmt.Sprintf("включение: %v", value), func(c *fins.Client) error {
+	s := "включение уставки"
+	if !value {
+		s = "выключение уставки"
+	}
+	return write(s, func(c *fins.Client) error {
 		return c.BitTwiddle(fins.MemoryAreaWRBit, 0, 0, value)
 	})
 }
 
 func WriteCoolOnOff(value bool) error {
-	return write(fmt.Sprintf("включение компрессора: %v", value), func(c *fins.Client) error {
+	s := "включение компрессора"
+	if !value {
+		s = "выключение компрессора"
+	}
+	return write(s, func(c *fins.Client) error {
 		return c.BitTwiddle(fins.MemoryAreaWRBit, 0, 10, value)
 	})
 }

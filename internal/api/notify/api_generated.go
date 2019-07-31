@@ -12,10 +12,8 @@ type msg int
 
 const (
 	msgReadCurrent msg = iota
-	msgErrorOccurred
 	msgWorkComplete
 	msgWorkStarted
-	msgWorkStopped
 	msgStatus
 	msgKtx500Info
 	msgKtx500Error
@@ -37,32 +35,13 @@ func ReadCurrent(log *structlog.Logger, arg api.ReadCurrent) {
 	go peer.NotifyJson(uintptr(msgReadCurrent), arg)
 }
 
-func ErrorOccurred(log *structlog.Logger, arg string) {
-	if log != nil {
-		msgErrorOccurred.Log(log)(peer.WindowClassName+": ErrorOccurred: "+fmt.Sprintf("%+v", arg), "MSG", msgErrorOccurred)
-	}
-	go peer.NotifyStr(uintptr(msgErrorOccurred), arg)
-}
-
-func ErrorOccurredf(log *structlog.Logger, format string, a ...interface{}) {
-	if log != nil {
-		msgErrorOccurred.Log(log)(peer.WindowClassName+": ErrorOccurred: "+fmt.Sprintf(format, a...), "MSG", msgErrorOccurred)
-	}
-	go peer.Notifyf(uintptr(msgErrorOccurred), format, a...)
-}
-func WorkComplete(log *structlog.Logger, arg string) {
+func WorkComplete(log *structlog.Logger, arg api.WorkResult) {
 	if log != nil {
 		msgWorkComplete.Log(log)(peer.WindowClassName+": WorkComplete: "+fmt.Sprintf("%+v", arg), "MSG", msgWorkComplete)
 	}
-	go peer.NotifyStr(uintptr(msgWorkComplete), arg)
+	go peer.NotifyJson(uintptr(msgWorkComplete), arg)
 }
 
-func WorkCompletef(log *structlog.Logger, format string, a ...interface{}) {
-	if log != nil {
-		msgWorkComplete.Log(log)(peer.WindowClassName+": WorkComplete: "+fmt.Sprintf(format, a...), "MSG", msgWorkComplete)
-	}
-	go peer.Notifyf(uintptr(msgWorkComplete), format, a...)
-}
 func WorkStarted(log *structlog.Logger, arg string) {
 	if log != nil {
 		msgWorkStarted.Log(log)(peer.WindowClassName+": WorkStarted: "+fmt.Sprintf("%+v", arg), "MSG", msgWorkStarted)
@@ -75,19 +54,6 @@ func WorkStartedf(log *structlog.Logger, format string, a ...interface{}) {
 		msgWorkStarted.Log(log)(peer.WindowClassName+": WorkStarted: "+fmt.Sprintf(format, a...), "MSG", msgWorkStarted)
 	}
 	go peer.Notifyf(uintptr(msgWorkStarted), format, a...)
-}
-func WorkStopped(log *structlog.Logger, arg string) {
-	if log != nil {
-		msgWorkStopped.Log(log)(peer.WindowClassName+": WorkStopped: "+fmt.Sprintf("%+v", arg), "MSG", msgWorkStopped)
-	}
-	go peer.NotifyStr(uintptr(msgWorkStopped), arg)
-}
-
-func WorkStoppedf(log *structlog.Logger, format string, a ...interface{}) {
-	if log != nil {
-		msgWorkStopped.Log(log)(peer.WindowClassName+": WorkStopped: "+fmt.Sprintf(format, a...), "MSG", msgWorkStopped)
-	}
-	go peer.Notifyf(uintptr(msgWorkStopped), format, a...)
 }
 func Status(log *structlog.Logger, arg string) {
 	if log != nil {

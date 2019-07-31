@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/ansel1/merry"
+	"github.com/fpawel/elco/internal/api"
 	"github.com/fpawel/elco/internal/api/notify"
 	"github.com/fpawel/elco/internal/cfg"
 	"github.com/fpawel/elco/internal/data"
@@ -17,23 +18,26 @@ import (
 
 type runner struct{}
 
+const (
+	wrOk api.WorkResultTag = iota
+	wrCanceled
+	wrError
+)
+
 func (_ runner) CopyParty(partyID int64) {
-	notify.WorkStarted(nil, "копирование данных загрузки")
-	var pp data.Party
-	if err := data.DB.FindByPrimaryKeyTo(&pp, partyID); err != nil {
+
+	var party data.Party
+	if err := data.DB.FindByPrimaryKeyTo(&party, partyID); err != nil {
 		panic(err)
 	}
-	log.Info("копирование партии", "party_id", pp.PartyID, "created_at", pp.CreatedAt)
+	strOriginalParty := party.Format()
+	notify.WorkStarted(nil, "копирование данных загрузки "+strOriginalParty)
+	log.Info("копирование загрузки " + party.Format())
 
-	s := fmt.Sprintf("Копия партии %d %s", partyID,
-		pp.CreatedAt.Format("2006.01.02"))
-	if pp.Note.Valid {
-		s += ", " + pp.Note.String
-	}
-	pp.PartyID = 0
-	pp.Note = sql.NullString{s, true}
-	pp.CreatedAt = time.Now()
-	if err := data.DB.Save(&pp); err != nil {
+	party.PartyID = 0
+	party.Note = sql.NullString{"Копия загрузки " + strOriginalParty, true}
+	party.CreatedAt = time.Now()
+	if err := data.DB.Save(&party); err != nil {
 		panic(err)
 	}
 
@@ -44,14 +48,13 @@ func (_ runner) CopyParty(partyID int64) {
 	for _, p := range xsProducts {
 		p := p.(*data.Product)
 		p.ProductID = 0
-		p.PartyID = pp.PartyID
+		p.PartyID = party.PartyID
 		if err = data.DB.Save(p); err != nil {
 			panic(err)
 		}
 	}
-	notify.WorkComplete(nil, "скопированы данные загрузки")
+	notify.WorkComplete(nil, api.WorkResult{"копирование загрузки " + party.Format(), wrOk, "успешно"})
 	notify.LastPartyChanged(nil, data.GetLastParty(data.WithAllProducts))
-	notify.WorkStoppedf(nil, "скопированы данные загрузки")
 }
 
 func (_ runner) RunReadAndSaveProductCurrents(dbColumn string) {
@@ -206,11 +209,12 @@ func runWork(workName string, work func(x worker) error) {
 	ctxWork, cancelWorkFunc = context.WithCancel(ctxApp)
 	wgWork.Add(1)
 
-	worker := newWorker(ctxWork, fmt.Sprintf("`%s`", workName))
+	worker := newWorker(ctxWork, workName)
 
 	go func() {
 		defer func() {
-			notify.WorkStoppedf(worker.log, "выполнение окончено: %s", workName)
+			log.ErrIfFail(worker.portMeasurer.Close)
+			log.ErrIfFail(worker.portGas.Close)
 			wgWork.Done()
 		}()
 
@@ -218,16 +222,17 @@ func runWork(workName string, work func(x worker) error) {
 		err := work(worker)
 		if err == nil {
 			worker.log.Info("выполнено успешно")
-			notify.WorkCompletef(worker.log, "%s: выполнено успешно", workName)
+			notify.WorkComplete(worker.log, api.WorkResult{workName, wrOk, "успешно"})
 			return
 		}
 
 		kvs := merryKeysValues(err)
 		if merry.Is(err, context.Canceled) {
 			worker.log.Warn("выполнение прервано", kvs...)
+			notify.WorkComplete(worker.log, api.WorkResult{workName, wrCanceled, "перервано"})
 			return
 		}
-		notify.ErrorOccurredf(worker.log, err.Error())
 		worker.log.PrintErr(err, append(kvs, "stack", myfmt.FormatMerryStacktrace(err))...)
+		notify.WorkComplete(worker.log, api.WorkResult{workName, wrError, err.Error()})
 	}()
 }

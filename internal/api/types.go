@@ -1,5 +1,13 @@
 package api
 
+type WorkResult struct {
+	WorkName string
+	Tag      WorkResultTag
+	Message  string
+}
+
+type WorkResultTag int
+
 type ReadCurrent struct {
 	Values []float64
 	Block  int

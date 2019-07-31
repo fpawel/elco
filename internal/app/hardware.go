@@ -32,9 +32,7 @@ func setupTemperature(x worker, destinationTemperature float64) error {
 			}
 			for {
 				for _, products := range groupProductsByBlocks(productsWithSerials) {
-					if _, err := readBlockMeasure(x, products[0].Place/8); err != nil {
-						return err
-					}
+					_, _ = readBlockMeasure(x, products[0].Place/8)
 					currentTemperature, err := ktx500.ReadTemperature()
 					if err != nil {
 						return err
@@ -132,7 +130,9 @@ func switchGasWithoutWarn(x worker, n int) error {
 }
 
 func blowGas(x worker, n int) error {
-	if err := switchGasWithWarn(x, n); err != nil {
+	if err := x.performf("включение клапана %d", n)(func(x worker) error {
+		return switchGasWithWarn(x, n)
+	}); err != nil {
 		return err
 	}
 	duration := time.Minute * time.Duration(cfg.Cfg.Gui().BlowGasMinutes)

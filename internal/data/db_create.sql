@@ -106,6 +106,13 @@ CREATE TRIGGER IF NOT EXISTS trigger_product_party_updated_at
     WHERE party.party_id = new.party_id;
   END;
 
+
+CREATE VIEW IF NOT EXISTS last_party AS
+SELECT *
+FROM party
+ORDER BY created_at DESC
+LIMIT 1;
+
 CREATE VIEW IF NOT EXISTS party_info AS
 SELECT *,
        cast(strftime('%Y', DATETIME(created_at, '+3 hours')) AS INTEGER) AS year,

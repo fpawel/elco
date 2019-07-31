@@ -47,20 +47,13 @@ func main() {
 			"ReadCurrent",
 			r.TypeOf((*api.ReadCurrent)(nil)).Elem(),
 		},
-		{
-			"ErrorOccurred",
-			r.TypeOf((*string)(nil)).Elem(),
-		},
+
 		{
 			"WorkComplete",
-			r.TypeOf((*string)(nil)).Elem(),
+			r.TypeOf((*api.WorkResult)(nil)).Elem(),
 		},
 		{
 			"WorkStarted",
-			r.TypeOf((*string)(nil)).Elem(),
-		},
-		{
-			"WorkStopped",
 			r.TypeOf((*string)(nil)).Elem(),
 		},
 		{

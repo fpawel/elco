@@ -1,6 +1,7 @@
 package api
 
 import (
+	"database/sql"
 	"fmt"
 	"github.com/fpawel/elco/internal/data"
 	"strconv"
@@ -9,19 +10,53 @@ import (
 type PartiesCatalogueSvc struct {
 }
 
+type YearMonth struct {
+	Year  int `db:"year"`
+	Month int `db:"month"`
+}
+
+type Party2 struct {
+	PartyID         int            `db:"party_id"`
+	Day             int            `db:"day"`
+	ProductTypeName string         `db:"product_type_name"`
+	Note            sql.NullString `db:"note"`
+	Last            bool           `db:"last"`
+}
+
+func (_ *PartiesCatalogueSvc) YearsMonths(_ struct{}, r *[]YearMonth) error {
+	if err := data.DBx.Select(r, `SELECT DISTINCT year, month FROM party_info ORDER BY year DESC, month DESC`); err != nil {
+		panic(err)
+	}
+	return nil
+}
+
+func (_ *PartiesCatalogueSvc) PartiesOfYearMonth(x YearMonth, r *[]Party2) error {
+	if err := data.DBx.Select(r, `
+SELECT cast(strftime('%d', DATETIME(created_at, '+3 hours')) AS INTEGER)  AS day, 
+       party_id, note, product_type_name,
+       party_id = (SELECT party_id FROM party ORDER BY created_at DESC LIMIT 1)  AS last
+FROM party
+WHERE cast(strftime('%Y', DATETIME(created_at, '+3 hours')) AS INTEGER) = ?
+  AND cast(strftime('%m', DATETIME(created_at, '+3 hours')) AS INTEGER) = ?
+ORDER BY created_at`, x.Year, x.Month); err != nil {
+		panic(err)
+	}
+	return nil
+}
+
 func (x *PartiesCatalogueSvc) Years(_ struct{}, years *[]int) error {
-	return data.DBx.Select(years, `SELECT DISTINCT year FROM party_info ORDER BY year ASC;`)
+	return data.DBx.Select(years, `SELECT DISTINCT year FROM party_info ORDER BY year;`)
 }
 
 func (x *PartiesCatalogueSvc) Months(r struct{ Year int }, months *[]int) error {
 	return data.DBx.Select(months,
-		`SELECT DISTINCT month FROM party_info WHERE year = ? ORDER BY month ASC;`,
+		`SELECT DISTINCT month FROM party_info WHERE year = ? ORDER BY month;`,
 		r.Year)
 }
 
 func (x *PartiesCatalogueSvc) Days(r struct{ Year, Month int }, days *[]int) error {
 	return data.DBx.Select(days,
-		`SELECT DISTINCT day FROM party_info WHERE year = ? AND month = ? ORDER BY day ASC;`,
+		`SELECT DISTINCT day FROM party_info WHERE year = ? AND month = ? ORDER BY day;`,
 		r.Year, r.Month)
 }
 
@@ -57,38 +92,6 @@ func (x *PartiesCatalogueSvc) NewParty(_ struct{}, r *data.Party) error {
 
 func (x *PartiesCatalogueSvc) DeletePartyID(partyID [1]int64, _ *struct{}) error {
 	if _, err := data.DB.Exec(`DELETE FROM party WHERE party_id = ?`, partyID[0]); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (x *PartiesCatalogueSvc) DeleteDay(v [3]int, _ *struct{}) error {
-	if _, err := data.DB.Exec(`
-DELETE FROM party 
-WHERE 
-      cast(strftime('%Y', DATETIME(created_at, '+3 hours')) AS INTEGER) = ? AND
-      cast(strftime('%m', DATETIME(created_at, '+3 hours')) AS INTEGER) = ? AND
-      cast(strftime('%d', DATETIME(created_at, '+3 hours')) AS INTEGER) = ?`, v[0], v[1], v[2]); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (x *PartiesCatalogueSvc) DeleteMonth(v [2]int, _ *struct{}) error {
-	if _, err := data.DB.Exec(`
-DELETE FROM party 
-WHERE 
-      cast(strftime('%Y', DATETIME(created_at, '+3 hours')) AS INTEGER) = ? AND
-      cast(strftime('%m', DATETIME(created_at, '+3 hours')) AS INTEGER) = ?`, v[0], v[1]); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (x *PartiesCatalogueSvc) DeleteYear(v [1]int, _ *struct{}) error {
-	if _, err := data.DB.Exec(`
-DELETE FROM party 
-WHERE cast(strftime('%Y', DATETIME(created_at, '+3 hours')) AS INTEGER) = ?`, v[0]); err != nil {
 		return err
 	}
 	return nil

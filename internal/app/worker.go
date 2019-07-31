@@ -10,22 +10,23 @@ import (
 	"github.com/fpawel/elco/internal/cfg"
 	"github.com/fpawel/gohelp"
 	"github.com/powerman/structlog"
+	"strings"
 	"time"
 )
 
 type worker struct {
-	level                 int
-	log                   *structlog.Logger
-	ctx                   context.Context
-	name                  string
-	portMeasurer, portGas *comport.ReadWriter
+	log   *structlog.Logger
+	ctx   context.Context
+	works []string
+	portMeasurer,
+	portGas *comport.ReadWriter
 }
 
 func newWorker(ctx context.Context, name string) worker {
 	return worker{
-		log:  gohelp.NewLogWithSuffixKeys("work", fmt.Sprintf("`%s`", name)),
-		ctx:  ctx,
-		name: name,
+		log:   gohelp.NewLogWithSuffixKeys("work", fmt.Sprintf("`%s`", name)),
+		ctx:   ctx,
+		works: []string{name},
 		portMeasurer: comport.NewReadWriter(func() comport.Config {
 			return comport.Config{
 				Baud:        115200,
@@ -60,15 +61,14 @@ func (x worker) performf(format string, args ...interface{}) func(func(x worker)
 
 func (x worker) perform(name string, work func(x worker) error) error {
 	x.log.Info("выполнить: " + name)
-	prevName := x.name
-	x.name += ": " + name
-	x.level++
-	x.log = gohelp.LogPrependSuffixKeys(x.log, fmt.Sprintf("work%d", x.level), fmt.Sprintf("`%s`", name))
-	notify.Status(nil, x.name)
+	x.works = append(x.works, name)
+	x.log = gohelp.LogPrependSuffixKeys(x.log, fmt.Sprintf("work%d", len(x.works)), fmt.Sprintf("`%s`", name))
+	notify.Status(nil, strings.Join(x.works, ": "))
 	if err := work(x); err != nil {
 		return merry.Append(err, name)
 	}
-	notify.Status(nil, prevName)
+	x.works = x.works[:len(x.works)-1]
+	notify.Status(nil, strings.Join(x.works, ": "))
 	return nil
 }
 
@@ -80,7 +80,10 @@ func performWithWarn(x worker, work func() error) error {
 	if merry.Is(x.ctx.Err(), context.Canceled) {
 		return err
 	}
-	notify.Warningf(x.log, "Не удалось выполнить %q: %v.\n\nВыполните вручную либо прервите выполнение.", x.name, err)
+
+	strErr := strings.Join(strings.Split(err.Error(), ": "), "\n\t -")
+
+	notify.Warningf(x.log, "Не удалось выполнить: %s\n\nПричина: %s", x.works[len(x.works)-1], strErr)
 	if merry.Is(x.ctx.Err(), context.Canceled) {
 		return err
 	}

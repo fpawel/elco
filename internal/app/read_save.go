@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/elco/internal/api/notify"
 	"github.com/fpawel/elco/internal/cfg"
@@ -96,16 +95,18 @@ func readSaveForDBColumn(x worker, dbColumn string) error {
 		blockProducts := groupProductsByBlocks(productsToWork)
 		for _, products := range blockProducts {
 			block := products[0].Place / 8
-			values, err := readBlockMeasure(x, block)
-			for ; err != nil; values, err = readBlockMeasure(x, block) {
-				if merry.Is(err, context.Canceled) {
+			var values []float64
+
+			if err := x.performf("снятие токов блока %d для сохранения", block)(func(x worker) error {
+				return performWithWarn(x, func() error {
+					var err error
+					values, err = readBlockMeasure(x, block)
 					return err
-				}
-				notify.Warning(x.log, fmt.Sprintf("блок измерения %d: %v", block+1, err))
-				if x.ctx.Err() == context.Canceled {
-					return err
-				}
+				})
+			}); err != nil {
+				return err
 			}
+
 			for _, p := range products {
 				n := p.Place % 8
 				log := gohelp.LogPrependSuffixKeys(x.log,
@@ -114,7 +115,7 @@ func readSaveForDBColumn(x worker, dbColumn string) error {
 					"value", values[n])
 
 				if err := data.SetProductValue(p.ProductID, dbColumn, values[n]); err != nil {
-					return log.Err(merry.Append(err, "не удалось сохранить в базе данных"))
+					log.Panic(merry.Append(err, "не удалось сохранить в базе данных"))
 				}
 				log.Info("сохраненено в базе данных")
 			}
