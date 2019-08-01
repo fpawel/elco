@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"github.com/ansel1/merry"
+	"github.com/fpawel/elco/internal/api"
 	"github.com/fpawel/elco/internal/api/notify"
 	"github.com/fpawel/elco/internal/cfg"
 	"github.com/fpawel/elco/internal/data"
@@ -16,7 +17,7 @@ func readSaveAtTemperature(x worker, temperature data.Temperature) error {
 			s := "снятие в начале шкалы"
 			gas := 1
 			if scale == data.Sens {
-				s = "снятие: конце шкалы"
+				s = "снятие в конце шкалы"
 				gas = 3
 				if cfg.Cfg.Gui().EndScaleGas2 {
 					gas = 2
@@ -34,7 +35,6 @@ func readSaveAtTemperature(x worker, temperature data.Temperature) error {
 			if !x.portGas.Opened() {
 				return
 			}
-			x.log.Info("Будет выполнено отключение газв по завершении, поскольку COM порт пневмоблока открыт.")
 			_ = x.perform("отключить газ по завершении", func(x worker) error {
 				x.ctx = context.Background()
 				x.log.ErrIfFail(func() error {
@@ -85,7 +85,7 @@ func readSaveForMainError(x worker) error {
 
 func readSaveForDBColumn(x worker, dbColumn string) error {
 	return x.performf("снятие колоки %q", dbColumn)(func(x worker) error {
-		productsToWork := data.GetLastPartyProducts(data.WithProduction)
+		productsToWork := data.ProductsAll(data.LastPartyID())
 		if len(productsToWork) == 0 {
 			return merry.Errorf("снятие \"%s\": не выбрано ни одного прибора", dbColumn)
 		}
@@ -120,8 +120,7 @@ func readSaveForDBColumn(x worker, dbColumn string) error {
 				log.Info("сохраненено в базе данных")
 			}
 		}
-		party := data.GetLastParty(data.WithAllProducts)
-		notify.LastPartyChanged(nil, party)
+		notify.LastPartyChanged(nil, api.LastParty1())
 		return nil
 	})
 }

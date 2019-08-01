@@ -11,7 +11,7 @@ import (
 )
 
 func ExportLastParty() error {
-	party := data.GetLastParty(data.WithAllProducts)
+	party := data.LastParty(data.WithAllProducts)
 	oldParty := NewOldParty(party)
 	b, err := json.MarshalIndent(&oldParty, "", "    ")
 	if err != nil {

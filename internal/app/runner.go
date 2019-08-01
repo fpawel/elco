@@ -54,7 +54,7 @@ func (_ runner) CopyParty(partyID int64) {
 		}
 	}
 	notify.WorkComplete(nil, api.WorkResult{"копирование загрузки " + party.Format(), wrOk, "успешно"})
-	notify.LastPartyChanged(nil, data.GetLastParty(data.WithAllProducts))
+	notify.LastPartyChanged(nil, api.LastParty1())
 }
 
 func (_ runner) RunReadAndSaveProductCurrents(dbColumn string) {

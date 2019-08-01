@@ -26,12 +26,12 @@ func setupTemperature(x worker, destinationTemperature float64) error {
 			if err := ktx500.SetupTemperature(destinationTemperature); err != nil {
 				return err
 			}
-			productsWithSerials := data.GetLastPartyProducts(data.WithProduction)
-			if len(productsWithSerials) == 0 {
+			productList := data.ProductsAll(data.LastPartyID())
+			if len(productList) == 0 {
 				return merry.New("не выбрано ни одного прибора")
 			}
 			for {
-				for _, products := range groupProductsByBlocks(productsWithSerials) {
+				for _, products := range groupProductsByBlocks(productList) {
 					_, _ = readBlockMeasure(x, products[0].Place/8)
 					currentTemperature, err := ktx500.ReadTemperature()
 					if err != nil {

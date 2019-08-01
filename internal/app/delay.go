@@ -35,7 +35,7 @@ func delay(x worker, duration time.Duration, name string) error {
 			notify.EndDelay(x.log, "")
 		}()
 		for {
-			products := data.GetLastPartyProducts(data.WithProduction)
+			products := data.ProductsWithProduction(data.LastPartyID())
 			if len(products) == 0 {
 				return merry.New("фоновый опрос: не выбрано ни одного прибора")
 			}

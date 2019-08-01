@@ -48,98 +48,34 @@ func CreateNewParty() int64 {
 	}
 	return party.PartyID
 }
-
-func GetLastPartyID() (partyID int64) {
+func LastPartyID() (partyID int64) {
 	row := DB.QueryRow(`SELECT party_id FROM party ORDER BY created_at DESC LIMIT 1`)
-
 	if err := row.Scan(&partyID); err == sql.ErrNoRows {
 		return CreateNewParty()
 	}
 	return partyID
 }
-
-type ProductsFilter int
-
-const (
-	WithoutProducts ProductsFilter = iota
-	WithProduction
-	WithAllProducts
-)
-
-func GetParty(partyID int64, filter ProductsFilter) (party Party, err error) {
-	if err = DB.FindByPrimaryKeyTo(&party, partyID); err != nil {
-		return
-	}
-	party.Last = party.PartyID == GetLastPartyID()
-	var tail string
-	switch filter {
-	case WithoutProducts:
-		return
-	case WithAllProducts:
-		tail = "WHERE party_id = ? ORDER BY place"
-	case WithProduction:
-		tail = "WHERE party_id = ? AND production ORDER BY place"
-	default:
-		panic(filter)
-	}
-	xs, err := DB.SelectAllFrom(ProductInfoTable, tail, partyID)
-	if err != nil {
+func ProductsAll(partyID int64) []Product {
+	return fetchProductsByPartyID(partyID, "WHERE party_id = ? ORDER BY place")
+}
+func ProductsWithProduction(partyID int64) []Product {
+	return fetchProductsByPartyID(partyID, "WHERE party_id = ? AND production ORDER BY place")
+}
+func ProductsInfoAll(partyID int64) []ProductInfo {
+	return fetchProductsInfoByPartyID(partyID, "WHERE party_id = ? ORDER BY place")
+}
+func ProductsInfoWithProduction(partyID int64) []ProductInfo {
+	return fetchProductsInfoByPartyID(partyID, "WHERE party_id = ? AND production ORDER BY place")
+}
+func GetParty(partyID int64) (party Party) {
+	if err := DB.FindByPrimaryKeyTo(&party, partyID); err != nil {
 		panic(err)
-	}
-	for _, x := range xs {
-		p := x.(*ProductInfo)
-		party.Products = append(party.Products, *p)
 	}
 	return
 }
-
-func GetLastParty(f ProductsFilter) Party {
-	partyID := GetLastPartyID()
-	party, err := GetParty(partyID, f)
-	if err != nil {
-		panic(err)
-	}
-	return party
+func LastParty() Party {
+	return GetParty(LastPartyID())
 }
-
-func GetLastPartyProducts(f ProductsFilter) []Product {
-
-	tail := `WHERE party_id IN (SELECT party_id FROM last_party) `
-	switch f {
-	case WithAllProducts:
-		tail += "ORDER BY place"
-	case WithProduction:
-		tail += "AND production ORDER BY place"
-	default:
-		panic(f)
-	}
-	xs, err := DB.SelectAllFrom(ProductTable, tail)
-	if err != nil {
-		panic(err)
-	}
-	return structToProductSlice(xs)
-}
-
-func structToProductSlice(xs []reform.Struct) (products []Product) {
-	for _, x := range xs {
-		p := x.(*Product)
-		products = append(products, *p)
-	}
-	return
-}
-
-func GetProductsInfoWithPartyID(partyID int64) []ProductInfo {
-	xs, err := DB.SelectAllFrom(ProductInfoTable, "WHERE party_id = ? ORDER BY place", partyID)
-	if err != nil {
-		panic(err)
-	}
-	var productsInfo []ProductInfo
-	for _, x := range xs {
-		productsInfo = append(productsInfo, *x.(*ProductInfo))
-	}
-	return productsInfo
-}
-
 func ProductTypeNames() []string {
 	xs, err := DB.SelectAllFrom(ProductTypeTable, "ORDER BY product_type_name")
 	if err != nil {
@@ -151,7 +87,6 @@ func ProductTypeNames() []string {
 	}
 	return r
 }
-
 func ListUnits() []Units {
 	records, err := DB.SelectAllFrom(UnitsTable, "")
 	if err != nil {
@@ -183,12 +118,12 @@ func GetLastPartyProductAtPlace(place int, product *Product) error {
 }
 
 func GetProductAtPlace(place int, product *Product) (err error) {
-	err = DB.SelectOneTo(product, "WHERE party_id = ? AND place = ?", GetLastPartyID(), place)
+	err = DB.SelectOneTo(product, "WHERE party_id = ? AND place = ?", LastPartyID(), place)
 	return
 }
 
 func UpdateProductAtPlace(place int, f func(p *Product) error) (int64, error) {
-	partyID := GetLastPartyID()
+	partyID := LastPartyID()
 
 	var p Product
 	if err := DB.SelectOneTo(&p, "WHERE party_id = ? AND place = ?", partyID, place); err != nil && err != reform.ErrNoRows {
@@ -279,4 +214,28 @@ func SetBlockChecked(block int, r bool) {
 func SetProductValue(productID int64, field string, value float64) error {
 	_, err := DBx.Exec(fmt.Sprintf(`UPDATE product SET %s = ? WHERE product_id = ?`, field), value, productID)
 	return err
+}
+
+func fetchProductsInfoByPartyID(partyID int64, tail string) []ProductInfo {
+	products := make([]ProductInfo, 0)
+	xs, err := DB.SelectAllFrom(ProductInfoTable, tail, partyID)
+	if err != nil {
+		panic(err)
+	}
+	for _, x := range xs {
+		products = append(products, *x.(*ProductInfo))
+	}
+	return products
+}
+
+func fetchProductsByPartyID(partyID int64, tail string) []Product {
+	products := make([]Product, 0)
+	xs, err := DB.SelectAllFrom(ProductTable, tail, partyID)
+	if err != nil {
+		panic(err)
+	}
+	for _, x := range xs {
+		products = append(products, *x.(*Product))
+	}
+	return products
 }

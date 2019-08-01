@@ -1,26 +1,12 @@
 package api
 
 import (
-	"database/sql"
 	"fmt"
 	"github.com/fpawel/elco/internal/data"
 	"strconv"
 )
 
 type PartiesCatalogueSvc struct {
-}
-
-type YearMonth struct {
-	Year  int `db:"year"`
-	Month int `db:"month"`
-}
-
-type Party2 struct {
-	PartyID         int            `db:"party_id"`
-	Day             int            `db:"day"`
-	ProductTypeName string         `db:"product_type_name"`
-	Note            sql.NullString `db:"note"`
-	Last            bool           `db:"last"`
 }
 
 func (_ *PartiesCatalogueSvc) YearsMonths(_ struct{}, r *[]YearMonth) error {
@@ -44,50 +30,14 @@ ORDER BY created_at`, x.Year, x.Month); err != nil {
 	return nil
 }
 
-func (x *PartiesCatalogueSvc) Years(_ struct{}, years *[]int) error {
-	return data.DBx.Select(years, `SELECT DISTINCT year FROM party_info ORDER BY year;`)
-}
-
-func (x *PartiesCatalogueSvc) Months(r struct{ Year int }, months *[]int) error {
-	return data.DBx.Select(months,
-		`SELECT DISTINCT month FROM party_info WHERE year = ? ORDER BY month;`,
-		r.Year)
-}
-
-func (x *PartiesCatalogueSvc) Days(r struct{ Year, Month int }, days *[]int) error {
-	return data.DBx.Select(days,
-		`SELECT DISTINCT day FROM party_info WHERE year = ? AND month = ? ORDER BY day;`,
-		r.Year, r.Month)
-}
-
-func (x *PartiesCatalogueSvc) Parties(r struct{ Year, Month, Day int }, parties *[]data.Party) error {
-	xs, err := data.DB.SelectAllFrom(data.PartyTable, `WHERE 
-cast(strftime('%Y', DATETIME(created_at, '+3 hours')) AS INTEGER) = ? AND 
-cast(strftime('%m', DATETIME(created_at, '+3 hours')) AS INTEGER) = ? AND 
-cast(strftime('%d', DATETIME(created_at, '+3 hours')) AS INTEGER) = ?`,
-		r.Year, r.Month, r.Day)
-	if err != nil {
-		return err
-	}
-
-	lastPartyID := data.GetLastPartyID()
-	for _, y := range xs {
-		party := y.(*data.Party)
-		party.Last = party.PartyID == lastPartyID
-		*parties = append(*parties, *party)
-	}
-
+func (_ *PartiesCatalogueSvc) Party(a [1]int64, r *Party1) error {
+	*r = newParty1(a[0])
 	return nil
 }
 
-func (x *PartiesCatalogueSvc) Party(a [1]int64, r *data.Party) (err error) {
-	*r, err = data.GetParty(a[0], data.WithAllProducts)
-	return
-}
-
-func (x *PartiesCatalogueSvc) NewParty(_ struct{}, r *data.Party) error {
-	newPartyID := data.CreateNewParty()
-	return data.DB.FindByPrimaryKeyTo(r, newPartyID)
+func (x *PartiesCatalogueSvc) NewParty(_ struct{}, r *Party1) error {
+	*r = newParty1(data.CreateNewParty())
+	return nil
 }
 
 func (x *PartiesCatalogueSvc) DeletePartyID(partyID [1]int64, _ *struct{}) error {

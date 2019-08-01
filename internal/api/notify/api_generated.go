@@ -121,7 +121,7 @@ func EndDelayf(log *structlog.Logger, format string, a ...interface{}) {
 	}
 	go peer.Notifyf(uintptr(msgEndDelay), format, a...)
 }
-func LastPartyChanged(log *structlog.Logger, arg data.Party) {
+func LastPartyChanged(log *structlog.Logger, arg api.Party1) {
 	if log != nil {
 		msgLastPartyChanged.Log(log)(peer.WindowClassName+": LastPartyChanged: "+fmt.Sprintf("%+v", arg), "MSG", msgLastPartyChanged)
 	}

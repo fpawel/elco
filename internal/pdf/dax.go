@@ -8,7 +8,7 @@ import (
 	"strconv"
 )
 
-func passportDax(dir string, party data.Party) error {
+func passportDax(dir string, party data.Party, products []data.ProductInfo) error {
 
 	d, err := newDoc()
 	if err != nil {
@@ -18,7 +18,7 @@ func passportDax(dir string, party data.Party) error {
 	pageWidth, _ := d.GetPageSize()
 	const spaceX = 10.
 	width := pageWidth/2. - spaceX*2
-	for i := range party.Products {
+	for i := range products {
 		if i%2 > 0 {
 			continue
 		}
@@ -37,12 +37,12 @@ func passportDax(dir string, party data.Party) error {
 			d.Ln(5)
 		}
 		y := d.GetY()
-		doPassportDax(d, spaceX, width, party.Products[i], party)
+		doPassportDax(d, spaceX, width, products[i], party)
 		d.SetY(y)
-		if i == len(party.Products)-1 {
+		if i == len(products)-1 {
 			break
 		}
-		doPassportDax(d, pageWidth/2., width, party.Products[i+1], party)
+		doPassportDax(d, pageWidth/2., width, products[i+1], party)
 
 	}
 

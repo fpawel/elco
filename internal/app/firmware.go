@@ -7,6 +7,7 @@ import (
 	"github.com/ansel1/merry"
 	"github.com/fpawel/comm"
 	"github.com/fpawel/comm/modbus"
+	"github.com/fpawel/elco/internal/api"
 	"github.com/fpawel/elco/internal/api/notify"
 	"github.com/fpawel/elco/internal/cfg"
 	"github.com/fpawel/elco/internal/data"
@@ -36,8 +37,8 @@ func newHelperWriteParty() helperWriteParty {
 func writePartyFirmware(x worker) error {
 
 	startTime := time.Now()
-	party := data.GetLastParty(data.WithoutProducts)
-	products := data.GetLastPartyProducts(data.WithProduction)
+	party := data.LastParty()
+	products := data.ProductsAll(data.LastPartyID())
 	if len(products) == 0 {
 		return merry.New("не выбрано ни одного прибора")
 	}
@@ -74,8 +75,7 @@ func writePartyFirmware(x worker) error {
 		"elapsed", myfmt.FormatDuration(time.Since(startTime)),
 	)
 
-	party.Products = data.GetProductsInfoWithPartyID(party.PartyID)
-	notify.LastPartyChanged(x.log, party)
+	notify.LastPartyChanged(x.log, api.LastParty1())
 	return hlp.error()
 }
 

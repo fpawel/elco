@@ -54,23 +54,19 @@ func RunProductID(productID int64) error {
 }
 
 func RunPartyID(partyID int64) error {
-
-	party, err := data.GetParty(partyID, data.WithProduction)
-	if err != nil {
-		return err
-	}
-
+	party := data.GetParty(partyID)
+	products := data.ProductsInfoWithProduction(partyID)
 	dir, err := prepareDir()
 	if err != nil {
 		return err
 	}
-	if err = summary(dir, party); err != nil {
+	if err = summary(dir, party, products); err != nil {
 		return err
 	}
-	if err = passportSou(dir, party); err != nil {
+	if err = passportSou(dir, party, products); err != nil {
 		return err
 	}
-	if err = passportDax(dir, party); err != nil {
+	if err = passportDax(dir, party, products); err != nil {
 		return err
 	}
 

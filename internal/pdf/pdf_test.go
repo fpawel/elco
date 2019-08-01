@@ -8,5 +8,5 @@ import (
 
 func TestPdf(t *testing.T) {
 	data.Open()
-	must.AbortIf(RunPartyID(data.GetLastPartyID()))
+	must.AbortIf(RunPartyID(data.LastPartyID()))
 }

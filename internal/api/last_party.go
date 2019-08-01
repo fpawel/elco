@@ -1,69 +1,69 @@
 package api
 
 import (
-	"database/sql"
 	"github.com/fpawel/elco/internal/data"
-	"github.com/fpawel/elco/internal/data/old"
 	"strings"
 )
 
 type LastPartySvc struct {
 }
 
-func (x *LastPartySvc) Party(_ struct{}, r *data.Party) error {
-	*r = data.GetLastParty(data.WithAllProducts)
+func (_ *LastPartySvc) Party(_ struct{}, r *Party1) error {
+	*r = LastParty1()
 	return nil
 }
 
-type LastPartyValues struct {
-	ProductTypeName string
-	Concentration1  float64
-	Concentration2  float64
-	Concentration3  float64
-	Note            sql.NullString
-	MinFon          sql.NullFloat64
-	MaxFon          sql.NullFloat64
-	MaxDFon         sql.NullFloat64
-	MinKSens20      sql.NullFloat64
-	MaxKSens20      sql.NullFloat64
-	MinKSens50      sql.NullFloat64
-	MaxKSens50      sql.NullFloat64
-	MinDTemp        sql.NullFloat64
-	MaxDTemp        sql.NullFloat64
-	MaxDNotMeasured sql.NullFloat64
-	PointsMethod    int64
+func (_ *LastPartySvc) GetValues(_ struct{}, p *Party3) error {
+	x := data.LastParty()
+	p.ProductTypeName = x.ProductTypeName
+	p.Concentration1 = x.Concentration1
+	p.Concentration2 = x.Concentration2
+	p.Concentration3 = x.Concentration3
+	p.Note = x.Note
+	p.MinFon = x.MinFon
+	p.MaxFon = x.MaxFon
+	p.MaxDFon = x.MaxDFon
+	p.MinKSens20 = x.MinKSens20
+	p.MaxKSens20 = x.MaxKSens20
+	p.MinKSens50 = x.MinKSens50
+	p.MaxKSens50 = x.MaxKSens50
+	p.MinDTemp = x.MinDTemp
+	p.MaxDTemp = x.MaxDTemp
+	p.MaxDNotMeasured = x.MaxDNotMeasured
+	p.PointsMethod = x.PointsMethod
+	return nil
 }
 
-func (x *LastPartySvc) SetValues(r struct{ Values LastPartyValues }, _ *struct{}) error {
-	p := data.GetLastParty(data.WithoutProducts)
-	y := r.Values
-	p.ProductTypeName = y.ProductTypeName
-	p.Concentration1 = y.Concentration1
-	p.Concentration2 = y.Concentration2
-	p.Concentration3 = y.Concentration3
-	p.Note = y.Note
-	p.MinFon = y.MinFon
-	p.MaxFon = y.MaxFon
-	p.MaxDFon = y.MaxDFon
-	p.MinKSens20 = y.MinKSens20
-	p.MaxKSens20 = y.MaxKSens20
-	p.MinKSens50 = y.MinKSens50
-	p.MaxKSens50 = y.MaxKSens50
-	p.MinDTemp = y.MinDTemp
-	p.MaxDTemp = y.MaxDTemp
-	p.MaxDNotMeasured = y.MaxDNotMeasured
-	p.PointsMethod = y.PointsMethod
+func (_ *LastPartySvc) SetValues(r struct{ P Party3 }, _ *struct{}) error {
+	p := data.LastParty()
+	x := r.P
+	p.ProductTypeName = x.ProductTypeName
+	p.Concentration1 = x.Concentration1
+	p.Concentration2 = x.Concentration2
+	p.Concentration3 = x.Concentration3
+	p.Note = x.Note
+	p.MinFon = x.MinFon
+	p.MaxFon = x.MaxFon
+	p.MaxDFon = x.MaxDFon
+	p.MinKSens20 = x.MinKSens20
+	p.MaxKSens20 = x.MaxKSens20
+	p.MinKSens50 = x.MinKSens50
+	p.MaxKSens50 = x.MaxKSens50
+	p.MinDTemp = x.MinDTemp
+	p.MaxDTemp = x.MaxDTemp
+	p.MaxDNotMeasured = x.MaxDNotMeasured
+	p.PointsMethod = x.PointsMethod
 	return data.DB.Save(&p)
 }
 
 func (x *LastPartySvc) PartyID(_ struct{}, r *int64) error {
-	*r = data.GetLastPartyID()
+	*r = data.LastPartyID()
 	return nil
 }
 
-func (x *LastPartySvc) SelectOnlyOkProductsProduction(_ struct{}, r *data.Party) error {
+func (x *LastPartySvc) SelectOnlyOkProductsProduction(_ struct{}, r *Party1) error {
 	data.SetOnlyOkProductsProduction()
-	*r = data.GetLastParty(data.WithAllProducts)
+	*r = LastParty1()
 	return nil
 }
 
@@ -77,7 +77,7 @@ func (x *LastPartySvc) SetProductSerialAtPlace(p [2]int, r *int64) (err error) {
 }
 
 func (x LastPartySvc) ProductAtPlace(place [1]int, r *data.ProductInfo) error {
-	partyID := data.GetLastPartyID()
+	partyID := data.LastPartyID()
 	return data.DB.SelectOneTo(r, "WHERE party_id = ? AND place = ?", partyID, place)
 }
 
@@ -151,14 +151,6 @@ UPDATE product SET production = ? WHERE party_id = (SELECT last_party.party_id F
 	return
 }
 
-func (x LastPartySvc) Export(_ struct{}, _ *struct{}) error {
-	return old.ExportLastParty()
-}
-
-func (x *LastPartySvc) Import(_ struct{}, r *data.Party) (err error) {
-	return old.ImportLastParty()
-}
-
 func (x *LastPartySvc) GetCheckBlocks(_ struct{}, r *GetCheckBlocksArg) error {
 	return data.GetBlocksChecked(&r.Check)
 }
@@ -172,26 +164,26 @@ func (x *LastPartySvc) SetBlockChecked(r [2]int, a *int64) error {
 	return nil
 }
 
-func (x *LastPartySvc) CalculateFonMinus20(_ struct{}, party *data.Party) error {
+func (x *LastPartySvc) CalculateFonMinus20(_ struct{}, party *Party1) error {
 	if err := data.CalculateFonMinus20(); err != nil {
 		return err
 	}
-	*party = data.GetLastParty(data.WithAllProducts)
+	*party = LastParty1()
 	return nil
 }
 
-func (x *LastPartySvc) CalculateSensMinus20(k [1]float64, party *data.Party) error {
+func (x *LastPartySvc) CalculateSensMinus20(k [1]float64, party *Party1) error {
 	if err := data.CalculateSensMinus20(k[0]); err != nil {
 		return err
 	}
-	*party = data.GetLastParty(data.WithAllProducts)
+	*party = LastParty1()
 	return nil
 }
 
-func (x *LastPartySvc) CalculateSensPlus50(k [1]float64, party *data.Party) error {
+func (x *LastPartySvc) CalculateSensPlus50(k [1]float64, party *Party1) error {
 	if err := data.CalculateSensPlus50(k[0]); err != nil {
 		return err
 	}
-	*party = data.GetLastParty(data.WithAllProducts)
+	*party = LastParty1()
 	return nil
 }

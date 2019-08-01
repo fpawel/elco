@@ -85,7 +85,7 @@ func main() {
 		},
 		{
 			"LastPartyChanged",
-			r.TypeOf((*data.Party)(nil)).Elem(),
+			r.TypeOf((*api.Party1)(nil)).Elem(),
 		},
 
 		{

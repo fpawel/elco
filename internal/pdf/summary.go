@@ -8,28 +8,25 @@ import (
 	"time"
 )
 
-func summary(dir string, party data.Party) error {
-
-	var productType data.ProductType
-	if err := data.DB.FindByPrimaryKeyTo(&productType, party.ProductTypeName); err != nil {
-		return err
-	}
-
+func summary(dir string, party data.Party, products []data.ProductInfo) error {
 	d, err := newDoc()
 	if err != nil {
 		return err
 	}
-
-	doSummary(d, party, productType)
-
+	doSummary(d, party, products)
 	if err := saveAndShowDoc(d, dir, "summary"); err != nil {
 		return err
 	}
-
 	return nil
 }
 
-func doSummary(d *gofpdf.Fpdf, party data.Party, productType data.ProductType) {
+func doSummary(d *gofpdf.Fpdf, party data.Party, products []data.ProductInfo) {
+
+	var productType data.ProductType
+	if err := data.DB.FindByPrimaryKeyTo(&productType, party.ProductTypeName); err != nil {
+		panic(err)
+	}
+
 	tr := d.UnicodeTranslatorFromDescriptor("cp1251")
 
 	d.AddPage()
@@ -51,7 +48,7 @@ func doSummary(d *gofpdf.Fpdf, party data.Party, productType data.ProductType) {
 		tr(fmt.Sprintf("ИБЯЛ.418425.%s, %s 0-%v %s, %d штук",
 			party.ProductTypeName,
 			productType.GasName, productType.Scale, productType.UnitsName,
-			len(party.Products))),
+			len(products))),
 		"", 0, "", false, 0, "")
 
 	d.SetX(spaceX)
@@ -69,7 +66,7 @@ func doSummary(d *gofpdf.Fpdf, party data.Party, productType data.ProductType) {
 	writeHeader := func(cont bool) {
 		if cont {
 			d.CellFormat(tableWidth, 6, tr(fmt.Sprintf(
-				"Итоговая таблица ЭХЯ №%d, %d шт, продолжение, %s", party.PartyID, len(party.Products),
+				"Итоговая таблица ЭХЯ №%d, %d шт, продолжение, %s", party.PartyID, len(products),
 				strDate)),
 				"", 1, "R", false, 0, "")
 			d.SetX(spaceX)
@@ -113,13 +110,13 @@ func doSummary(d *gofpdf.Fpdf, party data.Party, productType data.ProductType) {
 	cf := func(txtStr, borderStr string, ln int, alignStr string) {
 		d.CellFormat(colWidth, collHeight, txtStr, borderStr, ln, alignStr, false, 0, "")
 	}
-	for row, p := range party.Products {
+	for row, p := range products {
 		if row == 0 || row == 62 {
 			writeHeader(row == 62)
 		}
 
 		borderStr := "TL"
-		if row == len(party.Products)-1 || row == 61 {
+		if row == len(products)-1 || row == 61 {
 			borderStr += "B"
 		}
 		d.CellFormat(colWidth1, collHeight, strconv.Itoa(row+1), borderStr,
