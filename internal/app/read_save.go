@@ -38,7 +38,7 @@ func readSaveAtTemperature(x worker, temperature data.Temperature) error {
 			_ = x.perform("отключить газ по завершении", func(x worker) error {
 				x.ctx = context.Background()
 				x.log.ErrIfFail(func() error {
-					return switchGasWithoutWarn(x, 0)
+					return switchGas(x, 0)
 				})
 				return nil
 			})

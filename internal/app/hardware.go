@@ -68,13 +68,8 @@ func readBlockMeasure(x worker, block int) ([]float64, error) {
 	}
 	return nil, merry.Appendf(err, "блок измерения %d", block)
 }
-func switchGasWithWarn(x worker, n int) error {
-	return performWithWarn(x, func() error {
-		return switchGasWithoutWarn(x, n)
-	})
-}
 
-func switchGasWithoutWarn(x worker, n int) error {
+func switchGas(x worker, n int) error {
 
 	var s string
 	if n == 0 {
@@ -131,7 +126,9 @@ func switchGasWithoutWarn(x worker, n int) error {
 
 func blowGas(x worker, n int) error {
 	if err := x.performf("включение клапана %d", n)(func(x worker) error {
-		return switchGasWithWarn(x, n)
+		return performWithWarn(x, func() error {
+			return switchGas(x, n)
+		})
 	}); err != nil {
 		return err
 	}

@@ -100,7 +100,7 @@ func (_ runner) RunSwitchGas(n int) {
 		what = fmt.Sprintf("подать газ %d", n)
 	}
 	runWork(what, func(x worker) error {
-		return switchGasWithoutWarn(x, n)
+		return switchGas(x, n)
 	})
 }
 
@@ -112,7 +112,7 @@ func (_ runner) RunMain(nku, variation, minus, plus bool) {
 				x.log.ErrIfFail(x.portMeasurer.Close, "main_work_close", "`закрыть СОМ-порт стенда`")
 				if x.portGas.Opened() {
 					x.log.ErrIfFail(func() error {
-						return switchGasWithoutWarn(x, 0)
+						return switchGas(x, 0)
 					}, "main_work_close", "`отключить газ`")
 					x.log.ErrIfFail(x.portGas.Close, "main_work_close", "`закрыть СОМ-порт пневмоблока`")
 				}
