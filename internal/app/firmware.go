@@ -38,7 +38,7 @@ func writePartyFirmware(x worker) error {
 
 	startTime := time.Now()
 	party := data.LastParty()
-	products := data.ProductsAll(data.LastPartyID())
+	products := data.ProductsWithProduction(data.LastPartyID())
 	if len(products) == 0 {
 		return merry.New("не выбрано ни одного прибора")
 	}

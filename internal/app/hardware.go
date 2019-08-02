@@ -26,7 +26,7 @@ func setupTemperature(x worker, destinationTemperature float64) error {
 			if err := ktx500.SetupTemperature(destinationTemperature); err != nil {
 				return err
 			}
-			productList := data.ProductsAll(data.LastPartyID())
+			productList := data.ProductsWithProduction(data.LastPartyID())
 			if len(productList) == 0 {
 				return merry.New("не выбрано ни одного прибора")
 			}

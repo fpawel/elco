@@ -85,7 +85,7 @@ func readSaveForMainError(x worker) error {
 
 func readSaveForDBColumn(x worker, dbColumn string) error {
 	return x.performf("снятие колоки %q", dbColumn)(func(x worker) error {
-		productsToWork := data.ProductsAll(data.LastPartyID())
+		productsToWork := data.ProductsWithProduction(data.LastPartyID())
 		if len(productsToWork) == 0 {
 			return merry.Errorf("снятие \"%s\": не выбрано ни одного прибора", dbColumn)
 		}
