@@ -3,7 +3,6 @@ package app
 import (
 	"fmt"
 	"github.com/ansel1/merry"
-	"github.com/fpawel/comm"
 	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/gohelp/intrng"
 	"sort"
@@ -70,18 +69,4 @@ func groupProductsByBlocks(ps []data.Product) (gs [][]*data.Product) {
 		return gs[i][0].Place/8 < gs[j][0].Place
 	})
 	return
-}
-
-func init() {
-	merry.RegisterDetail("Запрос", "request")
-	merry.RegisterDetail("Ответ", "response")
-	merry.RegisterDetail("Длительность ожидания", comm.LogKeyDuration)
-	merry.RegisterDetail("Порт", "port")
-	merry.RegisterDetail("Прибор", "device")
-	merry.RegisterDetail("Блок измерительный", "block")
-	merry.RegisterDetail("Длительность ожидания статуса", "status_timeout")
-	merry.RegisterDetail("Место", "place")
-	merry.RegisterDetail("Код статуса", "status")
-	merry.RegisterDetail("Адрес", "addr")
-
 }

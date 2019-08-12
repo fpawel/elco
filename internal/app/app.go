@@ -29,6 +29,7 @@ func Run() error {
 		&api.RunnerSvc{Runner: runner{}},
 		api.NewPeerSvc(peerNotifier{}),
 		new(api.ConfigSvc),
+		new(api.ProductsCatalogueSvc),
 	} {
 		must.AbortIf(rpc.Register(svcObj))
 	}
