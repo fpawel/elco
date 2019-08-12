@@ -30,12 +30,13 @@ func (_ runner) CopyParty(partyID int64) {
 	if err := data.DB.FindByPrimaryKeyTo(&party, partyID); err != nil {
 		panic(err)
 	}
-	strOriginalParty := party.Format()
-	notify.WorkStarted(nil, "копирование данных загрузки "+strOriginalParty)
-	log.Info("копирование загрузки " + party.Format())
+	strWhat := fmt.Sprintf("%d %s", party.PartyID, party.CreatedAt.Format("02.01.2006"))
+
+	notify.WorkStarted(nil, "копирование загрузки: "+strWhat)
+	log.Info(strWhat)
 
 	party.PartyID = 0
-	party.Note = sql.NullString{"Копия загрузки " + strOriginalParty, true}
+	party.Note = sql.NullString{"копирование загрузки: " + strWhat, true}
 	party.CreatedAt = time.Now()
 	if err := data.DB.Save(&party); err != nil {
 		panic(err)
@@ -47,13 +48,18 @@ func (_ runner) CopyParty(partyID int64) {
 	}
 	for _, p := range xsProducts {
 		p := p.(*data.Product)
+		p.Note = sql.NullString{
+			String: fmt.Sprintf("копия %d из загрузки %s", p.ProductID, strWhat),
+			Valid:  true,
+		}
 		p.ProductID = 0
 		p.PartyID = party.PartyID
+
 		if err = data.DB.Save(p); err != nil {
 			panic(err)
 		}
 	}
-	notify.WorkComplete(nil, api.WorkResult{"копирование загрузки " + party.Format(), wrOk, "успешно"})
+	notify.WorkComplete(nil, api.WorkResult{"копирование загрузки: " + strWhat, wrOk, "успешно"})
 	notify.LastPartyChanged(nil, api.LastParty1())
 }
 

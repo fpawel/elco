@@ -59,5 +59,6 @@ type ProductInfo struct {
 	PointsMethod           sql.NullInt64   `reform:"points_method"`
 	AppliedPointsMethod    int64           `reform:"applied_points_method"`
 	ProductTypeName        sql.NullString  `reform:"product_type_name"`
-	Note                   sql.NullString  `reform:"note"`
+	NoteProduct            sql.NullString  `reform:"note_product"`
+	NoteParty              sql.NullString  `reform:"note_party"`
 }

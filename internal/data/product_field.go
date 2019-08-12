@@ -87,8 +87,8 @@ func (s ProductInfo) FieldValue(x ProductField) interface{} {
 		return nullInt64(s.Serial)
 
 	case ProductFieldNote:
-		if s.Note.Valid {
-			return s.Note.String
+		if s.NoteProduct.Valid {
+			return s.NoteProduct.String
 		}
 	case ProductFieldFon20:
 		return nullFloat(s.IFPlus20)

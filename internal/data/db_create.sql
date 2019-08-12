@@ -5,106 +5,106 @@ PRAGMA encoding = 'UTF-8';
 
 CREATE TABLE IF NOT EXISTS gas
 (
-  gas_name TEXT PRIMARY KEY NOT NULL,
-  code     INTEGER UNIQUE   NOT NULL
+    gas_name TEXT PRIMARY KEY NOT NULL,
+    code     INTEGER UNIQUE   NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS units
 (
-  units_name TEXT PRIMARY KEY NOT NULL,
-  code       INTEGER UNIQUE   NOT NULL
+    units_name TEXT PRIMARY KEY NOT NULL,
+    code       INTEGER UNIQUE   NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS product_type
 (
-  product_type_name   TEXT PRIMARY KEY NOT NULL,
-  gas_name            TEXT             NOT NULL,
-  units_name          TEXT             NOT NULL,
-  scale               REAL             NOT NULL,
-  noble_metal_content REAL             NOT NULL,
-  lifetime_months     INTEGER          NOT NULL CHECK (lifetime_months > 0),
-  FOREIGN KEY (gas_name) REFERENCES gas (gas_name),
-  FOREIGN KEY (units_name) REFERENCES units (units_name)
+    product_type_name   TEXT PRIMARY KEY NOT NULL,
+    gas_name            TEXT             NOT NULL,
+    units_name          TEXT             NOT NULL,
+    scale               REAL             NOT NULL,
+    noble_metal_content REAL             NOT NULL,
+    lifetime_months     INTEGER          NOT NULL CHECK (lifetime_months > 0),
+    FOREIGN KEY (gas_name) REFERENCES gas (gas_name),
+    FOREIGN KEY (units_name) REFERENCES units (units_name)
 );
 
 CREATE TABLE IF NOT EXISTS party
 (
-  party_id           INTEGER PRIMARY KEY NOT NULL,
-  old_party_id       TEXT,
-  created_at         TIMESTAMP           NOT NULL DEFAULT (DATETIME('now', '+3 hours')),
-  updated_at         TIMESTAMP           NOT NULL DEFAULT (DATETIME('now', '+3 hours')),
-  product_type_name  TEXT                NOT NULL DEFAULT '035',
-  concentration1     REAL                NOT NULL DEFAULT 0 CHECK (concentration1 >= 0),
-  concentration2     REAL                NOT NULL DEFAULT 50 CHECK (concentration2 >= 0),
-  concentration3     REAL                NOT NULL DEFAULT 100 CHECK (concentration3 >= 0),
-  note               TEXT,
-  points_method      INTEGER             NOT NULL
-    CHECK (points_method IN (2, 3))               DEFAULT 2,
-  min_fon            REAL                         DEFAULT -1,
-  max_fon            REAL                         DEFAULT 2,
-  max_d_fon          REAL                         DEFAULT 3,
-  min_k_sens20       REAL                         DEFAULT 0.08,
-  max_k_sens20       REAL                         DEFAULT 0.335,
-  min_k_sens50       REAL                         DEFAULT 110,
-  max_k_sens50       REAL                         DEFAULT 150,
-  min_d_temp         REAL,
-  max_d_temp         REAL                         DEFAULT 3,
-  max_d_not_measured REAL,
+    party_id           INTEGER PRIMARY KEY NOT NULL,
+    old_party_id       TEXT,
+    created_at         TIMESTAMP           NOT NULL DEFAULT (DATETIME('now', '+3 hours')),
+    updated_at         TIMESTAMP           NOT NULL DEFAULT (DATETIME('now', '+3 hours')),
+    product_type_name  TEXT                NOT NULL DEFAULT '035',
+    concentration1     REAL                NOT NULL DEFAULT 0 CHECK (concentration1 >= 0),
+    concentration2     REAL                NOT NULL DEFAULT 50 CHECK (concentration2 >= 0),
+    concentration3     REAL                NOT NULL DEFAULT 100 CHECK (concentration3 >= 0),
+    note               TEXT,
+    points_method      INTEGER             NOT NULL
+        CHECK (points_method IN (2, 3))             DEFAULT 2,
+    min_fon            REAL                         DEFAULT -1,
+    max_fon            REAL                         DEFAULT 2,
+    max_d_fon          REAL                         DEFAULT 3,
+    min_k_sens20       REAL                         DEFAULT 0.08,
+    max_k_sens20       REAL                         DEFAULT 0.335,
+    min_k_sens50       REAL                         DEFAULT 110,
+    max_k_sens50       REAL                         DEFAULT 150,
+    min_d_temp         REAL,
+    max_d_temp         REAL                         DEFAULT 3,
+    max_d_not_measured REAL,
 
-  FOREIGN KEY (product_type_name) REFERENCES product_type (product_type_name)
+    FOREIGN KEY (product_type_name) REFERENCES product_type (product_type_name)
 );
 
 CREATE TABLE IF NOT EXISTS product
 (
-  product_id        INTEGER PRIMARY KEY NOT NULL,
-  party_id          INTEGER             NOT NULL,
-  serial            INTEGER
-    CHECK ( serial ISNULL OR serial > 0 ),
-  place             INTEGER             NOT NULL
-    CHECK (place >= 0),
-  product_type_name TEXT,
-  note              TEXT,
+    product_id        INTEGER PRIMARY KEY NOT NULL,
+    party_id          INTEGER             NOT NULL,
+    serial            INTEGER
+        CHECK ( serial ISNULL OR serial > 0 ),
+    place             INTEGER             NOT NULL
+        CHECK (place >= 0),
+    product_type_name TEXT,
+    note              TEXT,
 
-  i_f_minus20       REAL,
-  i_f_plus20        REAL,
-  i_f_plus50        REAL,
+    i_f_minus20       REAL,
+    i_f_plus20        REAL,
+    i_f_plus50        REAL,
 
-  i_s_minus20       REAL,
-  i_s_plus20        REAL,
-  i_s_plus50        REAL,
+    i_s_minus20       REAL,
+    i_s_plus20        REAL,
+    i_s_plus50        REAL,
 
-  i13               REAL,
-  i24               REAL,
-  i35               REAL,
-  i26               REAL,
-  i17               REAL,
-  not_measured      REAL,
-  firmware          BLOB,
-  production        BOOLEAN             NOT NULL
-    CHECK (production IN (0, 1)) DEFAULT 0,
+    i13               REAL,
+    i24               REAL,
+    i35               REAL,
+    i26               REAL,
+    i17               REAL,
+    not_measured      REAL,
+    firmware          BLOB,
+    production        BOOLEAN             NOT NULL
+        CHECK (production IN (0, 1)) DEFAULT 0,
 
-  points_method     INTEGER
-    CHECK (points_method IN (2, 3)),
+    points_method     INTEGER
+        CHECK (points_method IN (2, 3)),
 
-  old_product_id    TEXT,
-  old_serial        INTEGER,
+    old_product_id    TEXT,
+    old_serial        INTEGER,
 
-  CONSTRAINT unique_party_place UNIQUE (party_id, place),
-  CONSTRAINT unique_party_serial UNIQUE (party_id, serial),
+    CONSTRAINT unique_party_place UNIQUE (party_id, place),
+    CONSTRAINT unique_party_serial UNIQUE (party_id, serial),
 
-  FOREIGN KEY (product_type_name) REFERENCES product_type (product_type_name),
-  FOREIGN KEY (party_id) REFERENCES party (party_id)
-    ON DELETE CASCADE
+    FOREIGN KEY (product_type_name) REFERENCES product_type (product_type_name),
+    FOREIGN KEY (party_id) REFERENCES party (party_id)
+        ON DELETE CASCADE
 );
 
 CREATE TRIGGER IF NOT EXISTS trigger_product_party_updated_at
-  AFTER INSERT
-  ON product
-  BEGIN
+    AFTER INSERT
+    ON product
+BEGIN
     UPDATE party
     SET updated_at = datetime('now')
     WHERE party.party_id = new.party_id;
-  END;
+END;
 
 
 CREATE VIEW IF NOT EXISTS last_party AS
@@ -122,7 +122,7 @@ SELECT *,
 FROM party;
 
 
-DROP VIEW  IF EXISTS product_info_1;
+DROP VIEW IF EXISTS product_info_1;
 CREATE VIEW IF NOT EXISTS product_info_1 AS
 SELECT product_id,
        product.party_id,
@@ -131,11 +131,12 @@ SELECT product_id,
        place,
        production,
        (CASE (product.product_type_name ISNULL)
-          WHEN 1 THEN party.product_type_name
-          WHEN 0
-            THEN product.product_type_name END)                                AS applied_product_type_name,
+            WHEN 1 THEN party.product_type_name
+            WHEN 0
+                THEN product.product_type_name END)                            AS applied_product_type_name,
        product.product_type_name                                               AS product_type_name,
-       product.note                                                            AS note,
+       product.note                                                            AS note_product,
+       party.note                                                              AS note_party,
        round(i_f_minus20, 3)                                                   AS i_f_minus20,
        round(i_f_plus20, 3)                                                    AS i_f_plus20,
        round(i_f_plus50, 3)                                                    AS i_f_plus50,
@@ -149,7 +150,7 @@ SELECT product_id,
        round(i17, 3)                                                           AS i17,
        round(not_measured, 3)                                                  AS not_measured,
 
-       round(i26 - i24, 3)                                                  AS variation,
+       round(i26 - i24, 3)                                                     AS variation,
 
        round(100 * (i_s_plus50 - i_f_plus50) / (i_s_plus20 - i_f_plus20), 3)   AS k_sens50,
        round(100 * (i_s_minus20 - i_f_minus20) / (i_s_plus20 - i_f_plus20), 3) AS k_sens_minus20,
@@ -172,14 +173,14 @@ SELECT product_id,
        round(max_d_not_measured, 3)                                            AS max_d_not_measured,
        product.points_method                                                   AS points_method,
        (CASE (product.points_method ISNULL)
-          WHEN 1 THEN party.points_method
-          WHEN 0
-            THEN product.points_method END)                                    AS applied_points_method
+            WHEN 1 THEN party.points_method
+            WHEN 0
+                THEN product.points_method END)                                AS applied_points_method
 
 FROM product
-       INNER JOIN party ON party.party_id = product.party_id;
+         INNER JOIN party ON party.party_id = product.party_id;
 
-DROP VIEW  IF EXISTS product_info_2;
+DROP VIEW IF EXISTS product_info_2;
 CREATE VIEW IF NOT EXISTS product_info_2 AS
 SELECT q.*,
 
@@ -213,11 +214,11 @@ SELECT q.*,
        noble_metal_content,
        lifetime_months
 FROM product_info_1 q
-       INNER JOIN product_type ON product_type.product_type_name = q.applied_product_type_name
-       INNER JOIN gas ON product_type.gas_name = gas.gas_name
-       INNER JOIN units ON product_type.units_name = units.units_name;
+         INNER JOIN product_type ON product_type.product_type_name = q.applied_product_type_name
+         INNER JOIN gas ON product_type.gas_name = gas.gas_name
+         INNER JOIN units ON product_type.units_name = units.units_name;
 
-DROP VIEW  IF EXISTS product_info;
+DROP VIEW IF EXISTS product_info;
 CREATE VIEW IF NOT EXISTS product_info AS
 SELECT *,
        ok_d_not_measured AND
@@ -228,13 +229,9 @@ SELECT *,
        ok_min_fon20_2 AND ok_max_fon20_2 AS ok
 FROM product_info_2 q;
 
-
-
-
-
 INSERT
-  OR
-  IGNORE
+    OR
+    IGNORE
 INTO units (units_name, code)
 VALUES ('мг/м3', 2),
        ('ppm', 3),
@@ -242,8 +239,8 @@ VALUES ('мг/м3', 2),
        ('млн-1', 5);
 
 INSERT
-  OR
-  IGNORE
+    OR
+    IGNORE
 INTO gas (gas_name, code)
 VALUES ('CO', 0x11),
        ('H₂S', 0x22),
@@ -257,8 +254,8 @@ VALUES ('CO', 0x11),
        ('N₂O₄', 0xBB);
 
 INSERT
-  OR
-  IGNORE
+    OR
+    IGNORE
 INTO product_type (product_type_name,
                    gas_name,
                    units_name,
