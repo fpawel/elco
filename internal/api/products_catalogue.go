@@ -155,33 +155,22 @@ func productsTable(products []data.ProductInfo) [][]Cell {
 	return r2
 }
 
-func (_ *ProductsCatalogueSvc) ListProductsBySerial(serial [1]int, r *[][]Cell) error {
-	var products []data.ProductInfo
-	xs, err := data.DB.SelectAllFrom(data.ProductInfoTable, "WHERE serial = ? ORDER BY created_at DESC", serial[0])
-	if err != nil {
-		return err
-	}
-	for _, p := range xs {
-		products = append(products, *p.(*data.ProductInfo))
-	}
-	*r = productsTable(products)
+func (_ *ProductsCatalogueSvc) ProductByID(productID [1]int64, r *[][]Cell) error {
+	return fetchProducts(r, "WHERE product_id = ?", productID[0])
+}
 
-	return nil
+func (_ *ProductsCatalogueSvc) ListProductsByPartyID(partyID [1]int, r *[][]Cell) error {
+	return fetchProducts(r, "WHERE party_id = ? ORDER BY place DESC", partyID[0])
+}
+
+func (_ *ProductsCatalogueSvc) ListProductsBySerial(serial [1]int, r *[][]Cell) error {
+	return fetchProducts(r, "WHERE serial = ? ORDER BY created_at DESC", serial[0])
 }
 
 func (_ *ProductsCatalogueSvc) ListProductsByNote(note [1]string, r *[][]Cell) error {
-	var products []data.ProductInfo
-	xs, err := data.DB.SelectAllFrom(data.ProductInfoTable,
+	return fetchProducts(r,
 		"WHERE note_product LIKE $1 OR note_party LIKE $1 ORDER BY created_at DESC LIMIT 1000",
 		"%"+note[0]+"%")
-	if err != nil {
-		return err
-	}
-	for _, p := range xs {
-		products = append(products, *p.(*data.ProductInfo))
-	}
-	*r = productsTable(products)
-	return nil
 }
 
 func fetchProducts(r *[][]Cell, tail string, args ...interface{}) error {
@@ -189,7 +178,7 @@ func fetchProducts(r *[][]Cell, tail string, args ...interface{}) error {
 	if err != nil {
 		return err
 	}
-	var products []data.ProductInfo
+	products := make([]data.ProductInfo, 0)
 	for _, p := range xs {
 		products = append(products, *p.(*data.ProductInfo))
 	}

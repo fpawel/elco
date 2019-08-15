@@ -47,15 +47,6 @@ func setupTemperature(x worker, destinationTemperature float64) error {
 	})
 }
 
-func setupAndHoldTemperature(x worker, temperature data.Temperature) error {
-	err := setupTemperature(x, float64(temperature))
-	if err != nil {
-		return err
-	}
-	duration := time.Minute * time.Duration(cfg.Cfg.Gui().HoldTemperatureMinutes)
-	return delayf(x, duration, "выдержка T=%v⁰C", temperature)
-}
-
 func readBlockMeasure(x worker, block int) ([]float64, error) {
 	x.log = gohelp.LogPrependSuffixKeys(x.log, "блок", block)
 	values, err := modbus.Read3BCDs(x.log, x.ctx, x.portMeasurer, modbus.Addr(block+101), 0, 8)

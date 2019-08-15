@@ -111,6 +111,7 @@ func (_ runner) RunSwitchGas(n int) {
 }
 
 func (_ runner) RunMain(nku, variation, minus, plus bool) {
+
 	runWork("Снятие", func(x worker) error {
 		defer func() {
 			_ = x.perform("остановка работы оборудования", func(x worker) error {
@@ -141,8 +142,16 @@ func (_ runner) RunMain(nku, variation, minus, plus bool) {
 			return err
 		}
 
+		setupAndHoldTemperature := func(temperature data.Temperature) error {
+			if err := setupTemperature(x, float64(temperature)); err != nil {
+				return err
+			}
+			duration := time.Minute * time.Duration(cfg.Cfg.Gui().HoldTemperatureMinutes)
+			return delayf(x, duration, "выдержка T=%v⁰C", temperature)
+		}
+
 		if nku || variation {
-			if err := setupAndHoldTemperature(x, 20); err != nil {
+			if err := setupAndHoldTemperature(20); err != nil {
 				return err
 			}
 		}
@@ -157,7 +166,7 @@ func (_ runner) RunMain(nku, variation, minus, plus bool) {
 			}
 		}
 		if minus {
-			if err := setupAndHoldTemperature(x, -20); err != nil {
+			if err := setupAndHoldTemperature(-20); err != nil {
 				return err
 			}
 			if err := readSaveAtTemperature(x, -20); err != nil {
@@ -165,10 +174,15 @@ func (_ runner) RunMain(nku, variation, minus, plus bool) {
 			}
 		}
 		if plus {
-			if err := setupAndHoldTemperature(x, 50); err != nil {
+			if err := setupAndHoldTemperature(50); err != nil {
 				return err
 			}
 			if err := readSaveAtTemperature(x, 50); err != nil {
+				return err
+			}
+		}
+		if minus || plus {
+			if err := setupTemperature(x, float64(20)); err != nil {
 				return err
 			}
 		}
