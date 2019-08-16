@@ -3,8 +3,6 @@ package main
 import (
 	"flag"
 	"github.com/fpawel/elco/internal/app"
-	"github.com/fpawel/elco/internal/data"
-	"github.com/fpawel/elco/internal/peer"
 	"github.com/lxn/win"
 	"github.com/powerman/must"
 	"github.com/powerman/structlog"
@@ -54,8 +52,5 @@ func main() {
 		SetLogLevel(structlog.ParseLevel(*logLevel))
 
 	must.AbortIf = must.PanicIf
-	data.Open()
 	must.AbortIf(app.Run())
-	peer.Close()
-	data.Close()
 }

@@ -26,7 +26,7 @@ func (x *ConfigSvc) Dev(_ struct{}, r *string) error {
 	return nil
 }
 
-func (x *ConfigSvc) SetDev(s [1]string, r *string) error {
+func (_ *ConfigSvc) SetDev(s [1]string, r *string) error {
 	var p cfg.DevSettings
 	if err := toml.Unmarshal([]byte(s[0]), &p); err != nil {
 		return err
@@ -40,7 +40,7 @@ func (x *ConfigSvc) SetDev(s [1]string, r *string) error {
 	return nil
 }
 
-func (x *ConfigSvc) SetDefaultDev(_ struct{}, r *string) error {
+func (_ *ConfigSvc) SetDefaultDev(_ struct{}, r *string) error {
 	p := cfg.DefaultDevSettings()
 	b, err := toml.Marshal(&p)
 	if err != nil {

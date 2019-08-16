@@ -19,6 +19,7 @@ func main() {
 	flag.Parse()
 	log.Println("log file:", gorunex.LogFileName())
 	peer.InitNotifyWindow("_" + os.Args[0])
+	peer.AssertRunOnes()
 	must.AbortIf(gorunex.Process(exeName, args, func() {
 		notify.Panic(nil, "Произошла ошибка ПО. Подробности в лог-файле "+gorunex.LogFileName())
 	}, notifyWriter{}))

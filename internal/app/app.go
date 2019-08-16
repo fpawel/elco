@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"github.com/fpawel/elco/internal/api"
+	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/elco/internal/ktx500"
 	"github.com/fpawel/elco/internal/peer"
 	"github.com/fpawel/gohelp/must"
@@ -16,6 +17,9 @@ import (
 type App struct{}
 
 func Run() error {
+
+	peer.AssertRunOnes()
+	data.Open()
 
 	var cancel func()
 	ctxApp, cancel = context.WithCancel(context.Background())
@@ -51,6 +55,8 @@ func Run() error {
 	}
 	cancel()
 	closeHttpServer()
+	peer.Close()
+	data.Close()
 	return nil
 }
 
