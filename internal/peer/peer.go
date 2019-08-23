@@ -67,19 +67,14 @@ func InitPeer() {
 	notifyWindow.InitPeer()
 }
 
-func InitNotifyWindow(serverWindowClassNameSuffix string) {
-	notifyWindow = copydata.NewNotifyWindow(ServerWindowClassName+serverWindowClassNameSuffix,
-		WindowClassName)
-}
-
-func AssertRunOnes(){
+func AssertRunOnes() {
 	// Преверяем, не было ли приложение запущено ранее.
 	// Если было, выдвигаем окно UI приложения на передний план и завершаем процесс.
 	if winapp.IsWindow(winapp.FindWindow(ServerWindowClassName)) {
-		if hWnd := winapp.FindWindow(WindowClassName); winapp.IsWindow(hWnd){
+		if hWnd := winapp.FindWindow(WindowClassName); winapp.IsWindow(hWnd) {
 			win.ShowWindow(hWnd, win.SW_RESTORE)
 			win.SetForegroundWindow(hWnd)
-		} else{
+		} else {
 			show()
 		}
 		log.Fatal("elco.exe already executing")
@@ -91,7 +86,7 @@ func Init(serverWindowClassNameSuffix string) {
 		panic("already init")
 	}
 
-	InitNotifyWindow(serverWindowClassNameSuffix)
+	notifyWindow = copydata.NewNotifyWindow(ServerWindowClassName+serverWindowClassNameSuffix, WindowClassName)
 
 	if os.Getenv("ELCO_SKIP_RUN_PEER") == "true" {
 		log.Warn("ELCO_SKIP_RUN_PEER")
