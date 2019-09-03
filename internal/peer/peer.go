@@ -1,6 +1,7 @@
 package peer
 
 import (
+	"github.com/fpawel/elco/internal/api/notify"
 	"github.com/getlantern/systray"
 	"github.com/powerman/structlog"
 	"io/ioutil"
@@ -35,6 +36,7 @@ func Init() {
 				case <-mRunGUIApp.ClickedCh:
 					show()
 				case <-mQuitOrig.ClickedCh:
+					notify.Window.Close()
 					systray.Quit()
 				}
 			}
