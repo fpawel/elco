@@ -40,7 +40,9 @@ func setupTemperature(x worker, destinationTemperature float64) error {
 					if math.Abs(currentTemperature-destinationTemperature) < 2 {
 						return nil
 					}
-					notify.Statusf(x.log, "ожидание выхода на Т=%v⁰C: %v⁰C", destinationTemperature, currentTemperature)
+					notify.Status(x.log.Debug, "ожидание выхода на температуру",
+						"destination.Т⁰C", destinationTemperature,
+						"current.Т⁰C", currentTemperature)
 				}
 			}
 		})

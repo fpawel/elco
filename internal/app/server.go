@@ -1,7 +1,6 @@
 package app
 
 import (
-	"github.com/fpawel/elco/internal/peer"
 	"github.com/powerman/must"
 	"github.com/powerman/rpc-codec/jsonrpc2"
 	"github.com/powerman/structlog"
@@ -56,11 +55,9 @@ func startHttpServer() func() {
 type peerNotifier struct{}
 
 func (_ peerNotifier) OnStarted() {
-	peer.InitPeer()
 	cancelWorkFunc()
 }
 
 func (_ peerNotifier) OnClosed() {
-	peer.ResetPeer()
 	cancelWorkFunc()
 }

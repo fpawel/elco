@@ -32,7 +32,7 @@ func delay(x worker, duration time.Duration, name string) error {
 		x.log.Info("задержка начата")
 		defer func() {
 			x.log.Debug("задержка окончена", "elapsed", fd(time.Since(startTime)))
-			notify.EndDelay(x.log, "")
+			notify.EndDelay(x.log.Info, "")
 		}()
 		for {
 			products := data.ProductsWithProduction(data.LastPartyID())

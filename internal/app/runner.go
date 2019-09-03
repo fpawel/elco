@@ -88,7 +88,7 @@ func (_ runner) RunReadPlaceFirmware(place int) {
 		if err != nil {
 			return err
 		}
-		notify.ReadFirmware(x.log, data.FirmwareBytes(b).FirmwareInfo(place))
+		notify.ReadFirmware(x.log.Info, data.FirmwareBytes(b).FirmwareInfo(place))
 		return nil
 	})
 	return
@@ -238,21 +238,21 @@ func runWork(workName string, work func(x worker) error) {
 			wgWork.Done()
 		}()
 
-		notify.WorkStarted(worker.log, workName)
+		notify.WorkStarted(worker.log.Info, workName)
 		err := work(worker)
 		if err == nil {
 			worker.log.Info("выполнено успешно")
-			notify.WorkComplete(worker.log, api.WorkResult{workName, wrOk, "успешно"})
+			notify.WorkComplete(worker.log.Info, api.WorkResult{workName, wrOk, "успешно"})
 			return
 		}
 
 		kvs := merryKeysValues(err)
 		if merry.Is(err, context.Canceled) {
 			worker.log.Warn("выполнение прервано", kvs...)
-			notify.WorkComplete(worker.log, api.WorkResult{workName, wrCanceled, "перервано"})
+			notify.WorkComplete(worker.log.Info, api.WorkResult{workName, wrCanceled, "перервано"})
 			return
 		}
 		worker.log.PrintErr(err, append(kvs, "stack", myfmt.FormatMerryStacktrace(err))...)
-		notify.WorkComplete(worker.log, api.WorkResult{workName, wrError, err.Error()})
+		notify.WorkComplete(worker.log.Info, api.WorkResult{workName, wrError, err.Error()})
 	}()
 }

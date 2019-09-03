@@ -3,10 +3,12 @@ package app
 import (
 	"context"
 	"github.com/fpawel/elco/internal/api"
+	"github.com/fpawel/elco/internal/api/notify"
 	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/elco/internal/ktx500"
 	"github.com/fpawel/elco/internal/peer"
 	"github.com/fpawel/gohelp/must"
+	"github.com/fpawel/gohelp/winapp"
 	"github.com/lxn/win"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/powerman/structlog"
@@ -18,7 +20,15 @@ type App struct{}
 
 func Run() error {
 
-	peer.AssertRunOnes()
+	// Преверяем, не было ли приложение запущено ранее.
+	// Если было, выдвигаем окно UI приложения на передний план и завершаем процесс.
+	if notify.ServerWindowAlreadyExists {
+		hWnd := winapp.FindWindow(notify.PeerWindowClassName)
+		win.ShowWindow(hWnd, win.SW_RESTORE)
+		win.SetForegroundWindow(hWnd)
+		log.Fatal("elco.exe already executing")
+	}
+
 	data.Open()
 
 	var cancel func()
@@ -40,7 +50,7 @@ func Run() error {
 
 	closeHttpServer := startHttpServer()
 
-	peer.Init("")
+	peer.Init()
 
 	go ktx500.TraceTemperature()
 
@@ -55,7 +65,16 @@ func Run() error {
 	}
 	cancel()
 	closeHttpServer()
-	peer.Close()
+
+	notify.Window.Close()
+
+	winapp.EnumWindowsWithClassName(func(hWnd win.HWND, winClassName string) {
+		if winClassName == notify.PeerWindowClassName {
+			r := win.PostMessage(hWnd, win.WM_CLOSE, 0, 0)
+			log.Debug("close peer window", "syscall", r)
+		}
+	})
+
 	data.Close()
 	return nil
 }

@@ -97,6 +97,7 @@ func main() {
 				r.TypeOf((*int)(nil)).Elem(),
 			},
 		},
-		PeerPackage: "github.com/fpawel/elco/internal/peer",
+		PeerWindowClassName:   "TElcoMainForm",
+		ServerWindowClassName: "ElcoServerWindow",
 	})
 }

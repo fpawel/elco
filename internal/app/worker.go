@@ -83,7 +83,7 @@ func performWithWarn(x worker, work func() error) error {
 
 	strErr := strings.Join(strings.Split(err.Error(), ": "), "\n\t -")
 
-	notify.Warningf(x.log, "Не удалось выполнить: %s\n\nПричина: %s", x.works[len(x.works)-1], strErr)
+	notify.Warning(x.log.Warn, fmt.Sprintf("Не удалось выполнить: %s\n\nПричина: %s", x.works[len(x.works)-1], strErr))
 	if merry.Is(x.ctx.Err(), context.Canceled) {
 		return err
 	}
