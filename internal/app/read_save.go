@@ -99,11 +99,9 @@ func (x worker) readSaveForDBColumn(dbColumn string) error {
 			var values []float64
 
 			if err := x.performf("снятие токов блока %d для сохранения", block)(func(x worker) error {
-				return performWithWarn(x, func() error {
-					var err error
-					values, err = readBlockMeasure(x, block)
-					return err
-				})
+				var err error
+				values, err = readBlockMeasure(x, block)
+				return err
 			}); err != nil {
 				return err
 			}
