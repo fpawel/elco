@@ -12,7 +12,7 @@ import (
 func main() {
 
 	// delphiDir, golangDir, types, notifyTypes
-	delphirpc.WriteSources(delphirpc.SrcServices{
+	delphirpc.WriteSources("elco", delphirpc.SrcServices{
 		Dir: filepath.Join(os.Getenv("DELPHIPATH"),
 			"src", "github.com", "fpawel", "elco-gui", "api"),
 		Types: []r.Type{

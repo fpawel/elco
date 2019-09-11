@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 	"github.com/fpawel/elco/internal/api/notify"
-	"github.com/fpawel/gorunex/pkg/gorunex"
+	"github.com/fpawel/gotools/pkg/rungo"
 	"github.com/powerman/must"
 	"log"
 	"os"
@@ -16,9 +16,10 @@ func main() {
 	flag.StringVar(&args, "args", "", "command line arguments to pass")
 	flag.StringVar(&exeName, "exe", "elco.exe", "path to elco.exe")
 	flag.Parse()
-	log.Println("log file:", gorunex.LogFileName())
-	must.AbortIf(gorunex.Process(exeName, args, func() {
-		notify.Panic(nil, "Произошла ошибка ПО. Подробности в лог-файле "+gorunex.LogFileName())
+	logFileName := rungo.LogFileName()
+	log.Println("log file:", logFileName)
+	must.AbortIf(rungo.Process(exeName, args, func() {
+		notify.Panic(nil, "Произошла ошибка ПО. Подробности в лог-файле "+logFileName)
 	}, notifyWriter{}))
 }
 

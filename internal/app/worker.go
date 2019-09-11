@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	"github.com/ansel1/merry"
-	"github.com/fpawel/comm"
 	"github.com/fpawel/comm/comport"
+	"github.com/fpawel/comm/modbus"
 	"github.com/fpawel/elco/internal/api/notify"
 	"github.com/fpawel/elco/internal/cfg"
 	"github.com/fpawel/gohelp"
@@ -15,11 +15,11 @@ import (
 )
 
 type worker struct {
-	log   *structlog.Logger
-	ctx   context.Context
-	works []string
-	portMeasurer,
-	portGas *comport.ReadWriter
+	log          *structlog.Logger
+	ctx          context.Context
+	works        []string
+	portMeasurer *comport.Port
+	portGas      *comport.Port
 }
 
 func newWorker(ctx context.Context, name string) worker {
@@ -27,25 +27,28 @@ func newWorker(ctx context.Context, name string) worker {
 		log:   gohelp.NewLogWithSuffixKeys("work", fmt.Sprintf("`%s`", name)),
 		ctx:   ctx,
 		works: []string{name},
-		portMeasurer: comport.NewReadWriter(func() comport.Config {
+		portMeasurer: comport.NewPort(func() comport.Config {
 			return comport.Config{
 				Baud:        115200,
 				ReadTimeout: time.Millisecond,
 				Name:        cfg.Cfg.Gui().ComportMeasurer,
 			}
-		}, func() comm.Config {
-			return cfg.Cfg.Dev().ComportMeasurer
 		}),
-		portGas: comport.NewReadWriter(func() comport.Config {
+		portGas: comport.NewPort(func() comport.Config {
 			return comport.Config{
 				Baud:        9600,
 				ReadTimeout: time.Millisecond,
 				Name:        cfg.Cfg.Gui().ComportGas,
 			}
-		}, func() comm.Config {
-			return cfg.Cfg.Dev().ComportGas
 		}),
 	}
+}
+
+func (x worker) ReaderMeasurer() modbus.ResponseReader {
+	return x.portMeasurer.NewResponseReader(x.ctx, cfg.Cfg.Dev().ComportMeasurer)
+}
+func (x worker) ReaderGas() modbus.ResponseReader {
+	return x.portGas.NewResponseReader(x.ctx, cfg.Cfg.Dev().ComportGas)
 }
 
 func (x worker) withLogKeys(keyvals ...interface{}) worker {

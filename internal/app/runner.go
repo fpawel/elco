@@ -65,7 +65,7 @@ func (_ runner) CopyParty(partyID int64) {
 
 func (_ runner) RunReadAndSaveProductCurrents(dbColumn string) {
 	runWork(fmt.Sprintf("Снятие %q", dbColumn), func(x worker) error {
-		return readSaveForDBColumn(x, dbColumn)
+		return x.readSaveForDBColumn(dbColumn)
 	})
 }
 
@@ -106,7 +106,7 @@ func (_ runner) RunSwitchGas(n int) {
 		what = fmt.Sprintf("подать газ %d", n)
 	}
 	runWork(what, func(x worker) error {
-		return switchGas(x, n)
+		return x.switchGas(n)
 	})
 }
 
@@ -118,9 +118,7 @@ func (_ runner) RunMain(nku, variation, minus, plus bool) {
 				x.ctx = context.Background()
 				x.log.ErrIfFail(x.portMeasurer.Close, "main_work_close", "`закрыть СОМ-порт стенда`")
 				if x.portGas.Opened() {
-					x.log.ErrIfFail(func() error {
-						return switchGas(x, 0)
-					}, "main_work_close", "`отключить газ`")
+					x.log.ErrIfFail(x.switchGasOff, "main_work_close", "`отключить газ`")
 					x.log.ErrIfFail(x.portGas.Close, "main_work_close", "`закрыть СОМ-порт пневмоблока`")
 				}
 				if i, err := ktx500.GetLast(); err == nil {
@@ -138,7 +136,8 @@ func (_ runner) RunMain(nku, variation, minus, plus bool) {
 				return nil
 			})
 		}()
-		if err := x.portMeasurer.Open(x.log, x.ctx); err != nil {
+
+		if err := x.portMeasurer.Open(); err != nil {
 			return err
 		}
 
@@ -156,12 +155,12 @@ func (_ runner) RunMain(nku, variation, minus, plus bool) {
 			}
 		}
 		if nku {
-			if err := readSaveAtTemperature(x, 20); err != nil {
+			if err := x.readSaveAtTemperature(20); err != nil {
 				return err
 			}
 		}
 		if variation {
-			if err := readSaveForMainError(x); err != nil {
+			if err := x.readSaveForMainError(); err != nil {
 				return err
 			}
 		}
@@ -169,7 +168,7 @@ func (_ runner) RunMain(nku, variation, minus, plus bool) {
 			if err := setupAndHoldTemperature(-20); err != nil {
 				return err
 			}
-			if err := readSaveAtTemperature(x, -20); err != nil {
+			if err := x.readSaveAtTemperature(-20); err != nil {
 				return err
 			}
 		}
@@ -177,7 +176,7 @@ func (_ runner) RunMain(nku, variation, minus, plus bool) {
 			if err := setupAndHoldTemperature(50); err != nil {
 				return err
 			}
-			if err := readSaveAtTemperature(x, 50); err != nil {
+			if err := x.readSaveAtTemperature(50); err != nil {
 				return err
 			}
 		}
