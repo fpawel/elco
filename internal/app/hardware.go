@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/comm/modbus"
@@ -20,7 +21,6 @@ func setupTemperature(x worker, destinationTemperature float64) error {
 		x.log.Warn("skip because ELCO_DEBUG_NO_HARDWARE set")
 		return nil
 	}
-
 	return x.performf("перевод термокамеры на Т=%v⁰C", destinationTemperature)(func(x worker) error {
 		return performWithWarn(x, func() error {
 			if err := ktx500.SetupTemperature(destinationTemperature); err != nil {
@@ -31,8 +31,13 @@ func setupTemperature(x worker, destinationTemperature float64) error {
 				return merry.New("не выбрано ни одного прибора")
 			}
 			for {
+				if x.ctx.Err() != nil {
+					return x.ctx.Err()
+				}
 				for _, products := range groupProductsByBlocks(productList) {
-					_, _ = readBlockMeasure(x, products[0].Place/8)
+					if _, err := readBlockMeasure(x, products[0].Place/8); merry.Is(err, context.Canceled) {
+						return err
+					}
 					currentTemperature, err := ktx500.ReadTemperature()
 					if err != nil {
 						return err
@@ -51,7 +56,7 @@ func setupTemperature(x worker, destinationTemperature float64) error {
 
 func readBlockMeasure(x worker, block int) ([]float64, error) {
 	x.log = gohelp.LogPrependSuffixKeys(x.log, "блок", block)
-	values, err := modbus.Read3BCDs(x.log, x.ctx, x.portMeasurer, modbus.Addr(block+101), 0, 8)
+	values, err := modbus.Read3BCDs(x.log, x.ReaderMeasurer(), modbus.Addr(block+101), 0, 8)
 	if err == nil {
 		notify.ReadCurrent(nil, api.ReadCurrent{
 			Block:  block,
@@ -62,8 +67,11 @@ func readBlockMeasure(x worker, block int) ([]float64, error) {
 	return nil, merry.Appendf(err, "блок измерения %d", block)
 }
 
-func switchGas(x worker, n int) error {
+func (x worker) switchGasOff() error {
+	return x.switchGas(0)
+}
 
+func (x worker) switchGas(n int) error {
 	var s string
 	if n == 0 {
 		s = "отключить газ"
@@ -71,6 +79,7 @@ func switchGas(x worker, n int) error {
 		s = fmt.Sprintf("подать ПГС%d", n)
 	}
 	return x.perform(s, func(x worker) error {
+		x.ctx = context.Background()
 		req := modbus.Request{
 			Addr:     5,
 			ProtoCmd: 0x10,
@@ -95,7 +104,7 @@ func switchGas(x worker, n int) error {
 			return nil
 		}
 		x.log.Info("переключение клапана")
-		if _, err := req.GetResponse(x.log, x.ctx, x.portGas, nil); err != nil {
+		if _, err := req.GetResponse(x.log, x.ReaderMeasurer(), nil); err != nil {
 			return err
 		}
 		req = modbus.Request{
@@ -110,7 +119,7 @@ func switchGas(x worker, n int) error {
 			req.Data[3] = 0xD5
 		}
 		x.log.Info("установка расхода")
-		if _, err := req.GetResponse(x.log, x.ctx, x.portGas, nil); err != nil {
+		if _, err := req.GetResponse(x.log, x.ReaderGas(), nil); err != nil {
 			return err
 		}
 		return nil
@@ -120,7 +129,7 @@ func switchGas(x worker, n int) error {
 func blowGas(x worker, n int) error {
 	if err := x.performf("включение клапана %d", n)(func(x worker) error {
 		return performWithWarn(x, func() error {
-			return switchGas(x, n)
+			return x.switchGas(n)
 		})
 	}); err != nil {
 		return err
