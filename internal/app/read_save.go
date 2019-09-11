@@ -1,7 +1,6 @@
 package app
 
 import (
-	"context"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/elco/internal/api"
 	"github.com/fpawel/elco/internal/api/notify"
@@ -10,8 +9,20 @@ import (
 	"github.com/fpawel/gohelp"
 )
 
-func readSaveAtTemperature(x worker, temperature data.Temperature) error {
+func (x worker) SwitchGasOffInEnd() {
+	if !x.portGas.Opened() {
+		return
+	}
+	_ = x.perform("отключить газ по завершении", func(x worker) error {
+		x.log.ErrIfFail(x.switchGasOff)
+		return nil
+	})
+}
+
+func (x worker) readSaveAtTemperature(temperature data.Temperature) error {
 	return x.performf("снятие при T=%v⁰C", temperature)(func(x worker) error {
+
+		defer x.SwitchGasOffInEnd()
 
 		blowReadSaveScalePt := func(scale data.ScaleType) error {
 			s := "снятие в начале шкалы"
@@ -27,22 +38,9 @@ func readSaveAtTemperature(x worker, temperature data.Temperature) error {
 				return err
 			}
 			return x.perform(s, func(x worker) error {
-				return readSaveForDBColumn(x, data.TemperatureScaleField(temperature, scale))
+				return x.readSaveForDBColumn(data.TemperatureScaleField(temperature, scale))
 			})
 		}
-
-		defer func() {
-			if !x.portGas.Opened() {
-				return
-			}
-			_ = x.perform("отключить газ по завершении", func(x worker) error {
-				x.ctx = context.Background()
-				x.log.ErrIfFail(func() error {
-					return switchGas(x, 0)
-				})
-				return nil
-			})
-		}()
 
 		if err := blowReadSaveScalePt(data.Fon); err != nil {
 			return err
@@ -57,7 +55,7 @@ func readSaveAtTemperature(x worker, temperature data.Temperature) error {
 		}
 		if temperature == 20 {
 			if err := x.perform("начало шкалы, повторное", func(x worker) error {
-				return readSaveForDBColumn(x, "i13")
+				return x.readSaveForDBColumn("i13")
 			}); err != nil {
 				return err
 			}
@@ -66,14 +64,17 @@ func readSaveAtTemperature(x worker, temperature data.Temperature) error {
 	})
 }
 
-func readSaveForMainError(x worker) error {
+func (x worker) readSaveForMainError() error {
 	return x.perform("снятие основной погрешности", func(x worker) error {
+
+		defer x.SwitchGasOffInEnd()
+
 		for i, pt := range data.MainErrorPoints {
 			err := x.performf("%d, ПГС%d, %s", i+1, pt.Code(), pt.Field())(func(x worker) error {
 				if err := blowGas(x, pt.Code()); err != nil {
 					return err
 				}
-				return readSaveForDBColumn(x, pt.Field())
+				return x.readSaveForDBColumn(pt.Field())
 			})
 			if err != nil {
 				return err
@@ -83,7 +84,7 @@ func readSaveForMainError(x worker) error {
 	})
 }
 
-func readSaveForDBColumn(x worker, dbColumn string) error {
+func (x worker) readSaveForDBColumn(dbColumn string) error {
 	return x.performf("снятие колоки %q", dbColumn)(func(x worker) error {
 		productsToWork := data.ProductsWithProduction(data.LastPartyID())
 		if len(productsToWork) == 0 {
