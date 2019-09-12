@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/fpawel/elco/internal"
 	"github.com/fpawel/elco/internal/api"
 	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/gohelp/delphi/delphirpc"
@@ -97,7 +98,6 @@ func main() {
 				r.TypeOf((*int)(nil)).Elem(),
 			},
 		},
-		PeerWindowClassName:   "TElcoMainForm",
-		ServerWindowClassName: "ElcoServerWindow",
+		ServerWindowClassName: internal.ServerWindowClassName,
 	})
 }

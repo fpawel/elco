@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"github.com/fpawel/elco/internal"
 	"github.com/fpawel/elco/internal/api"
 	"github.com/fpawel/elco/internal/api/notify"
 	"github.com/fpawel/elco/internal/data"
@@ -22,12 +23,13 @@ func Run() error {
 
 	// Преверяем, не было ли приложение запущено ранее.
 	// Если было, выдвигаем окно UI приложения на передний план и завершаем процесс.
-	if notify.ServerWindowAlreadyExists {
-		hWnd := winapp.FindWindow(notify.PeerWindowClassName)
+	if winapp.IsWindow(winapp.FindWindow(internal.ServerWindowClassName)) {
+		hWnd := winapp.FindWindow(internal.PeerWindowClassName)
 		win.ShowWindow(hWnd, win.SW_RESTORE)
 		win.SetForegroundWindow(hWnd)
 		log.Fatal("elco.exe already executing")
 	}
+	notifyWnd = notify.NewWindow(internal.ServerWindowClassName, internal.PeerWindowClassName)
 
 	data.Open()
 
@@ -50,9 +52,13 @@ func Run() error {
 
 	closeHttpServer := startHttpServer()
 
-	peer.Init()
+	peer.Init(notifyWnd.W.Close)
 
-	go ktx500.TraceTemperature()
+	go ktx500.TraceTemperature(func(info api.Ktx500Info) {
+		notifyWnd.Ktx500Info(nil, info)
+	}, func(s string) {
+		notifyWnd.Ktx500Error(nil, s)
+	})
 
 	// цикл оконных сообщений
 	for {
@@ -66,10 +72,10 @@ func Run() error {
 	cancel()
 	closeHttpServer()
 
-	notify.Window.Close()
+	notifyWnd.W.Close()
 
 	winapp.EnumWindowsWithClassName(func(hWnd win.HWND, winClassName string) {
-		if winClassName == notify.PeerWindowClassName {
+		if winClassName == internal.PeerWindowClassName {
 			r := win.PostMessage(hWnd, win.WM_CLOSE, 0, 0)
 			log.Debug("close peer window", "syscall", r)
 		}
@@ -80,6 +86,7 @@ func Run() error {
 }
 
 var (
+	notifyWnd      notify.Window
 	ctxApp         context.Context
 	cancelWorkFunc = func() {}
 	skipDelayFunc  = func() {}

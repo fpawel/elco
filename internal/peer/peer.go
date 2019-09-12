@@ -1,7 +1,6 @@
 package peer
 
 import (
-	"github.com/fpawel/elco/internal/api/notify"
 	"github.com/getlantern/systray"
 	"github.com/powerman/structlog"
 	"io/ioutil"
@@ -10,7 +9,7 @@ import (
 	"path/filepath"
 )
 
-func Init() {
+func Init(closeFunc func()) {
 	if os.Getenv("ELCO_SKIP_RUN_PEER") == "true" {
 		log.Warn("ELCO_SKIP_RUN_PEER")
 	} else {
@@ -36,7 +35,7 @@ func Init() {
 				case <-mRunGUIApp.ClickedCh:
 					show()
 				case <-mQuitOrig.ClickedCh:
-					notify.Window.Close()
+					closeFunc()
 					systray.Quit()
 				}
 			}

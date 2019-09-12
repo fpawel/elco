@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/elco/internal/api"
-	"github.com/fpawel/elco/internal/api/notify"
 	"github.com/fpawel/elco/internal/cfg"
 	"github.com/fpawel/gofins/fins"
 	"github.com/powerman/structlog"
@@ -19,7 +18,7 @@ var (
 	Err = merry.New("КТХ-500")
 )
 
-func TraceTemperature() {
+func TraceTemperature(notifyFunc func(info api.Ktx500Info), notifyErrorFunc func(string)) {
 
 	var (
 		x      api.Ktx500Info
@@ -32,7 +31,7 @@ func TraceTemperature() {
 			return
 		}
 		errStr = err.Error()
-		notify.Ktx500Error(nil, errStr)
+		notifyErrorFunc(errStr)
 		log.PrintErr(err)
 
 		last.Mutex.Lock()
@@ -59,7 +58,7 @@ func TraceTemperature() {
 			"вкл", x.TemperatureOn,
 			"уставка", x.Destination,
 			"компрессор", x.CoolOn)
-		notify.Ktx500Info(nil, x)
+		notifyFunc(x)
 
 		last.Mutex.Lock()
 		last.Ktx500Info = x

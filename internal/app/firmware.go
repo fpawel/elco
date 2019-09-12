@@ -8,7 +8,6 @@ import (
 	"github.com/fpawel/comm"
 	"github.com/fpawel/comm/modbus"
 	"github.com/fpawel/elco/internal/api"
-	"github.com/fpawel/elco/internal/api/notify"
 	"github.com/fpawel/elco/internal/cfg"
 	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/gohelp"
@@ -75,7 +74,7 @@ func writePartyFirmware(x worker) error {
 		"elapsed", myfmt.FormatDuration(time.Since(startTime)),
 	)
 
-	notify.LastPartyChanged(x.log.Info, api.LastParty1())
+	notifyWnd.LastPartyChanged(x.log.Info, api.LastParty1())
 	return hlp.error()
 }
 
@@ -140,9 +139,9 @@ func (hlp *helperWriteParty) writeBlock(x worker, products []*data.Product) erro
 
 	block := products[0].Place / 8
 
-	notify.ReadBlock(x.log.Debug, block)
+	notifyWnd.ReadBlock(x.log.Debug, block)
 	defer func() {
-		notify.ReadBlock(x.log.Debug, -1)
+		notifyWnd.ReadBlock(x.log.Debug, -1)
 	}()
 
 	startTime := time.Now()
@@ -240,9 +239,9 @@ func (hlp *helperWriteParty) writeBlock(x worker, products []*data.Product) erro
 
 func readPlaceFirmware(x worker, place int) ([]byte, error) {
 
-	notify.ReadPlace(x.log.Debug, place)
+	notifyWnd.ReadPlace(x.log.Debug, place)
 	defer func() {
-		notify.ReadPlace(x.log.Debug, -1)
+		notifyWnd.ReadPlace(x.log.Debug, -1)
 	}()
 
 	startTime := time.Now()
@@ -320,12 +319,12 @@ func writePlaceFirmware(x worker, place int, bytes []byte) error {
 	)
 
 	defer func() {
-		notify.ReadPlace(x.log.Debug, -1)
+		notifyWnd.ReadPlace(x.log.Debug, -1)
 		x.log.Debug("end read firmware",
 			"elapsed", myfmt.FormatDuration(time.Since(startTime)))
 	}()
 
-	notify.ReadPlace(x.log.Debug, place)
+	notifyWnd.ReadPlace(x.log.Debug, place)
 
 	doAddresses := func(addr1, addr2 uint16) error {
 		x = x.withLogKeys("range", fmt.Sprintf("%X...%X", addr1, addr2),
@@ -366,9 +365,9 @@ func writePlaceFirmware(x worker, place int, bytes []byte) error {
 
 func waitStatus45(x worker, block int, placesMask byte) error {
 
-	notify.ReadBlock(x.log.Debug, block)
+	notifyWnd.ReadBlock(x.log.Debug, block)
 	defer func() {
-		notify.ReadBlock(x.log.Debug, -1)
+		notifyWnd.ReadBlock(x.log.Debug, -1)
 	}()
 
 	t := time.Duration(cfg.Cfg.Dev().StatusTimeoutSeconds) * time.Second
@@ -419,9 +418,9 @@ func waitStatus45(x worker, block int, placesMask byte) error {
 func readStatus45(x worker, block int) ([]byte, error) {
 
 	x.log = gohelp.LogPrependSuffixKeys(x.log, "block", block)
-	notify.ReadBlock(x.log.Debug, block)
+	notifyWnd.ReadBlock(x.log.Debug, block)
 	defer func() {
-		notify.ReadBlock(x.log.Debug, -1)
+		notifyWnd.ReadBlock(x.log.Debug, -1)
 	}()
 
 	request := modbus.Request{
@@ -444,9 +443,9 @@ func writePreparedDataToFlash(x worker, block int, placesMask byte, addr uint16,
 		"addr", fmt.Sprintf("%X", addr),
 		"bytes_count", count)
 
-	notify.ReadBlock(x.log.Debug, block)
+	notifyWnd.ReadBlock(x.log.Debug, block)
 	defer func() {
-		notify.ReadBlock(x.log.Debug, -1)
+		notifyWnd.ReadBlock(x.log.Debug, -1)
 	}()
 
 	req := modbus.Request{
@@ -478,9 +477,9 @@ func sendDataToWrite42(x worker, block, placeInBlock int, b []byte) error {
 		"bytes_count", len(b),
 	)
 
-	notify.ReadPlace(x.log.Debug, block*8+placeInBlock)
+	notifyWnd.ReadPlace(x.log.Debug, block*8+placeInBlock)
 	defer func() {
-		notify.ReadPlace(x.log.Debug, -1)
+		notifyWnd.ReadPlace(x.log.Debug, -1)
 	}()
 
 	req := modbus.Request{

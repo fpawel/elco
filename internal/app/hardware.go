@@ -6,7 +6,6 @@ import (
 	"github.com/ansel1/merry"
 	"github.com/fpawel/comm/modbus"
 	"github.com/fpawel/elco/internal/api"
-	"github.com/fpawel/elco/internal/api/notify"
 	"github.com/fpawel/elco/internal/cfg"
 	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/elco/internal/ktx500"
@@ -45,7 +44,7 @@ func setupTemperature(x worker, destinationTemperature float64) error {
 					if math.Abs(currentTemperature-destinationTemperature) < 2 {
 						return nil
 					}
-					notify.Status(x.log.Debug, "ожидание выхода на температуру",
+					notifyWnd.Status(x.log.Debug, "ожидание выхода на температуру",
 						"destination.Т⁰C", destinationTemperature,
 						"current.Т⁰C", currentTemperature)
 				}
@@ -58,7 +57,7 @@ func readBlockMeasure(x worker, block int) ([]float64, error) {
 	x.log = gohelp.LogPrependSuffixKeys(x.log, "блок", block)
 	values, err := modbus.Read3BCDs(x.log, x.ReaderMeasurer(), modbus.Addr(block+101), 0, 8)
 	if err == nil {
-		notify.ReadCurrent(nil, api.ReadCurrent{
+		notifyWnd.ReadCurrent(nil, api.ReadCurrent{
 			Block:  block,
 			Values: values,
 		})
@@ -104,7 +103,7 @@ func (x worker) switchGas(n int) error {
 			return nil
 		}
 		x.log.Info("переключение клапана")
-		if _, err := req.GetResponse(x.log, x.ReaderMeasurer(), nil); err != nil {
+		if _, err := req.GetResponse(x.log, x.ReaderGas(), nil); err != nil {
 			return err
 		}
 		req = modbus.Request{
