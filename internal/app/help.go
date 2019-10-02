@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/elco/internal/data"
-	"github.com/fpawel/gohelp/intrng"
+	"github.com/fpawel/elco/internal/pkg/intrng"
 	"sort"
 	"time"
 )

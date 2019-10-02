@@ -3,7 +3,9 @@ package data
 import (
 	"database/sql"
 	"github.com/ansel1/merry"
-	"github.com/fpawel/gohelp/winapp"
+	"github.com/fpawel/elco/internal/pkg"
+	"github.com/fpawel/elco/internal/pkg/must"
+	"github.com/fpawel/elco/internal/pkg/winapp"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/powerman/structlog"
@@ -28,14 +30,7 @@ func Open() {
 		panic(err)
 	}
 	fileName := filepath.Join(dir, "elco.sqlite")
-	dbConn, err = sql.Open("sqlite3", fileName)
-	if err != nil {
-		panic(err)
-	}
-	dbConn.SetMaxIdleConns(1)
-	dbConn.SetMaxOpenConns(1)
-	dbConn.SetConnMaxLifetime(0)
-
+	dbConn = must.OpenSqliteDB(fileName)
 	if _, err = dbConn.Exec(SQLCreate); err != nil {
 		panic(err)
 	}
@@ -53,7 +48,7 @@ func Dir() (string, error) {
 		return "", merry.Wrap(err)
 	}
 	dir = filepath.Join(dir, "elco")
-	err = winapp.EnsuredDirectory(dir)
+	err = pkg.EnsureDir(dir)
 	if err != nil {
 		return "", merry.Wrap(err)
 	}

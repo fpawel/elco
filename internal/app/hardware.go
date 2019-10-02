@@ -8,8 +8,8 @@ import (
 	"github.com/fpawel/elco/internal/api"
 	"github.com/fpawel/elco/internal/cfg"
 	"github.com/fpawel/elco/internal/data"
-	"github.com/fpawel/elco/internal/ktx500"
-	"github.com/fpawel/gohelp"
+	"github.com/fpawel/elco/internal/pkg"
+	"github.com/fpawel/elco/internal/pkg/ktx500"
 	"math"
 	"os"
 	"time"
@@ -54,7 +54,7 @@ func setupTemperature(x worker, destinationTemperature float64) error {
 }
 
 func readBlockMeasure(x worker, block int) ([]float64, error) {
-	x.log = gohelp.LogPrependSuffixKeys(x.log, "блок", block)
+	x.log = pkg.LogPrependSuffixKeys(x.log, "блок", block)
 	values, err := modbus.Read3BCDs(x.log, x.ReaderMeasurer(), modbus.Addr(block+101), 0, 8)
 	if err == nil {
 		notifyWnd.ReadCurrent(nil, api.ReadCurrent{

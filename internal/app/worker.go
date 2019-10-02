@@ -7,7 +7,7 @@ import (
 	"github.com/fpawel/comm/comport"
 	"github.com/fpawel/comm/modbus"
 	"github.com/fpawel/elco/internal/cfg"
-	"github.com/fpawel/gohelp"
+	"github.com/fpawel/elco/internal/pkg"
 	"github.com/powerman/structlog"
 	"strings"
 	"time"
@@ -23,7 +23,7 @@ type worker struct {
 
 func newWorker(ctx context.Context, name string) worker {
 	return worker{
-		log:   gohelp.NewLogWithSuffixKeys("work", fmt.Sprintf("`%s`", name)),
+		log:   pkg.NewLogWithSuffixKeys("work", fmt.Sprintf("`%s`", name)),
 		ctx:   ctx,
 		works: []string{name},
 		portMeasurer: comport.NewPort(func() comport.Config {
@@ -51,7 +51,7 @@ func (x worker) ReaderGas() modbus.ResponseReader {
 }
 
 func (x worker) withLogKeys(keyvals ...interface{}) worker {
-	x.log = gohelp.LogPrependSuffixKeys(x.log, keyvals...)
+	x.log = pkg.LogPrependSuffixKeys(x.log, keyvals...)
 	return x
 }
 
@@ -64,7 +64,7 @@ func (x worker) performf(format string, args ...interface{}) func(func(x worker)
 func (x worker) perform(name string, work func(x worker) error) error {
 	x.log.Info("выполнить: " + name)
 	x.works = append(x.works, name)
-	x.log = gohelp.LogPrependSuffixKeys(x.log, fmt.Sprintf("work%d", len(x.works)), fmt.Sprintf("`%s`", name))
+	x.log = pkg.LogPrependSuffixKeys(x.log, fmt.Sprintf("work%d", len(x.works)), fmt.Sprintf("`%s`", name))
 	notifyWnd.Status(nil, strings.Join(x.works, ": "))
 	if err := work(x); err != nil {
 		return merry.Append(err, name)

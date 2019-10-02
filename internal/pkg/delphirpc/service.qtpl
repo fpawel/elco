@@ -1,0 +1,68 @@
+{% package delphirpc %}
+
+{% func (x *ServicesUnit) Unit() %}
+unit services;
+
+interface
+
+uses superobject, server_data_types;
+
+type 
+    {% for _, srv := range x.services %}T{%s srv.serviceName %} = class
+    public
+        {% for _,m := range srv.methods %}{%s= m.decl("") %};static;
+        {% endfor %} 
+    end;
+
+    {% endfor %}
+
+function GetHttpServerAddr: string;
+
+implementation 
+
+uses System.SysUtils, registry, winapi.windows, HttpRpcClient, SuperObjectHelp, Grijjy.Bson.Serialization;
+
+function GetHttpServerAddr: string;
+var
+    key: TRegistry;
+begin
+    key := TRegistry.Create(KEY_READ);
+    try
+        if not key.OpenKey( '{%s x.Name %}\http', False) then
+            raise Exception.Create('cant open {%s x.Name %}\http');
+        result := key.ReadString('addr');
+    finally
+        key.CloseKey;
+        key.Free;
+    end;
+end;
+
+{% for _, srv := range x.services %} {% for _,m := range srv.methods %}{%s= m.implementation(srv.serviceName) %}
+{% endfor %}{% endfor %} 
+end.{% endfunc %}
+
+{% func (x delphiServiceMethod) implementation(serviceName string) %}
+{%s= x.decl("T" + serviceName + ".")%};
+var
+    req : ISuperobject;{%if x.namedParams %}s:string;{% endif %}
+begin
+    req := {%if x.namedParams || len(x.params)==0 %}SO{% else %}SA([]){% endif %};
+    {% for _, p := range x.params %}{% collapsespace %}
+        {%if x.namedParams %}
+            {%s= setParamFieldInstruction(p.delphiType.kind, p.name) %};
+        {% else %}
+            req.AsArray.Add({%s p.name %});
+        {% endif %}{% endcollapsespace %}{% endfor %}
+    {% collapsespace %}
+    {%if x.ret == nil %}
+        ThttpRpcClient.GetResponse(GetHttpServerAddr + '/rpc', '{%s= serviceName %}.{%s= x.methodName %}', req);
+    {% else %}
+        {%if x.ret.kind == delphiPOD %}
+            SuperObject_Get(ThttpRpcClient.GetResponse(GetHttpServerAddr + '/rpc', '{%s= serviceName %}.{%s= x.methodName %}', req), Result);
+        {% else %}
+            ThttpRpcClient.Call(GetHttpServerAddr + '/rpc', '{%s= serviceName %}.{%s= x.methodName %}', req, Result);
+        {% endif %}
+    {% endif %}
+    {% endcollapsespace %}
+end;
+{% endfunc %}

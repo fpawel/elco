@@ -3,7 +3,7 @@ package api
 import (
 	"database/sql"
 	"github.com/fpawel/elco/internal/data"
-	"github.com/fpawel/gohelp/myfmt"
+	"github.com/fpawel/elco/internal/pkg"
 	"strconv"
 )
 
@@ -18,7 +18,7 @@ type Cell struct {
 type ValueResult int
 
 const (
-	vrNone ValueResult = iota
+	_ ValueResult = iota
 	vrOk
 	vrErr
 )
@@ -40,7 +40,7 @@ func cell2(v sql.NullFloat64) Cell {
 	if !v.Valid {
 		return c
 	}
-	c.Str = myfmt.FormatFloat(v.Float64, 3)
+	c.Str = pkg.FormatFloat(v.Float64, 3)
 	c.TextAlignment = taRightJustify
 	return c
 }
@@ -50,7 +50,7 @@ func cellR2(v sql.NullFloat64, f1, f2 bool) Cell {
 	if !v.Valid {
 		return c
 	}
-	c.Str = myfmt.FormatFloat(v.Float64, 3)
+	c.Str = pkg.FormatFloat(v.Float64, 3)
 	c.TextAlignment = taRightJustify
 	if f1 && f2 {
 		c.Res = vrOk

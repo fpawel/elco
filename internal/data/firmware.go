@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/comm/modbus"
-	"github.com/fpawel/gohelp/delphi"
+	"github.com/fpawel/elco/internal/pkg/delphi"
 	"math"
 	"strconv"
 	"time"

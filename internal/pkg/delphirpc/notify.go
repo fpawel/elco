@@ -2,18 +2,18 @@ package delphirpc
 
 import (
 	"fmt"
+	"log"
 	"path"
 	r "reflect"
+	"strings"
 )
 
 type NotifyServicesSrc struct {
-	unitName string
-	interfaceUses,
-	implUses []string
-	types     map[string]string
-	goImports map[string]struct{}
-	services  []notifyService
-	DataTypes *TypesSrc
+	delphiHandlersTypes   map[string]string
+	goImports             map[string]struct{}
+	services              []notifyService
+	DataTypes             *TypesUnit
+	ServerWindowClassName string
 }
 
 type NotifyServiceType struct {
@@ -31,32 +31,42 @@ type notifyService struct {
 	instructionArg string
 }
 
-func NewNotifyServicesSrc(unitName string, d *TypesSrc, services []NotifyServiceType) *NotifyServicesSrc {
+func NewNotifyServicesSrc(serverWindowClassName string, d *TypesUnit, services []NotifyServiceType) *NotifyServicesSrc {
 	x := &NotifyServicesSrc{
-		unitName:      unitName,
-		interfaceUses: []string{d.unitName, "superobject", "Winapi.Windows", "Winapi.Messages"},
-		implUses:      []string{"Grijjy.Bson.Serialization", "stringutils", "sysutils"},
-		DataTypes:     d,
-		types:         make(map[string]string),
-		goImports: map[string]struct{}{
-			"fmt":                                  {},
-			"github.com/fpawel/elco/internal/api":  {},
-			"github.com/fpawel/elco/internal/data": {},
-			"github.com/fpawel/elco/internal/peer": {},
-			"github.com/powerman/structlog":        {},
-		},
+		DataTypes:             d,
+		ServerWindowClassName: serverWindowClassName,
+		delphiHandlersTypes:   make(map[string]string),
+		goImports:             make(map[string]struct{}),
 	}
-	for _, s := range services {
-		x.DataTypes.addType(s.ParamType)
 
-		t := delphiTypeName(x.DataTypes.typesNames, s.ParamType)
+	for _, s := range services {
+
+		if s.ParamType.Kind() == r.Struct && s.ParamType.NumField() == 0 {
+			x.services = append(x.services, notifyService{
+				serviceName: s.ServiceName,
+				handlerType: "TProcedure",
+			})
+			x.delphiHandlersTypes["TProcedure"] = "reference to procedure"
+			continue
+		}
+
+		t, err := x.DataTypes.add(s.ParamType)
+
+		if err != nil {
+			log.Fatalln("notify_service:", s.ServiceName, "error:", err)
+		}
+
+		handlerTypeName := strings.Title(t.TypeName() + "Handler")
+		if handlerTypeName[0] != 'T' {
+			handlerTypeName = "T" + handlerTypeName
+		}
+
 		y := notifyService{
 			serviceName: s.ServiceName,
-			typeName:    t,
-			handlerType: strEnsureFirstT(t) + "Handler",
+			typeName:    t.TypeName(),
+			handlerType: handlerTypeName,
 			goType:      s.ParamType.Name(),
 		}
-		x.types[y.typeName] = y.handlerType
 
 		if len(s.ParamType.PkgPath()) > 0 {
 			x.goImports[s.ParamType.PkgPath()] = struct{}{}
@@ -89,14 +99,14 @@ func NewNotifyServicesSrc(unitName string, d *TypesSrc, services []NotifyService
 			y.instructionArg = "fmt.Sprintf(\"%v\", arg)"
 
 		case r.Struct:
-			y.instructionGetFromStr = fmt.Sprintf("_deserializer.deserialize<%s>(str)", t)
+			y.instructionGetFromStr = fmt.Sprintf("_deserializer.deserialize<%s>(str)", t.TypeName())
 			y.notifyFunc = "NotifyJson"
 			y.instructionArg = "arg"
-
 		default:
 			panic(fmt.Sprintf("wrong type %q: %v", s.ServiceName, s.ParamType))
 		}
 
+		x.delphiHandlersTypes[y.handlerType] = fmt.Sprintf("reference to procedure (x:%s)", y.typeName)
 		x.services = append(x.services, y)
 	}
 	return x

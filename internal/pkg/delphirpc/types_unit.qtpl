@@ -1,0 +1,27 @@
+{% package delphirpc %}
+
+
+{% func (x *TypesUnit) Unit() %}
+unit server_data_types;
+
+interface
+
+uses Grijjy.Bson, Grijjy.Bson.Serialization;
+
+type
+    {% for _,t := range *x %}{%if t.kind == delphiRecord %}
+    T{%s= t.name %} = record
+    public
+        {% collapsespace %}{% for fName, fType := range t.fields %}
+        {%if fName == "String" %}
+            [BsonElement('String')]Str
+        {% else %}
+            {%s fName %}
+        {% endif %}{% endcollapsespace %} : {%s= fType.TypeName() %};
+        {% endfor %}
+    end;
+    {% endif %}{% endfor %}
+
+implementation
+
+end.{% endfunc %}

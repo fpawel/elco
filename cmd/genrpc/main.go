@@ -4,7 +4,7 @@ import (
 	"github.com/fpawel/elco/internal"
 	"github.com/fpawel/elco/internal/api"
 	"github.com/fpawel/elco/internal/data"
-	"github.com/fpawel/gohelp/delphi/delphirpc"
+	"github.com/fpawel/elco/internal/pkg/delphirpc"
 	"os"
 	"path/filepath"
 	r "reflect"

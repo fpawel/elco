@@ -8,8 +8,8 @@ import (
 	"github.com/fpawel/elco/internal/api"
 	"github.com/fpawel/elco/internal/cfg"
 	"github.com/fpawel/elco/internal/data"
-	"github.com/fpawel/elco/internal/ktx500"
-	"github.com/fpawel/gohelp/myfmt"
+	"github.com/fpawel/elco/internal/pkg"
+	"github.com/fpawel/elco/internal/pkg/ktx500"
 	"github.com/powerman/structlog"
 	"sync"
 	"time"
@@ -250,7 +250,7 @@ func runWork(workName string, work func(x worker) error) {
 			notifyWnd.WorkComplete(worker.log.Info, api.WorkResult{workName, wrCanceled, "перервано"})
 			return
 		}
-		worker.log.PrintErr(err, append(kvs, "stack", myfmt.FormatMerryStacktrace(err))...)
+		worker.log.PrintErr(err, append(kvs, "stack", pkg.FormatMerryStacktrace(err))...)
 		notifyWnd.WorkComplete(worker.log.Info, api.WorkResult{workName, wrError, err.Error()})
 	}()
 }

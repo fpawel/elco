@@ -1,22 +1,26 @@
 {% package delphirpc %}
 
 {% func (x *NotifyServicesSrc) Unit() %}
-unit {%s x.unitName %};
+unit notify_services;
 
 interface
-{%s uses(x.interfaceUses) %}
+
+uses superobject, Winapi.Windows, Winapi.Messages, server_data_types;
+
 type
-    {% for t,ht := range x.types %}{%s ht %} = reference to procedure (x:{%s t %});
+    {% for handlerType,typeDecl := range x.delphiHandlersTypes %}{%s handlerType %} = {%s typeDecl %};
     {% endfor %}
 
 procedure HandleCopydata(var Message: TMessage);
+procedure CloseServerWindow;
 
 {% for _,m := range x.services %}procedure SetOn{%s m.serviceName %}( AHandler : {%s m.handlerType %});
 {% endfor %}
 procedure NotifyServices_SetEnabled(enabled:boolean);
 
 implementation 
-{%s uses(x.implUses) %}
+
+uses Grijjy.Bson.Serialization, stringutils, sysutils;
 
 type
     TServerAppCmd = ({% for _,m := range x.services[:len(x.services)-1] %}Cmd{%s m.serviceName %}, {% endfor %}
@@ -27,8 +31,13 @@ type
     end;
 
 var
-    {% for _,m := range x.services %}_On{%s m.serviceName %} : {%s strEnsureFirstT(m.typeName) %}Handler;
+    {% for _,m := range x.services %}_On{%s m.serviceName %} : {%s m.handlerType %};
     {% endfor %}_enabled:boolean;
+
+procedure CloseServerWindow;
+begin
+    SendMessage(FindWindow('{%s x.ServerWindowClassName %}', nil), WM_CLOSE, 0, 0)
+end;
 
 class function _deserializer.deserialize<T>(str:string):T;
 begin

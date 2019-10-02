@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-//go:generate go run github.com/fpawel/gohelp/cmd/sqlstr/...
+//go:generate go run github.com/fpawel/gotools/cmd/sqlstr/...
 
 func EnsureProductTypeName(productTypeName string) error {
 	_, err := DB.Exec(`
@@ -55,9 +55,10 @@ func LastPartyID() (partyID int64) {
 	}
 	return partyID
 }
-func ProductsAll(partyID int64) []Product {
-	return fetchProductsByPartyID(partyID, "WHERE party_id = ? ORDER BY place")
-}
+
+//func ProductsAll(partyID int64) []Product {
+//	return fetchProductsByPartyID(partyID, "WHERE party_id = ? ORDER BY place")
+//}
 func ProductsWithProduction(partyID int64) []Product {
 	return fetchProductsByPartyID(partyID, "WHERE party_id = ? AND production ORDER BY place")
 }
@@ -117,10 +118,10 @@ func GetLastPartyProductAtPlace(place int, product *Product) error {
 	return DB.SelectOneTo(product, "WHERE party_id = (SELECT party_id FROM last_party) AND place = ?", place)
 }
 
-func GetProductAtPlace(place int, product *Product) (err error) {
-	err = DB.SelectOneTo(product, "WHERE party_id = ? AND place = ?", LastPartyID(), place)
-	return
-}
+//func GetProductAtPlace(place int, product *Product) (err error) {
+//	err = DB.SelectOneTo(product, "WHERE party_id = ? AND place = ?", LastPartyID(), place)
+//	return
+//}
 
 func UpdateProductAtPlace(place int, f func(p *Product) error) (int64, error) {
 	partyID := LastPartyID()

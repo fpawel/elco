@@ -10,9 +10,8 @@ import (
 	"github.com/fpawel/elco/internal/api"
 	"github.com/fpawel/elco/internal/cfg"
 	"github.com/fpawel/elco/internal/data"
-	"github.com/fpawel/gohelp"
-	"github.com/fpawel/gohelp/intrng"
-	"github.com/fpawel/gohelp/myfmt"
+	"github.com/fpawel/elco/internal/pkg"
+	"github.com/fpawel/elco/internal/pkg/intrng"
 	"github.com/hako/durafmt"
 	"github.com/powerman/structlog"
 	"gopkg.in/reform.v1"
@@ -42,7 +41,7 @@ func writePartyFirmware(x worker) error {
 		return merry.New("не выбрано ни одного прибора")
 	}
 
-	x.log = gohelp.LogPrependSuffixKeys(x.log,
+	x.log = pkg.LogPrependSuffixKeys(x.log,
 		"party_id", party.PartyID,
 		"products", formatProducts(products),
 	)
@@ -57,7 +56,7 @@ func writePartyFirmware(x worker) error {
 	}
 
 	x.log.Info("Write: ok. Verify.",
-		"elapsed", myfmt.FormatDuration(time.Since(startTime)),
+		"elapsed", pkg.FormatDuration(time.Since(startTime)),
 	)
 
 	startTime = time.Now()
@@ -71,7 +70,7 @@ func writePartyFirmware(x worker) error {
 	}
 
 	x.log.Debug("verify complete",
-		"elapsed", myfmt.FormatDuration(time.Since(startTime)),
+		"elapsed", pkg.FormatDuration(time.Since(startTime)),
 	)
 
 	notifyWnd.LastPartyChanged(x.log.Info, api.LastParty1())
@@ -112,7 +111,7 @@ func (hlp helperWriteParty) verifyProductsFirmware(x worker, places []int) {
 		if !fPlace {
 			continue
 		}
-		log := gohelp.LogPrependSuffixKeys(x.log,
+		log := pkg.LogPrependSuffixKeys(x.log,
 			"place", data.FormatPlace(place))
 		_ = hlp.tryPlace(log, place, func() error {
 			b, err := readPlaceFirmware(x, place)
@@ -158,7 +157,7 @@ func (hlp *helperWriteParty) writeBlock(x worker, products []*data.Product) erro
 	}
 	sort.Ints(placesInBlock)
 
-	x.log = gohelp.LogPrependSuffixKeys(x.log,
+	x.log = pkg.LogPrependSuffixKeys(x.log,
 		"firmware_write_block", block,
 		"places_mask", fmt.Sprintf("%08b", placesMask),
 		"selected_places", intrng.Format(placesInBlock),
@@ -169,7 +168,7 @@ func (hlp *helperWriteParty) writeBlock(x worker, products []*data.Product) erro
 		if err := data.DB.FindByPrimaryKeyTo(prodInfo, p.ProductID); err != nil {
 			return err
 		}
-		log := gohelp.LogPrependSuffixKeys(x.log, "product_id", p.ProductID, "serial", p.Serial)
+		log := pkg.LogPrependSuffixKeys(x.log, "product_id", p.ProductID, "serial", p.Serial)
 		_ = hlp.tryPlace(log, p.Place, func() error {
 			firmware, err := prodInfo.Firmware()
 			if err == nil {
@@ -180,7 +179,7 @@ func (hlp *helperWriteParty) writeBlock(x worker, products []*data.Product) erro
 	}
 
 	defer func() {
-		x.log.Debug("end write block", "elapsed", myfmt.FormatDuration(time.Since(startTime)))
+		x.log.Debug("end write block", "elapsed", pkg.FormatDuration(time.Since(startTime)))
 	}()
 
 	for i, c := range firmwareAddresses {
@@ -252,7 +251,7 @@ func readPlaceFirmware(x worker, place int) ([]byte, error) {
 		b[i] = 0xff
 	}
 
-	x.log = gohelp.LogPrependSuffixKeys(x.log,
+	x.log = pkg.LogPrependSuffixKeys(x.log,
 		"place", data.FormatPlace(place),
 		"chip", cfg.Cfg.Gui().ChipType,
 		"total_read_bytes_count", len(b),
@@ -261,7 +260,7 @@ func readPlaceFirmware(x worker, place int) ([]byte, error) {
 	defer func() {
 		x.log.Debug("end read firmware",
 			"bytes_read", len(b),
-			"elapsed", myfmt.FormatDuration(time.Since(startTime)))
+			"elapsed", pkg.FormatDuration(time.Since(startTime)))
 	}()
 
 	for i, c := range firmwareAddresses {
@@ -279,7 +278,7 @@ func readPlaceFirmware(x worker, place int) ([]byte, error) {
 			},
 		}
 
-		log := gohelp.LogPrependSuffixKeys(x.log,
+		log := pkg.LogPrependSuffixKeys(x.log,
 			"range", fmt.Sprintf("%X...%X", c.addr1, c.addr2),
 			"bytes_count", count,
 		)
@@ -312,7 +311,7 @@ func writePlaceFirmware(x worker, place int, bytes []byte) error {
 	placeInBlock := place % 8
 	placesMask := byte(1) << byte(placeInBlock)
 
-	x.log = gohelp.LogPrependSuffixKeys(x.log,
+	x.log = pkg.LogPrependSuffixKeys(x.log,
 		"place", data.FormatPlace(place),
 		"chip", cfg.Cfg.Gui().ChipType,
 		"total_write_bytes_count", len(bytes),
@@ -321,7 +320,7 @@ func writePlaceFirmware(x worker, place int, bytes []byte) error {
 	defer func() {
 		notifyWnd.ReadPlace(x.log.Debug, -1)
 		x.log.Debug("end read firmware",
-			"elapsed", myfmt.FormatDuration(time.Since(startTime)))
+			"elapsed", pkg.FormatDuration(time.Since(startTime)))
 	}()
 
 	notifyWnd.ReadPlace(x.log.Debug, place)
@@ -417,7 +416,7 @@ func waitStatus45(x worker, block int, placesMask byte) error {
 
 func readStatus45(x worker, block int) ([]byte, error) {
 
-	x.log = gohelp.LogPrependSuffixKeys(x.log, "block", block)
+	x.log = pkg.LogPrependSuffixKeys(x.log, "block", block)
 	notifyWnd.ReadBlock(x.log.Debug, block)
 	defer func() {
 		notifyWnd.ReadBlock(x.log.Debug, -1)
@@ -437,7 +436,7 @@ func readStatus45(x worker, block int) ([]byte, error) {
 
 func writePreparedDataToFlash(x worker, block int, placesMask byte, addr uint16, count int) error {
 
-	x.log = gohelp.LogPrependSuffixKeys(x.log,
+	x.log = pkg.LogPrependSuffixKeys(x.log,
 		"block", block,
 		"mask", fmt.Sprintf("%08b", placesMask),
 		"addr", fmt.Sprintf("%X", addr),
@@ -471,7 +470,7 @@ func writePreparedDataToFlash(x worker, block int, placesMask byte, addr uint16,
 
 func sendDataToWrite42(x worker, block, placeInBlock int, b []byte) error {
 
-	x.log = gohelp.LogPrependSuffixKeys(x.log,
+	x.log = pkg.LogPrependSuffixKeys(x.log,
 		"block", block,
 		"place_in_block", placeInBlock,
 		"bytes_count", len(b),

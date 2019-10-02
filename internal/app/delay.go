@@ -7,8 +7,7 @@ import (
 	"github.com/fpawel/elco/internal/api"
 	"github.com/fpawel/elco/internal/cfg"
 	"github.com/fpawel/elco/internal/data"
-	"github.com/fpawel/gohelp"
-	"github.com/fpawel/gohelp/myfmt"
+	"github.com/fpawel/elco/internal/pkg"
 	"time"
 )
 
@@ -17,14 +16,14 @@ func delayf(x worker, duration time.Duration, format string, a ...interface{}) e
 }
 
 func delay(x worker, duration time.Duration, name string) error {
-	fd := myfmt.FormatDuration
+	fd := pkg.FormatDuration
 	startTime := time.Now()
-	x.log = gohelp.LogPrependSuffixKeys(x.log, "start", startTime.Format("15:04:05"))
+	x.log = pkg.LogPrependSuffixKeys(x.log, "start", startTime.Format("15:04:05"))
 	var skipDelay context.CancelFunc
 	x.ctx, skipDelay = context.WithTimeout(x.ctx, duration)
 	skipDelayFunc = func() {
 		skipDelay()
-		x.log.Info("задержка прервана", "elapsed", myfmt.FormatDuration(time.Since(startTime)))
+		x.log.Info("задержка прервана", "elapsed", pkg.FormatDuration(time.Since(startTime)))
 	}
 	ctxWork := x.ctx
 	return x.performf("%s: %s", name, fd(duration))(func(x worker) error {

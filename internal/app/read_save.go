@@ -5,7 +5,7 @@ import (
 	"github.com/fpawel/elco/internal/api"
 	"github.com/fpawel/elco/internal/cfg"
 	"github.com/fpawel/elco/internal/data"
-	"github.com/fpawel/gohelp"
+	"github.com/fpawel/elco/internal/pkg"
 )
 
 func (x worker) SwitchGasOffInEnd() {
@@ -90,7 +90,7 @@ func (x worker) readSaveForDBColumn(dbColumn string) error {
 			return merry.Errorf("снятие \"%s\": не выбрано ни одного прибора", dbColumn)
 		}
 
-		x.log = gohelp.LogPrependSuffixKeys(x.log, "products", formatProducts(productsToWork))
+		x.log = pkg.LogPrependSuffixKeys(x.log, "products", formatProducts(productsToWork))
 
 		blockProducts := groupProductsByBlocks(productsToWork)
 		for _, products := range blockProducts {
@@ -107,7 +107,7 @@ func (x worker) readSaveForDBColumn(dbColumn string) error {
 
 			for _, p := range products {
 				n := p.Place % 8
-				log := gohelp.LogPrependSuffixKeys(x.log,
+				log := pkg.LogPrependSuffixKeys(x.log,
 					"product_id", p.ProductID,
 					"place", data.FormatPlace(p.Place),
 					"value", values[n])

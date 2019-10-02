@@ -6,10 +6,10 @@ import (
 	"github.com/fpawel/elco/internal/api"
 	"github.com/fpawel/elco/internal/api/notify"
 	"github.com/fpawel/elco/internal/data"
-	"github.com/fpawel/elco/internal/ktx500"
 	"github.com/fpawel/elco/internal/peer"
-	"github.com/fpawel/gohelp/must"
-	"github.com/fpawel/gohelp/winapp"
+	"github.com/fpawel/elco/internal/pkg/ktx500"
+	"github.com/fpawel/elco/internal/pkg/must"
+	"github.com/fpawel/elco/internal/pkg/winapp"
 	"github.com/lxn/win"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/powerman/structlog"
@@ -29,7 +29,8 @@ func Run() error {
 		win.SetForegroundWindow(hWnd)
 		log.Fatal("elco.exe already executing")
 	}
-	notifyWnd = notify.NewWindow(internal.ServerWindowClassName, internal.PeerWindowClassName)
+	winapp.NewWindowWithClassName(internal.ServerWindowClassName, win.DefWindowProc)
+	notifyWnd = notify.New(internal.ServerWindowClassName, internal.PeerWindowClassName)
 
 	data.Open()
 
@@ -52,7 +53,7 @@ func Run() error {
 
 	closeHttpServer := startHttpServer()
 
-	peer.Init(notifyWnd.W.Close)
+	peer.Init()
 
 	go ktx500.TraceTemperature(func(info api.Ktx500Info) {
 		notifyWnd.Ktx500Info(nil, info)
@@ -72,12 +73,11 @@ func Run() error {
 	cancel()
 	closeHttpServer()
 
-	notifyWnd.W.Close()
+	win.PostMessage(winapp.FindWindow(internal.ServerWindowClassName), win.WM_CLOSE, 0, 0)
 
 	winapp.EnumWindowsWithClassName(func(hWnd win.HWND, winClassName string) {
 		if winClassName == internal.PeerWindowClassName {
-			r := win.PostMessage(hWnd, win.WM_CLOSE, 0, 0)
-			log.Debug("close peer window", "syscall", r)
+			win.PostMessage(hWnd, win.WM_CLOSE, 0, 0)
 		}
 	})
 
@@ -86,7 +86,7 @@ func Run() error {
 }
 
 var (
-	notifyWnd      notify.Window
+	notifyWnd      notify.W
 	ctxApp         context.Context
 	cancelWorkFunc = func() {}
 	skipDelayFunc  = func() {}

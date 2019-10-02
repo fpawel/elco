@@ -1,7 +1,10 @@
 package peer
 
 import (
+	"github.com/fpawel/elco/internal"
+	"github.com/fpawel/elco/internal/pkg/winapp"
 	"github.com/getlantern/systray"
+	"github.com/lxn/win"
 	"github.com/powerman/structlog"
 	"io/ioutil"
 	"os"
@@ -9,7 +12,7 @@ import (
 	"path/filepath"
 )
 
-func Init(closeFunc func()) {
+func Init() {
 	if os.Getenv("ELCO_SKIP_RUN_PEER") == "true" {
 		log.Warn("ELCO_SKIP_RUN_PEER")
 	} else {
@@ -35,7 +38,7 @@ func Init(closeFunc func()) {
 				case <-mRunGUIApp.ClickedCh:
 					show()
 				case <-mQuitOrig.ClickedCh:
-					closeFunc()
+					win.PostMessage(winapp.FindWindow(internal.ServerWindowClassName), win.WM_CLOSE, 0, 0)
 					systray.Quit()
 				}
 			}
