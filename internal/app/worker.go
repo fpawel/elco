@@ -6,6 +6,7 @@ import (
 	"github.com/ansel1/merry"
 	"github.com/fpawel/comm/comport"
 	"github.com/fpawel/comm/modbus"
+	"github.com/fpawel/elco/internal/api/notify"
 	"github.com/fpawel/elco/internal/cfg"
 	"github.com/fpawel/elco/internal/pkg"
 	"github.com/powerman/structlog"
@@ -65,12 +66,12 @@ func (x worker) perform(name string, work func(x worker) error) error {
 	x.log.Info("выполнить: " + name)
 	x.works = append(x.works, name)
 	x.log = pkg.LogPrependSuffixKeys(x.log, fmt.Sprintf("work%d", len(x.works)), fmt.Sprintf("`%s`", name))
-	notifyWnd.Status(nil, strings.Join(x.works, ": "))
+	notify.Status(nil, strings.Join(x.works, ": "))
 	if err := work(x); err != nil {
 		return merry.Append(err, name)
 	}
 	x.works = x.works[:len(x.works)-1]
-	notifyWnd.Status(nil, strings.Join(x.works, ": "))
+	notify.Status(nil, strings.Join(x.works, ": "))
 	return nil
 }
 
@@ -85,7 +86,7 @@ func performWithWarn(x worker, work func() error) error {
 
 	strErr := strings.Join(strings.Split(err.Error(), ": "), "\n\t -")
 
-	notifyWnd.Warning(x.log.Warn, fmt.Sprintf("Не удалось выполнить: %s\n\nПричина: %s", x.works[len(x.works)-1], strErr))
+	notify.Warning(x.log.Warn, fmt.Sprintf("Не удалось выполнить: %s\n\nПричина: %s", x.works[len(x.works)-1], strErr))
 	if merry.Is(x.ctx.Err(), context.Canceled) {
 		return err
 	}

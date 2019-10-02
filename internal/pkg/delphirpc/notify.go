@@ -78,29 +78,29 @@ func NewNotifyServicesSrc(serverWindowClassName string, d *TypesUnit, services [
 
 		case r.String:
 			y.instructionGetFromStr = "str"
-			y.notifyFunc = "NotifyStr"
+			y.notifyFunc = "w.SendString"
 			y.instructionArg = "arg"
 
 		case r.Int,
 			r.Int8, r.Int16, r.Int32, r.Int64,
 			r.Uint8, r.Uint16, r.Uint32, r.Uint64:
 			y.instructionGetFromStr = "StrToInt(str)"
-			y.notifyFunc = "NotifyStr"
+			y.notifyFunc = "w.SendString"
 			y.instructionArg = "fmt.Sprintf(\"%d\", arg)"
 
 		case r.Float32, r.Float64:
 			y.instructionGetFromStr = "str_to_float(str)"
-			y.notifyFunc = "NotifyStr"
+			y.notifyFunc = "w.SendString"
 			y.instructionArg = "fmt.Sprintf(\"%v\", arg)"
 
 		case r.Bool:
 			y.instructionGetFromStr = "StrToBool(str)"
-			y.notifyFunc = "NotifyStr"
+			y.notifyFunc = "w.SendString"
 			y.instructionArg = "fmt.Sprintf(\"%v\", arg)"
 
 		case r.Struct:
 			y.instructionGetFromStr = fmt.Sprintf("_deserializer.deserialize<%s>(str)", t.TypeName())
-			y.notifyFunc = "NotifyJson"
+			y.notifyFunc = "w.SendJson"
 			y.instructionArg = "arg"
 		default:
 			panic(fmt.Sprintf("wrong type %q: %v", s.ServiceName, s.ParamType))

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/elco/internal/api"
+	"github.com/fpawel/elco/internal/api/notify"
 	"github.com/fpawel/elco/internal/cfg"
 	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/elco/internal/pkg"
@@ -30,7 +31,7 @@ func delay(x worker, duration time.Duration, name string) error {
 		x.log.Info("задержка начата")
 		defer func() {
 			x.log.Debug("задержка окончена", "elapsed", fd(time.Since(startTime)))
-			notifyWnd.EndDelay(x.log.Info, "")
+			notify.EndDelay(x.log.Info, "")
 		}()
 		for {
 			products := data.ProductsWithProduction(data.LastPartyID())
@@ -40,7 +41,7 @@ func delay(x worker, duration time.Duration, name string) error {
 			for _, products := range groupProductsByBlocks(products) {
 
 				block := products[0].Place / 8
-				notifyWnd.Delay(nil, api.DelayInfo{
+				notify.Delay(nil, api.DelayInfo{
 					What:           name,
 					TotalSeconds:   int(duration.Seconds()),
 					ElapsedSeconds: int(time.Since(startTime).Seconds()),

@@ -3,6 +3,7 @@ package app
 import (
 	"github.com/ansel1/merry"
 	"github.com/fpawel/elco/internal/api"
+	"github.com/fpawel/elco/internal/api/notify"
 	"github.com/fpawel/elco/internal/cfg"
 	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/elco/internal/pkg"
@@ -118,7 +119,7 @@ func (x worker) readSaveForDBColumn(dbColumn string) error {
 				log.Info("сохраненено в базе данных")
 			}
 		}
-		notifyWnd.LastPartyChanged(nil, api.LastParty1())
+		notify.LastPartyChanged(nil, api.LastParty1())
 		return nil
 	})
 }

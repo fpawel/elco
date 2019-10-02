@@ -3,7 +3,6 @@ package must
 import (
 	"database/sql"
 	"github.com/fpawel/elco/internal/pkg"
-	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
 	"io"
 	"os"
@@ -64,14 +63,6 @@ func UTF16PtrFromString(s string) *uint16 {
 		panic(err)
 	}
 	return p
-}
-
-func EnsureDir(dir string) {
-	AbortIf(pkg.EnsureDir(dir))
-}
-
-func OpenSqliteDBx(fileName string) *sqlx.DB {
-	return sqlx.NewDb(OpenSqliteDB(fileName), "sqlite3")
 }
 
 func OpenSqliteDB(fileName string) *sql.DB {

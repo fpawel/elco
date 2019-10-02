@@ -6,18 +6,9 @@ package notify
 
 import (
     "fmt"
-    "github.com/fpawel/elco/internal/pkg/copydata"
     {% for imp := range x.goImports %}"{%s imp %}"
     {% endfor %}
 )
-
-type Window struct{
-    W *copydata.NotifyWindow
-}
-
-func NewWindow(serverClassName, peerClassName string) Window {
-    return Window{W:copydata.NewNotifyWindow(serverClassName, peerClassName)}
-}
 
 type logFunc = func (interface{}, ...interface{})
 
@@ -27,18 +18,18 @@ const (
     {% endfor %}
 )
 {% for _,m := range x.services %}{% if m.handlerType == "TProcedure" %}
-func (x Window) {%s m.serviceName %}(logFunc logFunc, a ...interface{}) bool {
+func {%s m.serviceName %}(logFunc logFunc, a ...interface{}) bool {
     if logFunc != nil {
         logFunc("{%s m.serviceName %}", append(a, "MSG", Msg{%s m.serviceName %})... )
     }
-    return x.W.NotifyStr( Msg{%s m.serviceName %}, "" )
+    return w.SendString( Msg{%s m.serviceName %}, "" )
 }{% else %}
-func (x Window) {%s m.serviceName %}(logFunc logFunc, arg {%s m.goType %}, a ...interface{}) bool{
+func {%s m.serviceName %}(logFunc logFunc, arg {%s m.goType %}, a ...interface{}) bool{
     if logFunc != nil {
         logFunc(fmt.Sprintf("%+v", arg) ,
             append(a, "notify_message", "{%s m.serviceName %}", "notify_message_code", Msg{%s m.serviceName %})... )
     }
-    return x.W.{%s m.notifyFunc %}( Msg{%s m.serviceName %}, {%s= m.instructionArg %} )
+    return {%s m.notifyFunc %}( Msg{%s m.serviceName %}, {%s= m.instructionArg %} )
 }{% endif %}
 {% endfor %}
 

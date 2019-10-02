@@ -30,7 +30,6 @@ func Run() error {
 		log.Fatal("elco.exe already executing")
 	}
 	winapp.NewWindowWithClassName(internal.ServerWindowClassName, win.DefWindowProc)
-	notifyWnd = notify.New(internal.ServerWindowClassName, internal.PeerWindowClassName)
 
 	data.Open()
 
@@ -56,9 +55,9 @@ func Run() error {
 	peer.Init()
 
 	go ktx500.TraceTemperature(func(info api.Ktx500Info) {
-		notifyWnd.Ktx500Info(nil, info)
+		notify.Ktx500Info(nil, info)
 	}, func(s string) {
-		notifyWnd.Ktx500Error(nil, s)
+		notify.Ktx500Error(nil, s)
 	})
 
 	// цикл оконных сообщений
@@ -86,7 +85,6 @@ func Run() error {
 }
 
 var (
-	notifyWnd      notify.W
 	ctxApp         context.Context
 	cancelWorkFunc = func() {}
 	skipDelayFunc  = func() {}

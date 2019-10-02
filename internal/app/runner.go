@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/elco/internal/api"
+	"github.com/fpawel/elco/internal/api/notify"
 	"github.com/fpawel/elco/internal/cfg"
 	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/elco/internal/pkg"
@@ -31,7 +32,7 @@ func (_ runner) CopyParty(partyID int64) {
 	}
 	strWhat := fmt.Sprintf("%d %s", party.PartyID, party.CreatedAt.Format("02.01.2006"))
 
-	notifyWnd.WorkStarted(nil, "копирование загрузки: "+strWhat)
+	notify.WorkStarted(nil, "копирование загрузки: "+strWhat)
 	log.Info(strWhat)
 
 	party.PartyID = 0
@@ -58,8 +59,8 @@ func (_ runner) CopyParty(partyID int64) {
 			panic(err)
 		}
 	}
-	notifyWnd.WorkComplete(nil, api.WorkResult{"копирование загрузки: " + strWhat, wrOk, "успешно"})
-	notifyWnd.LastPartyChanged(nil, api.LastParty1())
+	notify.WorkComplete(nil, api.WorkResult{"копирование загрузки: " + strWhat, wrOk, "успешно"})
+	notify.LastPartyChanged(nil, api.LastParty1())
 }
 
 func (_ runner) RunReadAndSaveProductCurrents(dbColumn string) {
@@ -87,7 +88,7 @@ func (_ runner) RunReadPlaceFirmware(place int) {
 		if err != nil {
 			return err
 		}
-		notifyWnd.ReadFirmware(x.log.Info, data.FirmwareBytes(b).FirmwareInfo(place))
+		notify.ReadFirmware(x.log.Info, data.FirmwareBytes(b).FirmwareInfo(place))
 		return nil
 	})
 	return
@@ -236,21 +237,21 @@ func runWork(workName string, work func(x worker) error) {
 			wgWork.Done()
 		}()
 
-		notifyWnd.WorkStarted(worker.log.Info, workName)
+		notify.WorkStarted(worker.log.Info, workName)
 		err := work(worker)
 		if err == nil {
 			worker.log.Info("выполнено успешно")
-			notifyWnd.WorkComplete(worker.log.Info, api.WorkResult{workName, wrOk, "успешно"})
+			notify.WorkComplete(worker.log.Info, api.WorkResult{workName, wrOk, "успешно"})
 			return
 		}
 
 		kvs := merryKeysValues(err)
 		if merry.Is(err, context.Canceled) {
 			worker.log.Warn("выполнение прервано", kvs...)
-			notifyWnd.WorkComplete(worker.log.Info, api.WorkResult{workName, wrCanceled, "перервано"})
+			notify.WorkComplete(worker.log.Info, api.WorkResult{workName, wrCanceled, "перервано"})
 			return
 		}
 		worker.log.PrintErr(err, append(kvs, "stack", pkg.FormatMerryStacktrace(err))...)
-		notifyWnd.WorkComplete(worker.log.Info, api.WorkResult{workName, wrError, err.Error()})
+		notify.WorkComplete(worker.log.Info, api.WorkResult{workName, wrError, err.Error()})
 	}()
 }

@@ -6,6 +6,7 @@ import (
 	"github.com/ansel1/merry"
 	"github.com/fpawel/comm/modbus"
 	"github.com/fpawel/elco/internal/api"
+	"github.com/fpawel/elco/internal/api/notify"
 	"github.com/fpawel/elco/internal/cfg"
 	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/elco/internal/pkg"
@@ -44,7 +45,7 @@ func setupTemperature(x worker, destinationTemperature float64) error {
 					if math.Abs(currentTemperature-destinationTemperature) < 2 {
 						return nil
 					}
-					notifyWnd.Status(x.log.Debug, "ожидание выхода на температуру",
+					notify.Status(x.log.Debug, "ожидание выхода на температуру",
 						"destination.Т⁰C", destinationTemperature,
 						"current.Т⁰C", currentTemperature)
 				}
@@ -57,7 +58,7 @@ func readBlockMeasure(x worker, block int) ([]float64, error) {
 	x.log = pkg.LogPrependSuffixKeys(x.log, "блок", block)
 	values, err := modbus.Read3BCDs(x.log, x.ReaderMeasurer(), modbus.Addr(block+101), 0, 8)
 	if err == nil {
-		notifyWnd.ReadCurrent(nil, api.ReadCurrent{
+		notify.ReadCurrent(nil, api.ReadCurrent{
 			Block:  block,
 			Values: values,
 		})
