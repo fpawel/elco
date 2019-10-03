@@ -26,6 +26,19 @@ CREATE TABLE IF NOT EXISTS product_type
     scale               REAL             NOT NULL,
     noble_metal_content REAL             NOT NULL,
     lifetime_months     INTEGER          NOT NULL CHECK (lifetime_months > 0),
+    points_method       INTEGER          NOT NULL
+        CHECK (points_method IN (2, 3)) DEFAULT 2,
+    min_fon             REAL,
+    max_fon             REAL,
+    max_d_fon           REAL,
+    min_k_sens20        REAL,
+    max_k_sens20        REAL,
+    min_k_sens50        REAL,
+    max_k_sens50        REAL,
+    min_d_temp          REAL,
+    max_d_temp          REAL,
+    max_d_not_measured  REAL,
+
     FOREIGN KEY (gas_name) REFERENCES gas (gas_name),
     FOREIGN KEY (units_name) REFERENCES units (units_name)
 );
@@ -187,30 +200,30 @@ DROP VIEW IF EXISTS product_info_2;
 CREATE VIEW IF NOT EXISTS product_info_2 AS
 SELECT q.*,
 
-       max_d_temp ISNULL OR (d_fon50 NOTNULL) AND abs(d_fon50) < max_d_temp  AS ok_d_fon50,
+       q.max_d_temp ISNULL OR (d_fon50 NOTNULL) AND abs(d_fon50) < q.max_d_temp  AS ok_d_fon50,
 
-       max_d_fon ISNULL OR (d_fon20 NOTNULL) AND abs(d_fon20) < max_d_fon    AS ok_d_fon20,
+       q.max_d_fon ISNULL OR (d_fon20 NOTNULL) AND abs(d_fon20) < q.max_d_fon    AS ok_d_fon20,
 
-       min_k_sens20 ISNULL OR (k_sens20 NOTNULL) AND k_sens20 > min_k_sens20 AS ok_min_k_sens20,
+       q.min_k_sens20 ISNULL OR (k_sens20 NOTNULL) AND k_sens20 > q.min_k_sens20 AS ok_min_k_sens20,
 
-       max_k_sens20 ISNULL OR (k_sens20 NOTNULL) AND k_sens20 < max_k_sens20 AS ok_max_k_sens20,
+       q.max_k_sens20 ISNULL OR (k_sens20 NOTNULL) AND k_sens20 < q.max_k_sens20 AS ok_max_k_sens20,
 
-       min_k_sens50 ISNULL OR (k_sens50 NOTNULL) AND k_sens50 > min_k_sens50 AS ok_min_k_sens50,
+       q.min_k_sens50 ISNULL OR (k_sens50 NOTNULL) AND k_sens50 > q.min_k_sens50 AS ok_min_k_sens50,
 
-       max_k_sens50 ISNULL OR (k_sens50 NOTNULL) AND k_sens50 < max_k_sens50 AS ok_max_k_sens50,
+       q.max_k_sens50 ISNULL OR (k_sens50 NOTNULL) AND k_sens50 < q.max_k_sens50 AS ok_max_k_sens50,
 
 
-       min_fon ISNULL OR (i_f_plus20 NOTNULL) AND i_f_plus20 > min_fon       AS ok_min_fon20,
-       max_fon ISNULL OR (i_f_plus20 NOTNULL) AND i_f_plus20 < max_fon       AS ok_max_fon20,
+       q.min_fon ISNULL OR (i_f_plus20 NOTNULL) AND i_f_plus20 > q.min_fon       AS ok_min_fon20,
+       q.max_fon ISNULL OR (i_f_plus20 NOTNULL) AND i_f_plus20 < q.max_fon       AS ok_max_fon20,
 
-       min_fon ISNULL OR (i13 NOTNULL) AND i13 > min_fon                     AS ok_min_fon20_2,
-       max_fon ISNULL OR (i13 NOTNULL) AND i13 < max_fon                     AS ok_max_fon20_2,
+       q.min_fon ISNULL OR (i13 NOTNULL) AND i13 > q.min_fon                     AS ok_min_fon20_2,
+       q.max_fon ISNULL OR (i13 NOTNULL) AND i13 < q.max_fon                     AS ok_max_fon20_2,
 
-       max_d_not_measured ISNULL OR
-       (d_not_measured NOTNULL) AND abs(d_not_measured) < max_d_not_measured AS ok_d_not_measured,
+       q.max_d_not_measured ISNULL OR
+       (d_not_measured NOTNULL) AND abs(d_not_measured) < q.max_d_not_measured   AS ok_d_not_measured,
 
-       gas.code                                                              AS gas_code,
-       units.code                                                            AS units_code,
+       gas.code                                                                  AS gas_code,
+       units.code                                                                AS units_code,
        gas.gas_name,
        units.units_name,
        scale,
@@ -345,7 +358,6 @@ VALUES ('010-15', 'O₂', 'об. дол. %', 30, 0, 12),
        ('100-17', 'HCl', 'мг/м3', 25, 0, 12),
        ('130-01', 'CO', 'мг/м3', 200, 0.1626, 12),
        ('130-08', 'CO', 'ppm', 100, 0.1162, 12);
-
 
 DELETE
 FROM party

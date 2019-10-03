@@ -6,6 +6,6 @@ import (
 )
 
 var w = copydata.WndClass{
-	Src:  internal.ServerWindowClassName,
-	Dest: internal.PeerWindowClassName,
+	Src:  internal.WindowClassName,
+	Dest: internal.DelphiWindowClassName,
 }

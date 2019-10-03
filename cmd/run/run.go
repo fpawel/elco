@@ -36,7 +36,7 @@ func main() {
 
 	log.ErrIfFail(func() error {
 		return logfile.Exec(
-			copydata.NewWriter(notify.MsgWriteConsole, internal.ServerWindowClassName, internal.PeerWindowClassName),
+			copydata.NewWriter(notify.MsgWriteConsole, internal.WindowClassName, internal.DelphiWindowClassName),
 			"elco.exe")
 	})
 }

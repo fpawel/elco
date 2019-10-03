@@ -98,6 +98,6 @@ func main() {
 				r.TypeOf((*int)(nil)).Elem(),
 			},
 		},
-		ServerWindowClassName: internal.ServerWindowClassName,
+		ServerWindowClassName: internal.WindowClassName,
 	})
 }

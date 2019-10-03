@@ -6,7 +6,6 @@ import (
 	"github.com/fpawel/elco/internal/api"
 	"github.com/fpawel/elco/internal/api/notify"
 	"github.com/fpawel/elco/internal/data"
-	"github.com/fpawel/elco/internal/peer"
 	"github.com/fpawel/elco/internal/pkg/ktx500"
 	"github.com/fpawel/elco/internal/pkg/must"
 	"github.com/fpawel/elco/internal/pkg/winapp"
@@ -23,13 +22,16 @@ func Run() error {
 
 	// Преверяем, не было ли приложение запущено ранее.
 	// Если было, выдвигаем окно UI приложения на передний план и завершаем процесс.
-	if winapp.IsWindow(winapp.FindWindow(internal.ServerWindowClassName)) {
-		hWnd := winapp.FindWindow(internal.PeerWindowClassName)
+	if winapp.IsWindow(winapp.FindWindow(internal.WindowClassName)) {
+		hWnd := winapp.FindWindow(internal.DelphiWindowClassName)
 		win.ShowWindow(hWnd, win.SW_RESTORE)
 		win.SetForegroundWindow(hWnd)
 		log.Fatal("elco.exe already executing")
 	}
-	winapp.NewWindowWithClassName(internal.ServerWindowClassName, win.DefWindowProc)
+
+	if !winapp.IsWindow(winapp.NewWindowWithClassName(internal.WindowClassName, win.DefWindowProc)) {
+		panic("window was not created")
+	}
 
 	data.Open()
 
@@ -52,7 +54,7 @@ func Run() error {
 
 	closeHttpServer := startHttpServer()
 
-	peer.Init()
+	runGUI()
 
 	go ktx500.TraceTemperature(func(info api.Ktx500Info) {
 		notify.Ktx500Info(nil, info)
@@ -71,15 +73,7 @@ func Run() error {
 	}
 	cancel()
 	closeHttpServer()
-
-	win.PostMessage(winapp.FindWindow(internal.ServerWindowClassName), win.WM_CLOSE, 0, 0)
-
-	winapp.EnumWindowsWithClassName(func(hWnd win.HWND, winClassName string) {
-		if winClassName == internal.PeerWindowClassName {
-			win.PostMessage(hWnd, win.WM_CLOSE, 0, 0)
-		}
-	})
-
+	internal.CloseHWnd()
 	data.Close()
 	return nil
 }

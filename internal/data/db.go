@@ -37,9 +37,12 @@ func Open() {
 	if err = deleteEmptyParties(); err != nil {
 		panic(err)
 	}
+
 	log.Debug("open database", "file", fileName)
 	DB = reform.NewDB(dbConn, sqlite3.Dialect, nil)
 	DBx = sqlx.NewDb(dbConn, "sqlite3")
+
+	_, _ = DBx.Exec(SQLProdTypesAddColumns1)
 }
 
 func Dir() (string, error) {

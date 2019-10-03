@@ -34,9 +34,55 @@ func (_ *LastPartySvc) GetValues(_ struct{}, p *Party3) error {
 	return nil
 }
 
-func (_ *LastPartySvc) SetValues(r struct{ P Party3 }, _ *struct{}) error {
+func (_ *LastPartySvc) SetProductType(ptName [1]string, _ *struct{}) error {
+	var pt data.ProductType
+	if err := data.DB.FindByPrimaryKeyTo(&pt, ptName[0]); err != nil {
+		return err
+	}
 	p := data.LastParty()
+
+	p.ProductTypeName = pt.ProductTypeName
+	p.MinFon = pt.MinFon
+	p.MaxFon = pt.MaxFon
+	p.MaxDFon = pt.MaxDFon
+	p.MinKSens20 = pt.MinKSens20
+	p.MaxKSens20 = pt.MaxKSens20
+	p.MinKSens50 = pt.MinKSens50
+	p.MaxKSens50 = pt.MaxKSens50
+	p.MinDTemp = pt.MinDTemp
+	p.MaxDTemp = pt.MaxDTemp
+	p.MaxDNotMeasured = pt.MaxDNotMeasured
+	p.PointsMethod = pt.PointsMethod
+	return data.DB.Save(&p)
+}
+
+func (_ *LastPartySvc) SetValues(r struct{ P Party3 }, _ *struct{}) error {
 	x := r.P
+
+	var pt data.ProductType
+
+	if err := data.DB.FindByPrimaryKeyTo(&pt, x.ProductTypeName); err != nil {
+		return err
+	}
+
+	pt.MinFon = x.MinFon
+	pt.MaxFon = x.MaxFon
+	pt.MaxDFon = x.MaxDFon
+	pt.MinKSens20 = x.MinKSens20
+	pt.MaxKSens20 = x.MaxKSens20
+	pt.MinKSens50 = x.MinKSens50
+	pt.MaxKSens50 = x.MaxKSens50
+	pt.MinDTemp = x.MinDTemp
+	pt.MaxDTemp = x.MaxDTemp
+	pt.MaxDNotMeasured = x.MaxDNotMeasured
+	pt.PointsMethod = x.PointsMethod
+
+	if err := data.DB.Save(&pt); err != nil {
+		return err
+	}
+
+	p := data.LastParty()
+
 	p.ProductTypeName = x.ProductTypeName
 	p.Concentration1 = x.Concentration1
 	p.Concentration2 = x.Concentration2
