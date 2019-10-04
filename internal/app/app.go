@@ -45,7 +45,6 @@ func Run() error {
 		api.NewProductFirmware(runner{}),
 		new(api.PdfSvc),
 		&api.RunnerSvc{Runner: runner{}},
-		api.NewPeerSvc(peerNotifier{}),
 		new(api.ConfigSvc),
 		new(api.ProductsCatalogueSvc),
 	} {

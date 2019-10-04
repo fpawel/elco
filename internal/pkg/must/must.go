@@ -70,3 +70,7 @@ func OpenSqliteDB(fileName string) *sql.DB {
 	NoErr(err)
 	return conn
 }
+
+func EnsureDir(dir string) {
+	AbortIf(pkg.EnsureDir(dir))
+}

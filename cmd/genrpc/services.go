@@ -1,4 +1,4 @@
-package delphirpc
+package main
 
 import (
 	"fmt"

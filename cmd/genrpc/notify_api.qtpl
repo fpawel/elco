@@ -1,5 +1,5 @@
 // // Code generated. DO NOT EDIT.
-{% package delphirpc %}
+{% package main %}
 
 {% func (x *NotifyServicesSrc) GoFile() %}
 package notify

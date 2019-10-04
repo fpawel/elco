@@ -51,13 +51,3 @@ func startHttpServer() func() {
 		}
 	}
 }
-
-type peerNotifier struct{}
-
-func (_ peerNotifier) OnStarted() {
-	cancelWorkFunc()
-}
-
-func (_ peerNotifier) OnClosed() {
-	cancelWorkFunc()
-}
