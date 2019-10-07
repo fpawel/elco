@@ -63,9 +63,9 @@ func (_ runner) CopyParty(partyID int64) {
 	notify.LastPartyChanged(nil, api.LastParty1())
 }
 
-func (_ runner) RunReadAndSaveProductCurrents(dbColumn string) {
+func (_ runner) RunReadAndSaveProductCurrents(dbColumn string, gas int, temperature data.Temperature) {
 	runWork(fmt.Sprintf("Снятие %q", dbColumn), func(x worker) error {
-		return x.readSaveForDBColumn(dbColumn)
+		return x.readSaveForDBColumn(dbColumn, gas, temperature)
 	})
 }
 

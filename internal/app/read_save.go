@@ -7,6 +7,7 @@ import (
 	"github.com/fpawel/elco/internal/cfg"
 	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/elco/internal/pkg"
+	"time"
 )
 
 func (x worker) SwitchGasOffInEnd() {
@@ -38,24 +39,28 @@ func (x worker) readSaveAtTemperature(temperature data.Temperature) error {
 				return err
 			}
 			return x.perform(s, func(x worker) error {
-				return x.readSaveForDBColumn(data.TemperatureScaleField(temperature, scale))
+				return x.readSaveForDBColumn(
+					data.TemperatureScaleField(temperature, scale),
+					gas,
+					temperature)
 			})
 		}
-
 		if err := blowReadSaveScalePt(data.Fon); err != nil {
 			return err
 		}
 		if err := blowReadSaveScalePt(data.Sens); err != nil {
 			return err
 		}
-		if err := x.perform("продувка воздухом после снятия конца шкалы", func(x worker) error {
-			return blowGas(x, 1)
-		}); err != nil {
+		if err := x.perform("продувка воздухом после снятия конца шкалы",
+			func(x worker) error {
+				return blowGas(x, 1)
+			},
+		); err != nil {
 			return err
 		}
 		if temperature == 20 {
 			if err := x.perform("начало шкалы, повторное", func(x worker) error {
-				return x.readSaveForDBColumn("i13")
+				return x.readSaveForDBColumn("i13", 1, 20)
 			}); err != nil {
 				return err
 			}
@@ -74,7 +79,7 @@ func (x worker) readSaveForMainError() error {
 				if err := blowGas(x, pt.Code()); err != nil {
 					return err
 				}
-				return x.readSaveForDBColumn(pt.Field())
+				return x.readSaveForDBColumn(pt.Field(), pt.Code(), 20)
 			})
 			if err != nil {
 				return err
@@ -84,8 +89,8 @@ func (x worker) readSaveForMainError() error {
 	})
 }
 
-func (x worker) readSaveForDBColumn(dbColumn string) error {
-	return x.performf("снятие колоки %q", dbColumn)(func(x worker) error {
+func (x worker) readSaveForDBColumn(dbColumn string, gas int, temperature data.Temperature) error {
+	return x.performf("снятие %q газ=%d T=%v", dbColumn, gas, temperature)(func(x worker) error {
 		productsToWork := data.ProductsWithProduction(data.LastPartyID())
 		if len(productsToWork) == 0 {
 			return merry.Errorf("снятие \"%s\": не выбрано ни одного прибора", dbColumn)
@@ -111,9 +116,20 @@ func (x worker) readSaveForDBColumn(dbColumn string) error {
 				log := pkg.LogPrependSuffixKeys(x.log,
 					"product_id", p.ProductID,
 					"place", data.FormatPlace(p.Place),
+					"gas", gas,
+					"temperature", temperature,
 					"value", values[n])
-
 				if err := data.SetProductValue(p.ProductID, dbColumn, values[n]); err != nil {
+					log.Panic(merry.Append(err, "не удалось сохранить в базе данных"))
+				}
+				if err := data.DB.Save(&data.ProductCurrent{
+					StoredAt:     time.Now(),
+					ProductID:    p.ProductID,
+					Temperature:  temperature,
+					Gas:          gas,
+					CurrentValue: values[n],
+					Note:         dbColumn,
+				}); err != nil {
 					log.Panic(merry.Append(err, "не удалось сохранить в базе данных"))
 				}
 				log.Info("сохраненено в базе данных")

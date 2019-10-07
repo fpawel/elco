@@ -6,6 +6,19 @@ import (
 
 type ProductsCatalogueSvc struct{}
 
+func (_ *ProductsCatalogueSvc) ProductCurrents(productID [1]int64, r *[]data.ProductCurrent) error {
+	xs, err := data.DB.SelectAllFrom(data.ProductCurrentTable,
+		"WHERE product_id=? ORDER BY stored_at",
+		productID[0])
+	if err != nil {
+		return err
+	}
+	for _, x := range xs {
+		*r = append(*r, *(x.(*data.ProductCurrent)))
+	}
+	return nil
+}
+
 func (_ *ProductsCatalogueSvc) ProductByIDHasFirmware(productID [1]int64, r *bool) error {
 	return data.DBx.Get(nil, `SELECT has_firmware FROM product_info WHERE product_id = ?`, productID[0])
 }

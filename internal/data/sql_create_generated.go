@@ -113,6 +113,19 @@ CREATE TABLE IF NOT EXISTS product
         ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS product_current
+(
+    product_current_id INTEGER PRIMARY KEY NOT NULL,
+    stored_at TIMESTAMP NOT NULL DEFAULT (DATETIME('now')),
+    product_id        INTEGER NOT NULL,
+    temperature REAL NOT NULL,
+    gas INTEGER NOT NULL,
+    current_value REAL NOT NULL,
+    message TEXT NOT NULL,
+    FOREIGN KEY (product_id) REFERENCES product (product_id)
+        ON DELETE CASCADE
+);
+
 CREATE TRIGGER IF NOT EXISTS trigger_product_party_updated_at
     AFTER INSERT
     ON product
