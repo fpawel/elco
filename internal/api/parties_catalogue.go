@@ -1,6 +1,7 @@
 package api
 
 import (
+	"database/sql"
 	"fmt"
 	"github.com/fpawel/elco/internal/data"
 	"strconv"
@@ -35,8 +36,23 @@ func (_ *PartiesCatalogueSvc) Party(a [1]int64, r *Party1) error {
 	return nil
 }
 
-func (x *PartiesCatalogueSvc) NewParty(_ struct{}, r *Party1) error {
-	*r = newParty1(data.CreateNewParty())
+func (x *PartiesCatalogueSvc) NewParty(v struct {
+	Products []int
+}, r *Party1) error {
+	partyID := data.CreateNewParty()
+	for i, serial := range v.Products {
+		if err := data.DB.Save(&data.Product{
+			PartyID: partyID,
+			Serial: sql.NullInt64{
+				Int64: int64(serial),
+				Valid: true,
+			},
+			Place: i,
+		}); err != nil {
+			data.DBx.MustExec(`DELETE FROM party WHERE party_id=?`, partyID)
+			return err
+		}
+	}
 	return nil
 }
 
