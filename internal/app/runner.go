@@ -195,7 +195,6 @@ func (_ runner) StopHardware() {
 
 func (_ runner) SkipDelay() {
 	skipDelayFunc()
-
 }
 
 func (_ runner) RunReadCurrent() {
@@ -214,6 +213,31 @@ func (_ runner) RunReadCurrent() {
 				pause(x.ctx.Done(), intSeconds(cfg.Cfg.Dev().ReadBlockPauseSeconds))
 			}
 		}
+	})
+}
+
+func (_ runner) NewParty(serials []int64) {
+	runWork("создание новой партия ЭХЯ", func(x worker) error {
+		partyID := data.CreateNewParty()
+		strQuery := "INSERT INTO product ( party_id,  place, production, serial) VALUES "
+		firstInsertRecord := true
+		for i, serial := range serials {
+			if serial <= 0 {
+				continue
+			}
+			s := ","
+			if firstInsertRecord {
+				firstInsertRecord = false
+				s = ""
+			}
+			strQuery += fmt.Sprintf("%s(%d, %d, TRUE, %d)", s, partyID, i, serial)
+		}
+		_, err := data.DBx.Exec(strQuery)
+		if err != nil {
+			return err
+		}
+		notify.LastPartyChanged(log.Info, api.LastParty1())
+		return nil
 	})
 }
 

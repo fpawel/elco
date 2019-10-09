@@ -46,8 +46,9 @@ func startHttpServer() func() {
 	}()
 
 	return func() {
-		if err := srv.Shutdown(ctxApp); err != nil {
-			log.PrintErr(err)
-		}
+		log.Debug("close http server")
+		log.ErrIfFail(func() error {
+			return srv.Shutdown(ctxApp)
+		})
 	}
 }

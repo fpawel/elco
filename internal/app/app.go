@@ -65,6 +65,7 @@ func Run() error {
 	for {
 		var msg win.MSG
 		if win.GetMessage(&msg, 0, 0, 0) == 0 {
+			log.Debug("window was closed")
 			break
 		}
 		win.TranslateMessage(&msg)
@@ -72,7 +73,6 @@ func Run() error {
 	}
 	cancel()
 	closeHttpServer()
-	internal.CloseHWnd()
 	data.Close()
 	return nil
 }

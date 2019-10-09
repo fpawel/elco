@@ -21,6 +21,7 @@ var (
 )
 
 func Close() {
+	log.Info("close database")
 	log.ErrIfFail(dbConn.Close)
 }
 

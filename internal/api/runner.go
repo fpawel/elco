@@ -11,6 +11,7 @@ type Runner interface {
 	RunSwitchGas(int)
 	RunReadAndSaveProductCurrents(field string, gas int, temperature data.Temperature)
 	CopyParty(partyID int64)
+	NewParty(serials []int64)
 }
 
 type RunnerSvc struct {
@@ -61,5 +62,10 @@ func (x *RunnerSvc) RunSwitchGas(r [1]int, _ *struct{}) error {
 
 func (x *RunnerSvc) CopyParty(partyID [1]int64, _ *struct{}) (err error) {
 	go x.Runner.CopyParty(partyID[0])
+	return nil
+}
+
+func (x *RunnerSvc) NewParty(v struct{ Serials []int64 }, _ *struct{}) error {
+	go x.Runner.NewParty(v.Serials)
 	return nil
 }
