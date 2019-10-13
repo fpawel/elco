@@ -12,6 +12,7 @@ type Runner interface {
 	RunReadAndSaveProductCurrents(field string, gas int, temperature data.Temperature)
 	CopyParty(partyID int64)
 	NewParty(serials []int64)
+	RunScript(script string) error
 }
 
 type RunnerSvc struct {
@@ -42,6 +43,10 @@ func (x *RunnerSvc) StopHardware(_ struct{}, _ *struct{}) error {
 func (x *RunnerSvc) SkipDelay(_ struct{}, _ *struct{}) error {
 	x.Runner.SkipDelay()
 	return nil
+}
+
+func (x *RunnerSvc) RunScript(script [1]string, _ *struct{}) error {
+	return x.Runner.RunScript(script[0])
 }
 
 type RequestReadCurrent struct {

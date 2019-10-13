@@ -11,7 +11,6 @@ import (
 	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/elco/internal/pkg"
 	"github.com/fpawel/elco/internal/pkg/ktx500"
-	"github.com/powerman/structlog"
 	"sync"
 	"time"
 )
@@ -240,8 +239,6 @@ func (_ runner) NewParty(serials []int64) {
 		return nil
 	})
 }
-
-type WorkFunc = func(log *structlog.Logger) error
 
 func runWork(workName string, work func(x worker) error) {
 

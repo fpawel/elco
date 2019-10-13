@@ -43,6 +43,7 @@ func setupTemperature(x worker, destinationTemperature float64) error {
 						return err
 					}
 					if math.Abs(currentTemperature-destinationTemperature) < 2 {
+						x.lastTemperature = &destinationTemperature
 						return nil
 					}
 					notify.Status(x.log.Debug, "ожидание выхода на температуру",
@@ -122,6 +123,7 @@ func (x worker) switchGas(n int) error {
 		if _, err := req.GetResponse(x.log, x.ReaderGas(), nil); err != nil {
 			return err
 		}
+		x.lastGas = &n
 		return nil
 	})
 }

@@ -139,3 +139,61 @@ func (x worker) readSaveForDBColumn(dbColumn string, gas int, temperature data.T
 		return nil
 	})
 }
+
+func readSaveForLastTemperatureGas(x worker) error {
+	return x.perform("снятие для теккущей температуры и газа", func(x worker) error {
+		if x.lastTemperature == nil {
+			return merry.New("температура не установлена")
+		}
+		if x.lastGas == nil {
+			return merry.New("газ не установлен")
+		}
+
+		productsToWork := data.ProductsWithProduction(data.LastPartyID())
+		if len(productsToWork) == 0 {
+			return merry.New("снятие для теккущей температуры и газа: не выбрано ни одного прибора")
+		}
+
+		temperature := data.Temperature(*x.lastTemperature)
+		gas := *x.lastGas
+
+		x.log = pkg.LogPrependSuffixKeys(x.log, "products", formatProducts(productsToWork))
+
+		blockProducts := groupProductsByBlocks(productsToWork)
+		for _, products := range blockProducts {
+			block := products[0].Place / 8
+			var values []float64
+
+			if err := x.performf("снятие токов блока %d для сохранения", block)(func(x worker) error {
+				var err error
+				values, err = readBlockMeasure(x, block)
+				return err
+			}); err != nil {
+				return err
+			}
+
+			for _, p := range products {
+				n := p.Place % 8
+				log := pkg.LogPrependSuffixKeys(x.log,
+					"product_id", p.ProductID,
+					"place", data.FormatPlace(p.Place),
+					"gas", gas,
+					"temperature", temperature,
+					"value", values[n])
+
+				if err := data.DB.Save(&data.ProductCurrent{
+					StoredAt:     time.Now(),
+					ProductID:    p.ProductID,
+					Temperature:  temperature,
+					Gas:          gas,
+					CurrentValue: values[n],
+					Note:         "сценарий",
+				}); err != nil {
+					log.Panic(merry.Append(err, "не удалось сохранить в базе данных"))
+				}
+				log.Info("сохраненено в базе данных")
+			}
+		}
+		return nil
+	})
+}

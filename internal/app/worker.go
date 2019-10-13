@@ -15,11 +15,13 @@ import (
 )
 
 type worker struct {
-	log          *structlog.Logger
-	ctx          context.Context
-	works        []string
-	portMeasurer *comport.Port
-	portGas      *comport.Port
+	log             *structlog.Logger
+	ctx             context.Context
+	works           []string
+	portMeasurer    *comport.Port
+	portGas         *comport.Port
+	lastGas         *int
+	lastTemperature *float64
 }
 
 func newWorker(ctx context.Context, name string) worker {
