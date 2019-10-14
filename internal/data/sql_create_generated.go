@@ -121,7 +121,7 @@ CREATE TABLE IF NOT EXISTS product_current
     temperature REAL NOT NULL,
     gas INTEGER NOT NULL,
     current_value REAL NOT NULL,
-    message TEXT NOT NULL,
+    note TEXT NOT NULL,
     FOREIGN KEY (product_id) REFERENCES product (product_id)
         ON DELETE CASCADE
 );
