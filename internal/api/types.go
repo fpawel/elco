@@ -71,6 +71,11 @@ type Party3 struct {
 	PointsMethod    int64
 }
 
+type ScriptLine struct {
+	Lineno int
+	Line   string
+}
+
 func newParty1(partyID int64) (r Party1) {
 	p := data.GetParty(partyID)
 	r.CreatedAt = p.CreatedAt

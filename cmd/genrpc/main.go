@@ -85,6 +85,10 @@ func main() {
 			"ReadBlock",
 			r.TypeOf((*int)(nil)).Elem(),
 		},
+		{
+			"ScriptLine",
+			r.TypeOf((*api.ScriptLine)(nil)).Elem(),
+		},
 	})
 
 	createFile := func(fileName string) *os.File {

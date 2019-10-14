@@ -47,7 +47,7 @@ func delay(x worker, duration time.Duration, name string) error {
 					ElapsedSeconds: int(time.Since(startTime).Seconds()),
 				})
 				_, err := readBlockMeasure(x, block)
-				if merry.Is(err, context.DeadlineExceeded) {
+				if merry.Is(x.ctx.Err(), context.DeadlineExceeded) {
 					return nil // задержка истекла
 				}
 				if merry.Is(err, context.Canceled) {
