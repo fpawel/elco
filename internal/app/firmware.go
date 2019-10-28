@@ -516,8 +516,7 @@ func compareBytes(x, y []byte) bool {
 
 var firmwareAddresses = []struct{ addr1, addr2 uint16 }{
 	{0, 512},
-	{1024, 1535},
-	{1536, 1600},
+	{1024, 1600},
 	{1792, 1810},
 	{1824, 1831},
 }

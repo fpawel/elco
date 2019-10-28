@@ -29,12 +29,14 @@ type FirmwareInfo struct {
 	Place     int
 	CreatedAt delphi.GoDateTime
 	Sensitivity,
+	Sensitivity1,
 	Serial,
 	ProductType,
 	Gas,
 	Units,
 	ScaleBeg,
 	ScaleEnd,
+	IFPlus20,
 	ISMinus20,
 	ISPlus20,
 	ISPlus50 string
@@ -59,18 +61,20 @@ func (s Product) FirmwareBytes() (b FirmwareBytes, err error) {
 
 func (s ProductInfo) FirmwareInfo() FirmwareInfo {
 	x := FirmwareInfo{
-		Place:       s.Place,
-		Gas:         s.GasName,
-		Units:       s.UnitsName,
-		ScaleBeg:    "0",
-		ScaleEnd:    fmt.Sprintf("%v", s.Scale),
-		ProductType: s.AppliedProductTypeName,
-		Serial:      formatNullInt64(s.Serial),
-		CreatedAt:   delphi.NewDateTime(s.CreatedAt),
-		Sensitivity: formatNullFloat64(s.KSens20, 3),
-		ISPlus20:    formatNullFloat64K(s.ISPlus20, 1000, -1),
-		ISMinus20:   formatNullFloat64K(s.ISMinus20, 1000, -1),
-		ISPlus50:    formatNullFloat64K(s.ISPlus50, 1000, -1),
+		Place:        s.Place,
+		Gas:          s.GasName,
+		Units:        s.UnitsName,
+		ScaleBeg:     "0",
+		ScaleEnd:     fmt.Sprintf("%v", s.Scale),
+		ProductType:  s.AppliedProductTypeName,
+		Serial:       formatNullInt64(s.Serial),
+		CreatedAt:    delphi.NewDateTime(s.CreatedAt),
+		Sensitivity:  formatNullFloat64(s.KSens20, 3),
+		Sensitivity1: formatNullFloat64(s.KSens20, 3),
+		IFPlus20:     formatNullFloat64K(s.IFPlus20, 1000, -1),
+		ISPlus20:     formatNullFloat64K(s.ISPlus20, 1000, -1),
+		ISMinus20:    formatNullFloat64K(s.ISMinus20, 1000, -1),
+		ISPlus50:     formatNullFloat64K(s.ISPlus50, 1000, -1),
 	}
 
 	if fonM, err := s.TableFon(); err == nil {
@@ -79,6 +83,7 @@ func (s ProductInfo) FirmwareInfo() FirmwareInfo {
 				fonM[k] *= 1000
 			}
 			x.TempPoints = NewTempPoints(fonM, sensM)
+
 		}
 	}
 	return x
@@ -248,14 +253,16 @@ func (x FirmwareBytes) ProductType() string {
 
 func (x FirmwareBytes) FirmwareInfo(place int) FirmwareInfo {
 	r := FirmwareInfo{
-		Place:       place,
-		TempPoints:  x.TempPoints(),
-		CreatedAt:   delphi.NewDateTime(x.Time()),
-		ProductType: x.ProductType(),
-		Serial:      formatBCD(x[0x0701:0x0705], -1),
-		ScaleBeg:    formatBCD(x[0x0602:0x0606], -1),
-		ScaleEnd:    formatBCD(x[0x0606:0x060A], -1),
-		Sensitivity: formatFloat(math.Float64frombits(binary.LittleEndian.Uint64(x[0x0720:])), 3),
+		Place:        place,
+		TempPoints:   x.TempPoints(),
+		CreatedAt:    delphi.NewDateTime(x.Time()),
+		ProductType:  x.ProductType(),
+		Serial:       formatBCD(x[0x0701:0x0705], -1),
+		ScaleBeg:     formatBCD(x[0x0602:0x0606], -1),
+		ScaleEnd:     formatBCD(x[0x0606:0x060A], -1),
+		Sensitivity:  formatFloat(math.Float64frombits(binary.LittleEndian.Uint64(x[0x0720:])), 3),
+		Sensitivity1: formatBCD(x[0x0709:0x070D], -1),
+		IFPlus20:     formatBCD(x[0x0705:0x0709], -1),
 	}
 	for _, a := range ListUnits() {
 		if a.Code == x[0x060A] {
@@ -338,7 +345,12 @@ func (x Firmware) Bytes() (b FirmwareBytes) {
 		bProductType = bProductType[:50]
 	}
 	copy(b[0x060B:], bProductType)
+
+	atFon := NewApproximationTable(x.Fon)
+
 	binary.LittleEndian.PutUint64(b[0x0720:], math.Float64bits(x.KSens20))
+	modbus.PutBCD6(b[0x0709:0x70D], x.KSens20)
+	modbus.PutBCD6(b[0x0705:0x0709], atFon.F(20))
 
 	putTempValue := func(value float64, i int) {
 		y := math.Round(value)
@@ -346,27 +358,26 @@ func (x Firmware) Bytes() (b FirmwareBytes) {
 		binary.LittleEndian.PutUint16(b[i:], n)
 	}
 
-	at := NewApproximationTable(x.Fon)
 	t := float64(-124)
 	for i := 0x00F8; i >= 0; i -= 2 {
-		putTempValue(at.F(t), i)
+		putTempValue(atFon.F(t), i)
 		t++
 	}
 	t = 0
 	for i := 0x0100; i <= 0x01F8; i += 2 {
-		putTempValue(at.F(t), i)
+		putTempValue(atFon.F(t), i)
 		t++
 	}
 
-	at = NewApproximationTable(x.Sens)
+	atSens := NewApproximationTable(x.Sens)
 	t = float64(-124)
 	for i := 0x04F8; i >= 0x0400; i -= 2 {
-		putTempValue(at.F(t), i)
+		putTempValue(atSens.F(t), i)
 		t++
 	}
 	t = 0
 	for i := 0x0500; i <= 0x05F8; i += 2 {
-		putTempValue(at.F(t), i)
+		putTempValue(atSens.F(t), i)
 		t++
 	}
 	return
