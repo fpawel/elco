@@ -14,7 +14,7 @@ import (
 func main() {
 	defaultLogLevelStr := os.Getenv("ELCO_LOG_LEVEL")
 	if len(strings.TrimSpace(defaultLogLevelStr)) == 0 {
-		defaultLogLevelStr = "info"
+		defaultLogLevelStr = "debug"
 	}
 	hideCon := flag.Bool("hide-con", false, "hide console window")
 	logLevel := flag.String("log.level", defaultLogLevelStr, "log `level` (debug|info|warn|err)")
