@@ -48,14 +48,14 @@ type EnumWindowsWithClassNameCallBack func(hWnd win.HWND, winClassName string)
 
 func EnumWindowsWithClassName(enumWindowsWithClassNameCallBack EnumWindowsWithClassNameCallBack) {
 
-	f := uintptr(syscall.NewCallback(func(hWnd win.HWND, lParam uintptr) uintptr {
+	f := syscall.NewCallback(func(hWnd win.HWND, lParam uintptr) uintptr {
 		wndClassName, err := GetClassName(hWnd)
 		if err != nil {
-			panic(err)
+			return 0
 		}
 		enumWindowsWithClassNameCallBack(hWnd, wndClassName)
 		return 1
-	}))
+	})
 
 	win.EnumChildWindows(0, f, 1)
 	return
