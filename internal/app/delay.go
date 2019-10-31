@@ -59,7 +59,7 @@ func delay(x worker, duration time.Duration, name string) error {
 					}
 					return nil
 				}
-				pause(x.ctx.Done(), intSeconds(cfg.Cfg.Dev().ReadBlockPauseSeconds))
+				pause(x.ctx.Done(), cfg.Get().ReadBlockPause)
 			}
 		}
 	})

@@ -5,6 +5,7 @@ import (
 	"github.com/fpawel/elco/internal/pkg"
 	_ "github.com/mattn/go-sqlite3"
 	"io"
+	"io/ioutil"
 	"os"
 	"syscall"
 )
@@ -73,4 +74,18 @@ func OpenSqliteDB(fileName string) *sql.DB {
 
 func EnsureDir(dir string) {
 	AbortIf(pkg.EnsureDir(dir))
+}
+
+// WriteFile is a wrapper for ioutil.WriteFile.
+func WriteFile(name string, buf []byte, perm os.FileMode) {
+	err := ioutil.WriteFile(name, buf, perm)
+	PanicIf(err)
+}
+
+// Write is a wrapper for os.File.Write, bufio.Writer.Write,
+// net.Conn.Write, …
+func Write(f io.Writer, b []byte) int {
+	n, err := f.Write(b)
+	AbortIf(err)
+	return n
 }

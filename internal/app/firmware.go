@@ -205,7 +205,7 @@ func (hlp *helperWriteParty) writeBlock(x worker, products []*data.Product) erro
 			return err
 		}
 
-		time.Sleep(cfg.Cfg.Dev().WaitFlashStatusDelayMS())
+		time.Sleep(cfg.Get().WaitFlashStatusDelayMS())
 
 		if err := waitStatus45(x, block, placesMask); err != nil {
 			if e, ok := err.(errorStatus45); ok {
@@ -220,7 +220,7 @@ func (hlp *helperWriteParty) writeBlock(x worker, products []*data.Product) erro
 		}
 
 		if i < len(firmwareAddresses)-1 {
-			time.Sleep(time.Duration(cfg.Cfg.Dev().ReadRangeDelayMillis) * time.Millisecond)
+			time.Sleep(cfg.Get().ReadRangeDelay)
 		}
 	}
 
@@ -254,7 +254,7 @@ func readPlaceFirmware(x worker, place int) ([]byte, error) {
 
 	x.log = pkg.LogPrependSuffixKeys(x.log,
 		"place", data.FormatPlace(place),
-		"chip", cfg.Cfg.Gui().ChipType,
+		"chip", cfg.Get().ChipType,
 		"total_read_bytes_count", len(b),
 	)
 
@@ -271,7 +271,7 @@ func readPlaceFirmware(x worker, place int) ([]byte, error) {
 			ProtoCmd: 0x44,
 			Data: []byte{
 				byte(placeInBlock + 1),
-				cfg.Cfg.Gui().ChipType.Code(),
+				cfg.Get().ChipType.Code(),
 				byte(c.addr1 >> 8),
 				byte(c.addr1),
 				byte(count >> 8),
@@ -297,9 +297,7 @@ func readPlaceFirmware(x worker, place int) ([]byte, error) {
 
 		copy(b[c.addr1:c.addr1+count], resp[8:8+count])
 		if i < len(firmwareAddresses)-1 {
-			time.Sleep(time.Duration(
-				cfg.Cfg.Dev().ReadRangeDelayMillis) *
-				time.Millisecond)
+			time.Sleep(cfg.Get().ReadRangeDelay)
 		}
 	}
 	return b, nil
@@ -314,7 +312,7 @@ func writePlaceFirmware(x worker, place int, bytes []byte) error {
 
 	x.log = pkg.LogPrependSuffixKeys(x.log,
 		"place", data.FormatPlace(place),
-		"chip", cfg.Cfg.Gui().ChipType,
+		"chip", cfg.Get().ChipType,
 		"total_write_bytes_count", len(bytes),
 	)
 
@@ -336,7 +334,7 @@ func writePlaceFirmware(x worker, place int, bytes []byte) error {
 		if err := writePreparedDataToFlash(x, block, placesMask, addr1, int(addr2-addr1+1)); err != nil {
 			return merry.Wrap(err)
 		}
-		time.Sleep(cfg.Cfg.Dev().WaitFlashStatusDelayMS())
+		time.Sleep(cfg.Get().WaitFlashStatusDelayMS())
 		if err := waitStatus45(x, block, placesMask); err != nil {
 			return merry.Wrap(err)
 		}
@@ -370,8 +368,7 @@ func waitStatus45(x worker, block int, placesMask byte) error {
 		notify.ReadBlock(x.log.Debug, -1)
 	}()
 
-	t := time.Duration(cfg.Cfg.Dev().StatusTimeoutSeconds) * time.Second
-	ctx, _ := context.WithTimeout(x.ctx, t)
+	ctx, _ := context.WithTimeout(x.ctx, cfg.Get().StatusTimeout)
 	for {
 
 		select {
@@ -385,7 +382,7 @@ func waitStatus45(x worker, block int, placesMask byte) error {
 				if (1<<byte(i))&placesMask != 0 && b != 0 {
 					return comm.Err.Here().Appendf(
 						"%s: таймаут %s, статус[%d]=%X",
-						data.FormatPlace(block*8+i), durafmt.Parse(t), i, b)
+						data.FormatPlace(block*8+i), durafmt.Parse(cfg.Get().StatusTimeout), i, b)
 				}
 			}
 			return nil
@@ -453,7 +450,7 @@ func writePreparedDataToFlash(x worker, block int, placesMask byte, addr uint16,
 		ProtoCmd: 0x43,
 		Data: []byte{
 			placesMask,
-			cfg.Cfg.Gui().ChipType.Code(),
+			cfg.Get().ChipType.Code(),
 			byte(addr >> 8),
 			byte(addr),
 			byte(count >> 8),

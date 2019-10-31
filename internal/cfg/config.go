@@ -1,10 +1,11 @@
 package cfg
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/fpawel/comm"
+	"github.com/fpawel/elco/internal/pkg/must"
 	"github.com/fpawel/gofins/fins"
+	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -12,25 +13,79 @@ import (
 	"time"
 )
 
-var Cfg = &Config{
-	d: DefaultDevSettings(),
-	u: openGuiSettings(),
-}
-
-type Config struct {
+var (
+	config = func() AppConfig {
+		def := AppConfig{
+			ChipType:               Chip16,
+			ComportName:            "COM1",
+			ComportGasName:         "COM2",
+			BlowGasMinutes:         5,
+			HoldTemperatureMinutes: 120,
+			WaitFlashStatusDelay:   time.Second,
+			ReadBlockPause:         time.Second,
+			ComportGas: comm.Config{
+				ReadByteTimeout: 50 * time.Millisecond,
+				ReadTimeout:     time.Second,
+				MaxAttemptsRead: 3,
+			},
+			Comport: comm.Config{
+				ReadByteTimeout: 15 * time.Millisecond,
+				ReadTimeout:     500 * time.Millisecond,
+				MaxAttemptsRead: 10,
+			},
+			StatusTimeout:  3 * time.Second,
+			ReadRangeDelay: 10 * time.Millisecond,
+			FinsNetwork: FinsNetwork{
+				MaxAttemptsRead: 20,
+				PollSec:         2,
+				TimeoutMS:       1000,
+				Server: FinsSettings{
+					IP:   "192.168.250.1",
+					Port: 9600,
+					Node: 1,
+				},
+				Client: FinsSettings{
+					IP:   "192.168.250.3",
+					Port: 9600,
+					Node: 254,
+				},
+			},
+		}
+		x := def
+		b, err := ioutil.ReadFile(filename())
+		if err == nil {
+			err = yaml.Unmarshal(b, &x)
+		}
+		if err != nil {
+			fmt.Println(
+				"не удалось получить настройки приложения из файла конфигурации. Будут применены настройки приложения по умолчанию",
+				"error", err, "file", filename())
+			x = def
+			data, err := yaml.Marshal(&x)
+			must.PanicIf(err)
+			must.WriteFile(filename(), data, 0666)
+		}
+		return x
+	}()
 	mu sync.Mutex
-	u  GuiSettings
-	d  DevSettings
-}
+)
 
-type GuiSettings struct {
-	ComportMeasurer        string
-	ComportGas             string
-	ChipType               ChipType
-	AmbientTemperature     float64
-	BlowGasMinutes         int
-	HoldTemperatureMinutes int
-	EndScaleGas2           bool
+type AppConfig struct {
+	ComportName            string        `yaml:"comport_name"`
+	ComportGasName         string        `yaml:"comport_gas_name"`
+	LogComm                bool          `yaml:"log_comm"` // выводить посылки приёмопередачи в консоль
+	ChipType               ChipType      `yaml:"chip_typ"`
+	AmbientTemperature     float64       `yaml:"ambient_temperature"`
+	BlowGasMinutes         int           `yaml:"blow_gas_minutes"`
+	HoldTemperatureMinutes int           `yaml:"hold_temperature_minutes"`
+	EndScaleGas2           bool          `yaml:"end_scale_gas2"`
+	FinsNetwork            FinsNetwork   `yaml:"fins" comment:"параметры протокола связи с теромкамерой"`
+	Comport                comm.Config   `yaml:"comport" comment:"настройки приёмопередачи стенда"`
+	ComportGas             comm.Config   `yaml:"gas_block" comment:"настройки приёмопередачи газового блока"`
+	StatusTimeout          time.Duration `yaml:"status_timeout" comment:"таймаут статуса прошивки, с"`
+	ReadRangeDelay         time.Duration `yaml:"read_range_delay" comment:"задержка при считывании диапазонов, мс"`
+	WaitFlashStatusDelay   time.Duration `yaml:"wait_flash_status_delay" comment:"задержка при считывании статуса записи, мс"`
+	ReadBlockPause         time.Duration `yaml:"read_block_pause" comment:"задержка между опросом блоков измерительных, с"`
 }
 
 type ChipType string
@@ -41,33 +96,23 @@ const (
 	Chip256 = "24LC256"
 )
 
-type DevSettings struct {
-	FinsNetwork           FinsNetwork `toml:"fins" comment:"параметры протокола связи с теромкамерой"`
-	ComportMeasurer       comm.Config `toml:"measurer" comment:"измерительный блок"`
-	ComportGas            comm.Config `toml:"gas_block" comment:"газовый блок"`
-	StatusTimeoutSeconds  int         `toml:"status_timeout_seconds" comment:"таймаут статуса прошивки, с"`
-	ReadRangeDelayMillis  int         `toml:"read_range_delay_millis" comment:"задержка при считывании диапазонов, мс"`
-	WaitFlashStatusDelay  int         `toml:"wait_flash_status_delay_ms" comment:"задержка при считывании статуса записи, мс"`
-	ReadBlockPauseSeconds int         `toml:"read_block_pause_seconds" comment:"задержка между опросом блоков измерительных, с"`
-}
-
 type FinsNetwork struct {
-	MaxAttemptsRead int           `toml:"max_attempts_read" comment:"число попыток получения ответа"`
-	TimeoutMS       int           `toml:"timeout_ms" comment:"таймаут считывания, мс"`
-	PollSec         time.Duration `toml:"poll_sec" comment:"пауза опроса, с"`
-	Server          FinsSettings  `toml:"server" comment:"параметры ссервера omron fins"`
-	Client          FinsSettings  `toml:"client" comment:"параметры клиента omron fins"`
+	MaxAttemptsRead int           `yaml:"max_attempts_read" comment:"число попыток получения ответа"`
+	TimeoutMS       int           `yaml:"timeout_ms" comment:"таймаут считывания, мс"`
+	PollSec         time.Duration `yaml:"poll_sec" comment:"пауза опроса, с"`
+	Server          FinsSettings  `yaml:"server" comment:"параметры ссервера omron fins"`
+	Client          FinsSettings  `yaml:"client" comment:"параметры клиента omron fins"`
 }
 
 type FinsSettings struct {
-	IP      string `toml:"ip" comment:"tcp адрес"`
-	Port    int    `toml:"port" comment:"tcp порт"`
-	Network byte   `toml:"network" comment:"fins network"`
-	Node    byte   `toml:"network" comment:"fins node"`
-	Unit    byte   `toml:"network" comment:"fins unit"`
+	IP       string `yaml:"ip" comment:"tcp адрес"`
+	Port     int    `yaml:"port" comment:"tcp порт"`
+	Network  byte   `yaml:"network" comment:"fins network"`
+	Node     byte   `yaml:"node" comment:"fins node"`
+	FinsUnit byte   `yaml:"unit" comment:"fins unit"`
 }
 
-func (x DevSettings) WaitFlashStatusDelayMS() time.Duration {
+func (x AppConfig) WaitFlashStatusDelayMS() time.Duration {
 	return time.Duration(x.WaitFlashStatusDelay) * time.Millisecond
 }
 
@@ -81,66 +126,7 @@ func (x FinsNetwork) NewFinsClient() (*fins.Client, error) {
 }
 
 func (x FinsSettings) Address() fins.Address {
-	return fins.NewAddress(x.IP, x.Port, x.Network, x.Node, x.Unit)
-}
-
-func (x *Config) Dev() DevSettings {
-	x.mu.Lock()
-	defer x.mu.Unlock()
-	return x.d
-}
-
-func (x *Config) SetDev(c DevSettings) {
-	x.mu.Lock()
-	defer x.mu.Unlock()
-	x.d = c
-}
-
-func (x *Config) Gui() GuiSettings {
-	x.mu.Lock()
-	defer x.mu.Unlock()
-	return x.u
-}
-
-func (x *Config) SetGui(u GuiSettings) {
-	x.mu.Lock()
-	defer x.mu.Unlock()
-	x.u = u
-	x.u.save()
-}
-
-func DefaultDevSettings() DevSettings {
-	return DevSettings{
-		WaitFlashStatusDelay:  1000,
-		ReadBlockPauseSeconds: 1,
-		ComportGas: comm.Config{
-			ReadByteTimeoutMillis: 50,
-			ReadTimeoutMillis:     1000,
-			MaxAttemptsRead:       3,
-		},
-		ComportMeasurer: comm.Config{
-			ReadByteTimeoutMillis: 15,
-			ReadTimeoutMillis:     500,
-			MaxAttemptsRead:       10,
-		},
-		StatusTimeoutSeconds: 3,
-		ReadRangeDelayMillis: 10,
-		FinsNetwork: FinsNetwork{
-			MaxAttemptsRead: 20,
-			PollSec:         2,
-			TimeoutMS:       1000,
-			Server: FinsSettings{
-				IP:   "192.168.250.1",
-				Port: 9600,
-				Node: 1,
-			},
-			Client: FinsSettings{
-				IP:   "192.168.250.3",
-				Port: 9600,
-				Node: 254,
-			},
-		},
-	}
+	return fins.NewAddress(x.IP, x.Port, x.Network, x.Node, x.FinsUnit)
 }
 
 func (x ChipType) Code() byte {
@@ -155,40 +141,51 @@ func (x ChipType) Code() byte {
 		panic("bad chip type")
 	}
 }
-func defaultUserConfig() GuiSettings {
-	return GuiSettings{
-		ChipType:               Chip16,
-		ComportMeasurer:        "COM1",
-		ComportGas:             "COM2",
-		BlowGasMinutes:         5,
-		HoldTemperatureMinutes: 120,
+
+func SetYAML(strYaml string) error {
+	if err := yaml.Unmarshal([]byte(strYaml), &config); err != nil {
+		return err
 	}
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	comm.SetEnableLog(config.LogComm)
+	must.WriteFile(filename(), []byte(strYaml), 0666)
+	return nil
 }
 
-func configFileName() string {
-	return filepath.Join(filepath.Dir(os.Args[0]), "elco.config.json")
+func GetYAML() string {
+	mu.Lock()
+	defer mu.Unlock()
+	data, err := yaml.Marshal(&config)
+	must.PanicIf(err)
+	return string(data)
 }
 
-func openGuiSettings() GuiSettings {
-	x := defaultUserConfig()
-	b, err := ioutil.ReadFile(configFileName())
-	if err == nil {
-		err = json.Unmarshal(b, &x)
-	}
-	if err != nil {
-		fmt.Println(
-			"не удалось получить настройки приложения из файла конфигурации. Будут применены настройки приложения по умолчанию",
-			"error", err, "file", configFileName())
-	}
-	return x
+func Set(v AppConfig) {
+	mu.Lock()
+	defer mu.Unlock()
+
+	data, err := yaml.Marshal(&v)
+	must.PanicIf(err)
+	must.PanicIf(yaml.Unmarshal(data, &config))
+	comm.SetEnableLog(config.LogComm)
+	must.WriteFile(filename(), data, 0666)
+
+	return
 }
 
-func (x GuiSettings) save() {
-	b, err := json.MarshalIndent(&x, "", "    ")
-	if err != nil {
-		panic(err)
-	}
-	if err := ioutil.WriteFile(configFileName(), b, 0666); err != nil {
-		panic(err)
-	}
+func Get() (result AppConfig) {
+	mu.Lock()
+	defer mu.Unlock()
+
+	data, err := yaml.Marshal(&config)
+	must.PanicIf(err)
+	must.PanicIf(yaml.Unmarshal(data, &result))
+	return
+}
+
+func filename() string {
+	return filepath.Join(filepath.Dir(os.Args[0]), "elco.config.yaml")
 }

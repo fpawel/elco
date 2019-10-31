@@ -136,6 +136,6 @@ func blowGas(x worker, n int) error {
 	}); err != nil {
 		return err
 	}
-	duration := time.Minute * time.Duration(cfg.Cfg.Gui().BlowGasMinutes)
+	duration := time.Minute * time.Duration(cfg.Get().BlowGasMinutes)
 	return delayf(x, duration, "продувка ПГС%d", n)
 }

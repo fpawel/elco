@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/fpawel/elco/internal/api"
 	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/elco/internal/pkg/must"
@@ -92,7 +93,9 @@ func main() {
 	})
 
 	createFile := func(fileName string) *os.File {
-		return must.Create(filepath.Join(delphiSrcDir, fileName))
+		fileName = filepath.Join(delphiSrcDir, fileName)
+		fmt.Println("file:", fileName)
+		return must.Create(fileName)
 	}
 
 	file := createFile("services.pas")

@@ -2,7 +2,7 @@ package pdf
 
 import (
 	"github.com/fpawel/elco/internal/data"
-	"github.com/powerman/must"
+	"github.com/fpawel/elco/internal/pkg/must"
 	"testing"
 )
 

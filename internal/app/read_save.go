@@ -31,7 +31,7 @@ func (x worker) readSaveAtTemperature(temperature data.Temperature) error {
 			if scale == data.Sens {
 				s = "снятие в конце шкалы"
 				gas = 3
-				if cfg.Cfg.Gui().EndScaleGas2 {
+				if cfg.Get().EndScaleGas2 {
 					gas = 2
 				}
 			}

@@ -33,24 +33,24 @@ func newWorker(ctx context.Context, name string) worker {
 			return comport.Config{
 				Baud:        115200,
 				ReadTimeout: time.Millisecond,
-				Name:        cfg.Cfg.Gui().ComportMeasurer,
+				Name:        cfg.Get().ComportName,
 			}
 		}),
 		portGas: comport.NewPort(func() comport.Config {
 			return comport.Config{
 				Baud:        9600,
 				ReadTimeout: time.Millisecond,
-				Name:        cfg.Cfg.Gui().ComportGas,
+				Name:        cfg.Get().ComportGasName,
 			}
 		}),
 	}
 }
 
 func (x worker) ReaderMeasurer() modbus.ResponseReader {
-	return x.portMeasurer.NewResponseReader(x.ctx, cfg.Cfg.Dev().ComportMeasurer)
+	return x.portMeasurer.NewResponseReader(x.ctx, cfg.Get().Comport)
 }
 func (x worker) ReaderGas() modbus.ResponseReader {
-	return x.portGas.NewResponseReader(x.ctx, cfg.Cfg.Dev().ComportGas)
+	return x.portGas.NewResponseReader(x.ctx, cfg.Get().ComportGas)
 }
 
 func (x worker) withLogKeys(keyvals ...interface{}) worker {

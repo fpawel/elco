@@ -1,7 +1,7 @@
 package app
 
 import (
-	"github.com/powerman/must"
+	"github.com/fpawel/elco/internal/pkg/must"
 	"github.com/powerman/rpc-codec/jsonrpc2"
 	"github.com/powerman/structlog"
 	"golang.org/x/sys/windows/registry"

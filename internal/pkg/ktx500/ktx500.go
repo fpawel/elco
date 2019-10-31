@@ -40,7 +40,7 @@ func TraceTemperature(notifyFunc func(info api.Ktx500Info), notifyErrorFunc func
 	}
 
 	for {
-		time.Sleep(time.Second * cfg.Cfg.Dev().FinsNetwork.PollSec)
+		time.Sleep(time.Second * cfg.Get().FinsNetwork.PollSec)
 
 		var y api.Ktx500Info
 		err = readInfo(&y)
@@ -172,7 +172,7 @@ func write(what string, f func(*fins.Client) error) error {
 }
 
 func withClient(work func(*fins.Client, cfg.FinsNetwork) error) error {
-	config := cfg.Cfg.Dev().FinsNetwork
+	config := cfg.Get().FinsNetwork
 	muClient.Lock()
 	defer muClient.Unlock()
 	client, err := config.NewFinsClient()

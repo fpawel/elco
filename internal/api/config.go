@@ -2,51 +2,27 @@ package api
 
 import (
 	"github.com/fpawel/elco/internal/cfg"
-	"github.com/pelletier/go-toml"
 )
 
 type ConfigSvc struct{}
 
-func (_ *ConfigSvc) GetGui(_ struct{}, r *cfg.GuiSettings) error {
-	*r = cfg.Cfg.Gui()
+func (_ *ConfigSvc) GetConfig(_ struct{}, r *cfg.AppConfig) error {
+	*r = cfg.Get()
 	return nil
 }
 
-func (_ *ConfigSvc) SetGui(r struct{ C cfg.GuiSettings }, _ *struct{}) error {
-	cfg.Cfg.SetGui(r.C)
+func (_ *ConfigSvc) SetConfig(r struct{ C cfg.AppConfig }, _ *struct{}) error {
+	cfg.Set(r.C)
 	return nil
 }
 
-func (x *ConfigSvc) Dev(_ struct{}, r *string) error {
-	b, err := toml.Marshal(cfg.Cfg.Dev())
-	if err != nil {
-		return err
-	}
-	*r = string(b)
-	return nil
+func (_ *ConfigSvc) SetYAML(s [1]string, r *string) error {
+	err := cfg.SetYAML(s[0])
+	*r = cfg.GetYAML()
+	return err
 }
 
-func (_ *ConfigSvc) SetDev(s [1]string, r *string) error {
-	var p cfg.DevSettings
-	if err := toml.Unmarshal([]byte(s[0]), &p); err != nil {
-		return err
-	}
-	b, err := toml.Marshal(&p)
-	if err != nil {
-		return err
-	}
-	*r = string(b)
-	cfg.Cfg.SetDev(p)
-	return nil
-}
-
-func (_ *ConfigSvc) SetDefaultDev(_ struct{}, r *string) error {
-	p := cfg.DefaultDevSettings()
-	b, err := toml.Marshal(&p)
-	if err != nil {
-		return err
-	}
-	*r = string(b)
-	cfg.Cfg.SetDev(p)
+func (_ *ConfigSvc) GetYAML(_ struct{}, r *string) error {
+	*r = cfg.GetYAML()
 	return nil
 }

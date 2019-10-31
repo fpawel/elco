@@ -144,7 +144,7 @@ func (_ runner) RunMain(nku, variation, minus, plus bool) {
 			if err := setupTemperature(x, float64(temperature)); err != nil {
 				return err
 			}
-			duration := time.Minute * time.Duration(cfg.Cfg.Gui().HoldTemperatureMinutes)
+			duration := time.Minute * time.Duration(cfg.Get().HoldTemperatureMinutes)
 			return delayf(x, duration, "выдержка T=%v⁰C", temperature)
 		}
 
@@ -209,7 +209,7 @@ func (_ runner) RunReadCurrent() {
 				if _, err := readBlockMeasure(x, block); err != nil {
 					return err
 				}
-				pause(x.ctx.Done(), intSeconds(cfg.Cfg.Dev().ReadBlockPauseSeconds))
+				pause(x.ctx.Done(), cfg.Get().ReadBlockPause)
 			}
 		}
 	})
@@ -218,7 +218,7 @@ func (_ runner) RunReadCurrent() {
 func (_ runner) NewParty(serials []int64) {
 	runWork("создание новой партия ЭХЯ", func(x worker) error {
 		partyID := data.CreateNewParty()
-		strQuery := "INSERT INTO product ( party_id,  place, production, serial) VALUES "
+		strSql := `INSERT INTO product ( party_id,  place, production, serial) VALUES ` + ""
 		firstInsertRecord := true
 		for i, serial := range serials {
 			if serial <= 0 {
@@ -229,9 +229,9 @@ func (_ runner) NewParty(serials []int64) {
 				firstInsertRecord = false
 				s = ""
 			}
-			strQuery += fmt.Sprintf("%s(%d, %d, TRUE, %d)", s, partyID, i, serial)
+			strSql += fmt.Sprintf("%s(%d, %d, TRUE, %d)", s, partyID, i, serial)
 		}
-		_, err := data.DBx.Exec(strQuery)
+		_, err := data.DBx.Exec(strSql)
 		if err != nil {
 			return err
 		}
