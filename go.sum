@@ -16,6 +16,10 @@ github.com/fpawel/comm v0.0.0-20191031101906-877875e6b051 h1:k2rGPLyKzp1bAcDcAUJ
 github.com/fpawel/comm v0.0.0-20191031101906-877875e6b051/go.mod h1:W3sS3oaaitd4wtvr7Iise6lLEBfDEpRAu+GcvPmp/h4=
 github.com/fpawel/comm v0.0.0-20191031105307-5532c4520f13 h1:h06+w6z2D0yo5BfVUHT2UHJXJPompMgdZ3PSgPSuFAk=
 github.com/fpawel/comm v0.0.0-20191031105307-5532c4520f13/go.mod h1:W3sS3oaaitd4wtvr7Iise6lLEBfDEpRAu+GcvPmp/h4=
+github.com/fpawel/comm v0.0.0-20191031125621-5a9eeaef2201 h1:zZgWr2BV2zMQsJO0n90zPhlnQbrcX7oqtju0bxeorCg=
+github.com/fpawel/comm v0.0.0-20191031125621-5a9eeaef2201/go.mod h1:W3sS3oaaitd4wtvr7Iise6lLEBfDEpRAu+GcvPmp/h4=
+github.com/fpawel/comm v0.0.0-20191031130221-869a774b1a32 h1:lhHXs0j4swKB/PTQdzuF0ODfoOvfYMz57bznoicNsDc=
+github.com/fpawel/comm v0.0.0-20191031130221-869a774b1a32/go.mod h1:W3sS3oaaitd4wtvr7Iise6lLEBfDEpRAu+GcvPmp/h4=
 github.com/fpawel/gofins v0.0.0-20190517135525-2c568bd32bf8 h1:UM9aOtxe5LVZwoCTQltVvjEjcTtLqfWJ8cAkDmQsyhg=
 github.com/fpawel/gofins v0.0.0-20190517135525-2c568bd32bf8/go.mod h1:mSSHEEI65myX9PxSQLbDzWS1jkYk1hAPh+qxq6CyBD4=
 github.com/fpawel/gotools v0.0.0-20191021181518-e44cd9665770 h1:XoUSCU0OV1V0c3iBUQ39/iN6mBp7e8dSp6BsHzCzgt8=

@@ -29,19 +29,16 @@ func newWorker(ctx context.Context, name string) worker {
 		log:   pkg.NewLogWithSuffixKeys("work", fmt.Sprintf("`%s`", name)),
 		ctx:   ctx,
 		works: []string{name},
-		portMeasurer: comport.NewPort(func() comport.Config {
-			return comport.Config{
+		portMeasurer: comport.NewPort(
+			comport.Config{
 				Baud:        115200,
 				ReadTimeout: time.Millisecond,
 				Name:        cfg.Get().ComportName,
-			}
-		}),
-		portGas: comport.NewPort(func() comport.Config {
-			return comport.Config{
-				Baud:        9600,
-				ReadTimeout: time.Millisecond,
-				Name:        cfg.Get().ComportGasName,
-			}
+			}),
+		portGas: comport.NewPort(comport.Config{
+			Baud:        9600,
+			ReadTimeout: time.Millisecond,
+			Name:        cfg.Get().ComportGasName,
 		}),
 	}
 }
