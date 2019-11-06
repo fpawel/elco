@@ -1,5 +1,7 @@
 package data
 
+import "database/sql"
+
 func CalculateFonMinus20() error {
 
 	for _, p := range ProductsInfoAll(LastPartyID()) {
@@ -16,9 +18,23 @@ func CalculateFonMinus20() error {
 
 func CalculateSensMinus20(k float64) error {
 	for _, p := range ProductsInfoAll(LastPartyID()) {
-		if !(p.IFPlus20.Valid && p.ISPlus20.Valid && p.IFMinus20.Valid) {
+		if !(p.IFPlus20.Valid && p.ISPlus20.Valid) {
 			continue
 		}
+
+		if !p.IFMinus20.Valid {
+			p.IFMinus20 = sql.NullFloat64{
+				Float64: NewApproximationTable(TableXY{
+					20: p.IFPlus20.Float64,
+				}).F(-20),
+				Valid: true,
+			}
+
+			if err := SetProductValue(p.ProductID, "i_f_minus20", p.IFMinus20.Float64); err != nil {
+				return err
+			}
+		}
+
 		ISMinus20 :=
 			p.IFMinus20.Float64 + (p.ISPlus20.Float64-p.IFPlus20.Float64)*k/100.
 		if err := SetProductValue(p.ProductID, "i_s_minus20", ISMinus20); err != nil {
