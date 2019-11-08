@@ -40,7 +40,7 @@ var (
 			ReadRangeDelay: 10 * time.Millisecond,
 			FinsNetwork: FinsNetwork{
 				MaxAttemptsRead: 20,
-				PollSec:         2,
+				Pause:           time.Second * 2,
 				TimeoutMS:       1000,
 				Server: FinsSettings{
 					IP:   "192.168.250.1",
@@ -105,8 +105,8 @@ const (
 
 type FinsNetwork struct {
 	MaxAttemptsRead int           `yaml:"max_attempts_read" comment:"число попыток получения ответа"`
-	TimeoutMS       int           `yaml:"timeout_ms" comment:"таймаут считывания, мс"`
-	PollSec         time.Duration `yaml:"poll_sec" comment:"пауза опроса, с"`
+	TimeoutMS       uint          `yaml:"timeout_ms" comment:"таймаут считывания, мс"`
+	Pause           time.Duration `yaml:"pause" comment:"пауза опроса, с"`
 	Server          FinsSettings  `yaml:"server" comment:"параметры ссервера omron fins"`
 	Client          FinsSettings  `yaml:"client" comment:"параметры клиента omron fins"`
 }
@@ -119,16 +119,12 @@ type FinsSettings struct {
 	FinsUnit byte   `yaml:"unit" comment:"fins unit"`
 }
 
-func (x AppConfig) WaitFlashStatusDelayMS() time.Duration {
-	return time.Duration(x.WaitFlashStatusDelay) * time.Millisecond
-}
-
 func (x FinsNetwork) NewFinsClient() (*fins.Client, error) {
 	c, err := fins.NewClient(x.Client.Address(), x.Server.Address())
 	if err != nil {
 		return nil, err
 	}
-	c.SetTimeoutMs(uint(x.TimeoutMS))
+	c.SetTimeoutMs(x.TimeoutMS)
 	return c, nil
 }
 

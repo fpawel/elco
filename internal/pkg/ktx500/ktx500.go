@@ -40,7 +40,7 @@ func TraceTemperature(notifyFunc func(info api.Ktx500Info), notifyErrorFunc func
 	}
 
 	for {
-		time.Sleep(time.Second * cfg.Get().FinsNetwork.PollSec)
+		time.Sleep(cfg.Get().FinsNetwork.Pause)
 
 		var y api.Ktx500Info
 		err = readInfo(&y)

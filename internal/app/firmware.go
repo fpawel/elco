@@ -205,7 +205,7 @@ func (hlp *helperWriteParty) writeBlock(x worker, products []*data.Product) erro
 			return err
 		}
 
-		time.Sleep(cfg.Get().WaitFlashStatusDelayMS())
+		time.Sleep(cfg.Get().WaitFlashStatusDelay)
 
 		if err := waitStatus45(x, block, placesMask); err != nil {
 			if e, ok := err.(errorStatus45); ok {
@@ -334,7 +334,7 @@ func writePlaceFirmware(x worker, place int, bytes []byte) error {
 		if err := writePreparedDataToFlash(x, block, placesMask, addr1, int(addr2-addr1+1)); err != nil {
 			return merry.Wrap(err)
 		}
-		time.Sleep(cfg.Get().WaitFlashStatusDelayMS())
+		time.Sleep(cfg.Get().WaitFlashStatusDelay)
 		if err := waitStatus45(x, block, placesMask); err != nil {
 			return merry.Wrap(err)
 		}
