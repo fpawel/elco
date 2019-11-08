@@ -16,13 +16,16 @@ import (
 var (
 	config = func() AppConfig {
 		def := AppConfig{
-			ChipType:               Chip16,
-			ComportName:            "COM1",
-			ComportGasName:         "COM2",
-			BlowGasMinutes:         5,
-			HoldTemperatureMinutes: 120,
-			WaitFlashStatusDelay:   time.Second,
-			ReadBlockPause:         time.Second,
+			PublicAppConfig: PublicAppConfig{
+				ChipType:               Chip16,
+				ComportName:            "COM1",
+				ComportGasName:         "COM2",
+				BlowGasMinutes:         5,
+				HoldTemperatureMinutes: 120,
+			},
+
+			WaitFlashStatusDelay: time.Second,
+			ReadBlockPause:       time.Second,
 			ComportGas: comm.Config{
 				TimeoutEndResponse: 50 * time.Millisecond,
 				TimeoutGetResponse: time.Second,
@@ -70,22 +73,26 @@ var (
 	mu sync.Mutex
 )
 
+type PublicAppConfig struct {
+	ComportName            string   `yaml:"comport_name"`
+	ComportGasName         string   `yaml:"comport_gas_name"`
+	LogComm                bool     `yaml:"log_comm"`
+	ChipType               ChipType `yaml:"chip_typ"`
+	AmbientTemperature     float64  `yaml:"ambient_temperature"`
+	BlowGasMinutes         int      `yaml:"blow_gas_minutes"`
+	HoldTemperatureMinutes int      `yaml:"hold_temperature_minutes"`
+	EndScaleGas2           bool     `yaml:"end_scale_gas2"`
+}
+
 type AppConfig struct {
-	ComportName            string        `yaml:"comport_name"`
-	ComportGasName         string        `yaml:"comport_gas_name"`
-	LogComm                bool          `yaml:"log_comm"` // выводить посылки приёмопередачи в консоль
-	ChipType               ChipType      `yaml:"chip_typ"`
-	AmbientTemperature     float64       `yaml:"ambient_temperature"`
-	BlowGasMinutes         int           `yaml:"blow_gas_minutes"`
-	HoldTemperatureMinutes int           `yaml:"hold_temperature_minutes"`
-	EndScaleGas2           bool          `yaml:"end_scale_gas2"`
-	FinsNetwork            FinsNetwork   `yaml:"fins" comment:"параметры протокола связи с теромкамерой"`
-	Comport                comm.Config   `yaml:"comport" comment:"настройки приёмопередачи стенда"`
-	ComportGas             comm.Config   `yaml:"gas_block" comment:"настройки приёмопередачи газового блока"`
-	StatusTimeout          time.Duration `yaml:"status_timeout" comment:"таймаут статуса прошивки, с"`
-	ReadRangeDelay         time.Duration `yaml:"read_range_delay" comment:"задержка при считывании диапазонов, мс"`
-	WaitFlashStatusDelay   time.Duration `yaml:"wait_flash_status_delay" comment:"задержка при считывании статуса записи, мс"`
-	ReadBlockPause         time.Duration `yaml:"read_block_pause" comment:"задержка между опросом блоков измерительных, с"`
+	PublicAppConfig      `yaml:"public"`
+	FinsNetwork          FinsNetwork   `yaml:"fins" comment:"параметры протокола связи с теромкамерой"`
+	Comport              comm.Config   `yaml:"comport" comment:"настройки приёмопередачи стенда"`
+	ComportGas           comm.Config   `yaml:"gas_block" comment:"настройки приёмопередачи газового блока"`
+	StatusTimeout        time.Duration `yaml:"status_timeout" comment:"таймаут статуса прошивки, с"`
+	ReadRangeDelay       time.Duration `yaml:"read_range_delay" comment:"задержка при считывании диапазонов, мс"`
+	WaitFlashStatusDelay time.Duration `yaml:"wait_flash_status_delay" comment:"задержка при считывании статуса записи, мс"`
+	ReadBlockPause       time.Duration `yaml:"read_block_pause" comment:"задержка между опросом блоков измерительных, с"`
 }
 
 type ChipType string

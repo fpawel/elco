@@ -6,13 +6,15 @@ import (
 
 type ConfigSvc struct{}
 
-func (_ *ConfigSvc) GetConfig(_ struct{}, r *cfg.AppConfig) error {
-	*r = cfg.Get()
+func (_ *ConfigSvc) GetConfig(_ struct{}, r *cfg.PublicAppConfig) error {
+	*r = cfg.Get().PublicAppConfig
 	return nil
 }
 
-func (_ *ConfigSvc) SetConfig(r struct{ C cfg.AppConfig }, _ *struct{}) error {
-	cfg.Set(r.C)
+func (_ *ConfigSvc) SetConfig(r struct{ C cfg.PublicAppConfig }, _ *struct{}) error {
+	c := cfg.Get()
+	c.PublicAppConfig = r.C
+	cfg.Set(c)
 	return nil
 }
 

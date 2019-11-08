@@ -6,25 +6,28 @@ require (
 	github.com/AlekSi/pointer v1.1.0 // indirect
 	github.com/ansel1/merry v1.5.0
 	github.com/denisenkom/go-mssqldb v0.0.0-20191001013358-cfbb681360f0 // indirect
-	github.com/fpawel/comm v0.0.0-20191031130221-869a774b1a32
+	github.com/fpawel/comm v0.0.0-20191031131148-81f4523d4a3a
 	github.com/fpawel/gofins v0.0.0-20190517135525-2c568bd32bf8
-	github.com/fpawel/gotools v0.0.0-20191021181518-e44cd9665770
+	github.com/fpawel/gotools v0.0.0-20191030125146-1d6c7465834c
 	github.com/getlantern/golog v0.0.0-20190830074920-4ef2e798c2d7 // indirect
-	github.com/getlantern/systray v0.0.0-20190727060347-6f0e5a3c556c
+	github.com/getlantern/systray v0.0.0-20191102120558-baeca33b8639
+	github.com/gopherjs/gopherjs v0.0.0-20191106031601-ce3c9ade29de // indirect
 	github.com/hako/durafmt v0.0.0-20191009132224-3f39dc1ed9f4
 	github.com/jmoiron/sqlx v1.2.0
-	github.com/jung-kurt/gofpdf v1.12.6
-	github.com/lxn/walk v0.0.0-20191028163608-b5318414da6b
-	github.com/lxn/win v0.0.0-20191024121223-cc00c7492fe1
+	github.com/jung-kurt/gofpdf v1.14.1
+	github.com/lxn/walk v0.0.0-20191106172653-8c6cb582c05e
+	github.com/lxn/win v0.0.0-20191106123917-121afc750dd3
 	github.com/mattn/go-sqlite3 v1.11.0
 	github.com/pkg/errors v0.8.1
+	github.com/powerman/check v1.2.1 // indirect
 	github.com/powerman/rpc-codec v1.1.3
 	github.com/powerman/structlog v0.6.0
 	github.com/prataprc/goparsec v0.0.0-20180806094145-2600a2a4a410
-	github.com/valyala/quicktemplate v1.3.1
-	golang.org/x/crypto v0.0.0-20191029031824-8986dd9e96cf // indirect
-	golang.org/x/sys v0.0.0-20191028164358-195ce5e7f934
+	github.com/valyala/quicktemplate v1.4.1
+	golang.org/x/crypto v0.0.0-20191107222254-f4817d981bb6 // indirect
+	golang.org/x/sys v0.0.0-20191105231009-c1f44814a5cd
 	gopkg.in/reform.v1 v1.3.3
-	gopkg.in/yaml.v3 v3.0.0-20191026110619-0b21df46bc1d
+	gopkg.in/yaml.v2 v2.2.5 // indirect
+	gopkg.in/yaml.v3 v3.0.0-20191107175235-0b070bb63a18
 	syreclabs.com/go/faker v1.2.0 // indirect
 )
