@@ -20,6 +20,7 @@ var (
 				ChipType:               Chip16,
 				ComportName:            "COM1",
 				ComportGasName:         "COM2",
+				ComportName2:           "COM1",
 				BlowGasMinutes:         5,
 				HoldTemperatureMinutes: 120,
 			},
@@ -76,6 +77,7 @@ var (
 type PublicAppConfig struct {
 	ComportName            string   `yaml:"comport_name"`
 	ComportGasName         string   `yaml:"comport_gas_name"`
+	ComportName2           string   `yaml:"comport_name2"`
 	LogComm                bool     `yaml:"log_comm"`
 	ChipType               ChipType `yaml:"chip_typ"`
 	AmbientTemperature     float64  `yaml:"ambient_temperature"`
@@ -143,27 +145,6 @@ func (x ChipType) Code() byte {
 	default:
 		panic("bad chip type")
 	}
-}
-
-func SetYAML(strYaml string) error {
-	if err := yaml.Unmarshal([]byte(strYaml), &config); err != nil {
-		return err
-	}
-
-	mu.Lock()
-	defer mu.Unlock()
-
-	comm.SetEnableLog(config.LogComm)
-	must.WriteFile(filename(), []byte(strYaml), 0666)
-	return nil
-}
-
-func GetYAML() string {
-	mu.Lock()
-	defer mu.Unlock()
-	data, err := yaml.Marshal(&config)
-	must.PanicIf(err)
-	return string(data)
 }
 
 func Set(v AppConfig) {

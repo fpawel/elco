@@ -11,7 +11,7 @@ import (
 )
 
 func (x worker) SwitchGasOffInEnd() {
-	if !x.portGas.Opened() {
+	if !x.comportGas.Opened() {
 		return
 	}
 	_ = x.perform("отключить газ по завершении", func(x worker) error {

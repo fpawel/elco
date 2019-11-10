@@ -115,10 +115,10 @@ func (_ runner) RunMain(nku, variation, minus, plus bool) {
 		defer func() {
 			_ = x.perform("остановка работы оборудования", func(x worker) error {
 				x.ctx = context.Background()
-				x.log.ErrIfFail(x.portMeasurer.Close, "main_work_close", "`закрыть СОМ-порт стенда`")
-				if x.portGas.Opened() {
+				x.log.ErrIfFail(x.comport.Close, "main_work_close", "`закрыть СОМ-порт стенда`")
+				if x.comportGas.Opened() {
 					x.log.ErrIfFail(x.switchGasOff, "main_work_close", "`отключить газ`")
-					x.log.ErrIfFail(x.portGas.Close, "main_work_close", "`закрыть СОМ-порт пневмоблока`")
+					x.log.ErrIfFail(x.comportGas.Close, "main_work_close", "`закрыть СОМ-порт пневмоблока`")
 				}
 				if i, err := ktx500.GetLast(); err == nil {
 					if i.TemperatureOn {
@@ -136,7 +136,7 @@ func (_ runner) RunMain(nku, variation, minus, plus bool) {
 			})
 		}()
 
-		if err := x.portMeasurer.Open(); err != nil {
+		if err := x.comport.Open(); err != nil {
 			return err
 		}
 
@@ -253,8 +253,8 @@ func runWork(workName string, work func(x worker) error) {
 
 	go func() {
 		defer func() {
-			log.ErrIfFail(worker.portMeasurer.Close)
-			log.ErrIfFail(worker.portGas.Close)
+			log.ErrIfFail(worker.comport.Close)
+			log.ErrIfFail(worker.comportGas.Close)
 			wgWork.Done()
 		}()
 

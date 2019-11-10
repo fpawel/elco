@@ -88,6 +88,20 @@ func ProductTypeNames() []string {
 	}
 	return r
 }
+
+func ListProductTypes() []ProductType {
+	records, err := DB.SelectAllFrom(ProductTypeTable, "")
+	if err != nil {
+		panic(err)
+	}
+	var productTypes []ProductType
+	for _, r := range records {
+		x := r.(*ProductType)
+		productTypes = append(productTypes, *x)
+	}
+	return productTypes
+}
+
 func ListUnits() []Units {
 	records, err := DB.SelectAllFrom(UnitsTable, "")
 	if err != nil {
@@ -101,7 +115,7 @@ func ListUnits() []Units {
 	return units
 }
 
-func Gases() []Gas {
+func ListGases() []Gas {
 	records, err := DB.SelectAllFrom(GasTable, "")
 	if err != nil {
 		panic(err)

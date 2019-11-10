@@ -14,23 +14,7 @@ func (_ *LastPartySvc) Party(_ struct{}, r *Party1) error {
 }
 
 func (_ *LastPartySvc) GetValues(_ struct{}, p *Party3) error {
-	x := data.LastParty()
-	p.ProductTypeName = x.ProductTypeName
-	p.Concentration1 = x.Concentration1
-	p.Concentration2 = x.Concentration2
-	p.Concentration3 = x.Concentration3
-	p.Note = x.Note
-	p.MinFon = x.MinFon
-	p.MaxFon = x.MaxFon
-	p.MaxDFon = x.MaxDFon
-	p.MinKSens20 = x.MinKSens20
-	p.MaxKSens20 = x.MaxKSens20
-	p.MinKSens50 = x.MinKSens50
-	p.MaxKSens50 = x.MaxKSens50
-	p.MinDTemp = x.MinDTemp
-	p.MaxDTemp = x.MaxDTemp
-	p.MaxDNotMeasured = x.MaxDNotMeasured
-	p.PointsMethod = x.PointsMethod
+	*p = newParty3(data.LastParty())
 	return nil
 }
 
@@ -59,47 +43,35 @@ func (_ *LastPartySvc) SetProductType(ptName [1]string, _ *struct{}) error {
 func (_ *LastPartySvc) SetValues(r struct{ P Party3 }, _ *struct{}) error {
 	x := r.P
 
+	p := data.LastParty()
+	x.SetupDataParty(&p)
+	if err := data.DB.Save(&p); err != nil {
+		return err
+	}
+
 	var pt data.ProductType
 
 	if err := data.DB.FindByPrimaryKeyTo(&pt, x.ProductTypeName); err != nil {
 		return err
 	}
 
-	pt.MinFon = x.MinFon
-	pt.MaxFon = x.MaxFon
-	pt.MaxDFon = x.MaxDFon
-	pt.MinKSens20 = x.MinKSens20
-	pt.MaxKSens20 = x.MaxKSens20
-	pt.MinKSens50 = x.MinKSens50
-	pt.MaxKSens50 = x.MaxKSens50
-	pt.MinDTemp = x.MinDTemp
-	pt.MaxDTemp = x.MaxDTemp
-	pt.MaxDNotMeasured = x.MaxDNotMeasured
+	pt.MinFon = p.MinFon
+	pt.MaxFon = p.MaxFon
+	pt.MaxDFon = p.MaxDFon
+	pt.MinKSens20 = p.MinKSens20
+	pt.MaxKSens20 = p.MaxKSens20
+	pt.MinKSens50 = p.MinKSens50
+	pt.MaxKSens50 = p.MaxKSens50
+	pt.MinDTemp = p.MinDTemp
+	pt.MaxDTemp = p.MaxDTemp
+	pt.MaxDNotMeasured = p.MaxDNotMeasured
 	pt.PointsMethod = x.PointsMethod
 
 	if err := data.DB.Save(&pt); err != nil {
 		return err
 	}
 
-	p := data.LastParty()
-
-	p.ProductTypeName = x.ProductTypeName
-	p.Concentration1 = x.Concentration1
-	p.Concentration2 = x.Concentration2
-	p.Concentration3 = x.Concentration3
-	p.Note = x.Note
-	p.MinFon = x.MinFon
-	p.MaxFon = x.MaxFon
-	p.MaxDFon = x.MaxDFon
-	p.MinKSens20 = x.MinKSens20
-	p.MaxKSens20 = x.MaxKSens20
-	p.MinKSens50 = x.MinKSens50
-	p.MaxKSens50 = x.MaxKSens50
-	p.MinDTemp = x.MinDTemp
-	p.MaxDTemp = x.MaxDTemp
-	p.MaxDNotMeasured = x.MaxDNotMeasured
-	p.PointsMethod = x.PointsMethod
-	return data.DB.Save(&p)
+	return nil
 }
 
 func (x *LastPartySvc) PartyID(_ struct{}, r *int64) error {

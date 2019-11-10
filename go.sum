@@ -61,6 +61,7 @@ github.com/gopherjs/gopherjs v0.0.0-20191106031601-ce3c9ade29de h1:F7WD09S8QB4Lr
 github.com/gopherjs/gopherjs v0.0.0-20191106031601-ce3c9ade29de/go.mod h1:wJfORRmW1u3UXTncJ5qlYoELFm8eSnnEO6hX4iZ3EWY=
 github.com/hako/durafmt v0.0.0-20191009132224-3f39dc1ed9f4 h1:60gBOooTSmNtrqNaRvrDbi8VAne0REaek2agjnITKSw=
 github.com/hako/durafmt v0.0.0-20191009132224-3f39dc1ed9f4/go.mod h1:5Scbynm8dF1XAPwIwkGPqzkM/shndPm79Jd1003hTjE=
+github.com/iancoleman/strcase v0.0.0-20190422225806-e506e3ef7365 h1:ECW73yc9MY7935nNYXUkK7Dz17YuSUI9yqRqYS8aBww=
 github.com/iancoleman/strcase v0.0.0-20190422225806-e506e3ef7365/go.mod h1:SK73tn/9oHe+/Y0h39VT4UCxmurVJkR5NA7kMEAOgSE=
 github.com/jmoiron/sqlx v1.2.0 h1:41Ip0zITnmWNR/vHV+S4m+VoUivnWY5E4OJfLZjCJMA=
 github.com/jmoiron/sqlx v1.2.0/go.mod h1:1FEQNm3xlJgrMD+FBdI9+xvCksHtbpVBBw5dYhBSsks=

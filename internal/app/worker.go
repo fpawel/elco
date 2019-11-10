@@ -18,36 +18,54 @@ type worker struct {
 	log             *structlog.Logger
 	ctx             context.Context
 	works           []string
-	portMeasurer    *comport.Port
-	portGas         *comport.Port
+	comport         *comport.Port
+	comport2        *comport.Port
+	comportGas      *comport.Port
 	lastGas         *int
 	lastTemperature *float64
 }
 
 func newWorker(ctx context.Context, name string) worker {
-	return worker{
+	c := cfg.Get()
+	x := worker{
 		log:   pkg.NewLogWithSuffixKeys("work", fmt.Sprintf("`%s`", name)),
 		ctx:   ctx,
 		works: []string{name},
-		portMeasurer: comport.NewPort(
+		comport: comport.NewPort(
 			comport.Config{
 				Baud:        115200,
 				ReadTimeout: time.Millisecond,
-				Name:        cfg.Get().ComportName,
+				Name:        c.ComportName,
 			}),
-		portGas: comport.NewPort(comport.Config{
+
+		comportGas: comport.NewPort(comport.Config{
 			Baud:        9600,
 			ReadTimeout: time.Millisecond,
-			Name:        cfg.Get().ComportGasName,
+			Name:        c.ComportGasName,
 		}),
 	}
+	if c.ComportName == c.ComportName2 {
+		x.comport2 = x.comport
+	} else {
+		x.comport2 = comport.NewPort(
+			comport.Config{
+				Baud:        115200,
+				ReadTimeout: time.Millisecond,
+				Name:        c.ComportName2,
+			})
+	}
+	return x
 }
 
-func (x worker) ReaderMeasurer() modbus.ResponseReader {
-	return x.portMeasurer.NewResponseReader(x.ctx, cfg.Get().Comport)
+func (x worker) Reader2() modbus.ResponseReader {
+	return x.comport2.NewResponseReader(x.ctx, cfg.Get().Comport)
+}
+
+func (x worker) Reader1() modbus.ResponseReader {
+	return x.comport.NewResponseReader(x.ctx, cfg.Get().Comport)
 }
 func (x worker) ReaderGas() modbus.ResponseReader {
-	return x.portGas.NewResponseReader(x.ctx, cfg.Get().ComportGas)
+	return x.comportGas.NewResponseReader(x.ctx, cfg.Get().ComportGas)
 }
 
 func (x worker) withLogKeys(keyvals ...interface{}) worker {

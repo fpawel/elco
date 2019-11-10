@@ -57,7 +57,7 @@ func setupTemperature(x worker, destinationTemperature float64) error {
 
 func readBlockMeasure(x worker, block int) ([]float64, error) {
 	x.log = pkg.LogPrependSuffixKeys(x.log, "блок", block)
-	values, err := modbus.Read3BCDs(x.log, x.ReaderMeasurer(), modbus.Addr(block+101), 0, 8)
+	values, err := modbus.Read3BCDs(x.log, x.Reader1(), modbus.Addr(block+101), 0, 8)
 	if err == nil {
 		notify.ReadCurrent(nil, api.ReadCurrent{
 			Block:  block,

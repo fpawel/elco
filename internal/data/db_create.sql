@@ -40,6 +40,17 @@ CREATE TABLE IF NOT EXISTS product_type
     FOREIGN KEY (units_name) REFERENCES units (units_name)
 );
 
+CREATE TABLE IF NOT EXISTS product_type_current
+(
+    product_type_name   TEXT NOT NULL,
+    temperature REAL NOT NULL,
+    fon BOOLEAN NOT NULL,
+    current REAL NOT NULL,
+    PRIMARY KEY (product_type_name, temperature, fon),
+    CHECK ( fon IN (0,1) ),
+    FOREIGN KEY (product_type_name) REFERENCES product_type (product_type_name) ON DELETE CASCADE ON UPDATE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS party
 (
     party_id           INTEGER PRIMARY KEY NOT NULL,

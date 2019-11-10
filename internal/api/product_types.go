@@ -13,7 +13,7 @@ func (x *ProductTypesSvc) Names(_ struct{}, r *[]string) (err error) {
 }
 
 func (x *ProductTypesSvc) Gases(_ struct{}, r *[]string) error {
-	for _, g := range data.Gases() {
+	for _, g := range data.ListGases() {
 		*r = append(*r, g.GasName)
 	}
 	return nil

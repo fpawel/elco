@@ -270,7 +270,7 @@ func (x FirmwareBytes) FirmwareInfo(place int) FirmwareInfo {
 			break
 		}
 	}
-	for _, a := range Gases() {
+	for _, a := range ListGases() {
 		if a.Code == x[0x0600] {
 			r.Gas = a.GasName
 			break
