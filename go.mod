@@ -24,7 +24,7 @@ require (
 	github.com/powerman/structlog v0.6.0
 	github.com/prataprc/goparsec v0.0.0-20180806094145-2600a2a4a410
 	github.com/valyala/quicktemplate v1.4.1
-	golang.org/x/crypto v0.0.0-20191107222254-f4817d981bb6 // indirect
+	golang.org/x/crypto v0.0.0-20191108234033-bd318be0434a // indirect
 	golang.org/x/sys v0.0.0-20191105231009-c1f44814a5cd
 	gopkg.in/reform.v1 v1.3.3
 	gopkg.in/yaml.v2 v2.2.5 // indirect

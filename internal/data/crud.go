@@ -3,20 +3,11 @@ package data
 import (
 	"database/sql"
 	"fmt"
-	"github.com/ansel1/merry"
 	"gopkg.in/reform.v1"
 	"time"
 )
 
 //go:generate go run github.com/fpawel/gotools/cmd/sqlstr/...
-
-func EnsureProductTypeName(productTypeName string) error {
-	_, err := DB.Exec(`
-INSERT OR IGNORE INTO product_type 
-  (product_type_name, gas_name, units_name, scale, noble_metal_content, lifetime_months)
-VALUES (?, 'CO', 'мг/м3', 200, 0.1626, 18)`, productTypeName)
-	return merry.Wrap(err)
-}
 
 func SetOnlyOkProductsProduction() {
 	DBx.MustExec(`
@@ -87,19 +78,6 @@ func ProductTypeNames() []string {
 		r = append(r, x.(*ProductType).ProductTypeName)
 	}
 	return r
-}
-
-func ListProductTypes() []ProductType {
-	records, err := DB.SelectAllFrom(ProductTypeTable, "")
-	if err != nil {
-		panic(err)
-	}
-	var productTypes []ProductType
-	for _, r := range records {
-		x := r.(*ProductType)
-		productTypes = append(productTypes, *x)
-	}
-	return productTypes
 }
 
 func ListUnits() []Units {

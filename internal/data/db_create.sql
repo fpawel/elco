@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS product_type
     min_d_temp          REAL,
     max_d_temp          REAL,
     max_d_not_measured  REAL,
+    k_sens20            REAL,
 
     FOREIGN KEY (gas_name) REFERENCES gas (gas_name),
     FOREIGN KEY (units_name) REFERENCES units (units_name)
@@ -42,12 +43,11 @@ CREATE TABLE IF NOT EXISTS product_type
 
 CREATE TABLE IF NOT EXISTS product_type_current
 (
-    product_type_name   TEXT NOT NULL,
-    temperature REAL NOT NULL,
-    fon BOOLEAN NOT NULL,
-    current REAL NOT NULL,
-    PRIMARY KEY (product_type_name, temperature, fon),
-    CHECK ( fon IN (0,1) ),
+    product_type_name TEXT NOT NULL,
+    temperature       REAL NOT NULL,
+    fon               REAL,
+    sens              REAL,
+    PRIMARY KEY (product_type_name, temperature),
     FOREIGN KEY (product_type_name) REFERENCES product_type (product_type_name) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
@@ -124,12 +124,12 @@ CREATE TABLE IF NOT EXISTS product
 CREATE TABLE IF NOT EXISTS product_current
 (
     product_current_id INTEGER PRIMARY KEY NOT NULL,
-    stored_at TIMESTAMP NOT NULL DEFAULT (DATETIME('now')),
-    product_id        INTEGER NOT NULL,
-    temperature REAL NOT NULL,
-    gas INTEGER NOT NULL,
-    current_value REAL NOT NULL,
-    note TEXT NOT NULL,
+    stored_at          TIMESTAMP           NOT NULL DEFAULT (DATETIME('now')),
+    product_id         INTEGER             NOT NULL,
+    temperature        REAL                NOT NULL,
+    gas                INTEGER             NOT NULL,
+    current_value      REAL                NOT NULL,
+    note               TEXT                NOT NULL,
     FOREIGN KEY (product_id) REFERENCES product (product_id)
         ON DELETE CASCADE
 );
@@ -225,9 +225,9 @@ SELECT q.*,
 
        q.max_d_fon ISNULL OR (d_fon20 NOTNULL) AND abs(d_fon20) < q.max_d_fon    AS ok_d_fon20,
 
-       q.min_k_sens20 ISNULL OR (k_sens20 NOTNULL) AND k_sens20 > q.min_k_sens20 AS ok_min_k_sens20,
+       q.min_k_sens20 ISNULL OR (q.k_sens20 NOTNULL) AND q.k_sens20 > q.min_k_sens20 AS ok_min_k_sens20,
 
-       q.max_k_sens20 ISNULL OR (k_sens20 NOTNULL) AND k_sens20 < q.max_k_sens20 AS ok_max_k_sens20,
+       q.max_k_sens20 ISNULL OR (q.k_sens20 NOTNULL) AND q.k_sens20 < q.max_k_sens20 AS ok_max_k_sens20,
 
        q.min_k_sens50 ISNULL OR (k_sens50 NOTNULL) AND k_sens50 > q.min_k_sens50 AS ok_min_k_sens50,
 

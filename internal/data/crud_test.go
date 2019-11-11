@@ -5,7 +5,6 @@ import (
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
 	"io/ioutil"
-	"log"
 	"os"
 	"sync"
 	"testing"

@@ -5,12 +5,10 @@ import (
 	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/elco/internal/data"
-	"github.com/fpawel/elco/internal/pkg/winapp"
 	"github.com/jung-kurt/gofpdf"
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"os/user"
 	"path/filepath"
 	"strconv"
 )
@@ -78,10 +76,7 @@ func RunPartyID(partyID int64) error {
 }
 
 func newDoc() (*gofpdf.Fpdf, error) {
-	fontDir, err := ensureFontDir()
-	if err != nil {
-		return nil, err
-	}
+	fontDir := fontDir()
 	d := gofpdf.New("P", "mm", "A4", fontDir)
 	d.AddFont("RobotoCondensed", "", "RobotoCondensed-Regular.json")
 	d.AddFont("RobotoCondensed", "B", "RobotoCondensed-Bold.json")
@@ -97,15 +92,12 @@ func newDoc() (*gofpdf.Fpdf, error) {
 }
 
 func prepareDir() (string, error) {
-	usr, err := user.Current()
-	if err != nil {
-		return "", merry.WithMessage(err, "unable to locate user home catalogue")
-	}
-	dir := filepath.Join(usr.HomeDir, ".elco", "pdf")
+
+	dir := filepath.Join(filepath.Dir(os.Args[0]), "pdf")
 	_ = os.RemoveAll(dir)
 	_ = os.MkdirAll(dir, os.ModePerm)
 
-	dir, err = ioutil.TempDir(dir, "~")
+	dir, err := ioutil.TempDir(dir, "~")
 	if err != nil {
 		return "", merry.WithMessage(err, "unable to create directory for pdf")
 	}
@@ -125,8 +117,8 @@ func saveAndShowDoc(d *gofpdf.Fpdf, dir, fileName string) error {
 	return nil
 }
 
-func ensureFontDir() (string, error) {
-	return winapp.ProfileFolderPath(".elco", "assets", "fonts")
+func fontDir() string {
+	return filepath.Join(filepath.Dir(os.Args[0]), "assets", "fonts")
 }
 
 func formatNullInt64(v sql.NullInt64) string {

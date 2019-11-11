@@ -7,6 +7,7 @@ import (
 	"github.com/ansel1/merry"
 	"github.com/fpawel/comm/modbus"
 	"github.com/fpawel/elco/internal/pkg/delphi"
+	"github.com/fpawel/elco/internal/pkg/must"
 	"math"
 	"strconv"
 	"time"
@@ -42,6 +43,12 @@ type FirmwareInfo struct {
 	ISPlus50 string
 }
 
+type ProductTypeTempPoint struct {
+	T    float64 `db:"temperature"`
+	Fon  float64 `db:"fon"`
+	Sens float64 `db:"sens"`
+}
+
 const FirmwareSize = 1832
 
 type FirmwareBytes []byte
@@ -61,19 +68,20 @@ func (s Product) FirmwareBytes() (b FirmwareBytes, err error) {
 
 func (s ProductInfo) FirmwareInfo() FirmwareInfo {
 	x := FirmwareInfo{
+		TempPoints:   TempPoints{},
 		Place:        s.Place,
+		CreatedAt:    delphi.NewDateTime(s.CreatedAt),
+		Sensitivity:  formatNullFloat64(s.KSens20, 3),
+		Sensitivity1: formatNullFloat64(s.KSens20, 3),
+		Serial:       formatNullInt64(s.Serial),
+		ProductType:  s.AppliedProductTypeName,
 		Gas:          s.GasName,
 		Units:        s.UnitsName,
 		ScaleBeg:     "0",
 		ScaleEnd:     fmt.Sprintf("%v", s.Scale),
-		ProductType:  s.AppliedProductTypeName,
-		Serial:       formatNullInt64(s.Serial),
-		CreatedAt:    delphi.NewDateTime(s.CreatedAt),
-		Sensitivity:  formatNullFloat64(s.KSens20, 3),
-		Sensitivity1: formatNullFloat64(s.KSens20, 3),
 		IFPlus20:     formatNullFloat64K(s.IFPlus20, 1000, -1),
-		ISPlus20:     formatNullFloat64K(s.ISPlus20, 1000, -1),
 		ISMinus20:    formatNullFloat64K(s.ISMinus20, 1000, -1),
+		ISPlus20:     formatNullFloat64K(s.ISPlus20, 1000, -1),
 		ISPlus50:     formatNullFloat64K(s.ISPlus50, 1000, -1),
 	}
 
@@ -87,6 +95,14 @@ func (s ProductInfo) FirmwareInfo() FirmwareInfo {
 		}
 	}
 	return x
+}
+
+func FetchProductTypeTempPoints(productTypeName string) (productTypeTempPoints []ProductTypeTempPoint) {
+	err := DBx.Select(&productTypeTempPoints,
+		`SELECT temperature, fon, sens FROM product_type_current WHERE product_type_name=? ORDER BY temperature`,
+		productTypeName)
+	must.PanicIf(err)
+	return
 }
 
 func (s ProductInfo) Firmware() (x Firmware, err error) {

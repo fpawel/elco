@@ -134,6 +134,77 @@ func (x *PlaceFirmware) TempPoints(v TempValues, r *data.TempPoints) error {
 	return nil
 }
 
+func (x *PlaceFirmware) CalculateFirmwareByProductType(y struct {
+	ProductTypeName string
+	Place           int
+	Serial          int
+}, r *data.FirmwareInfo) error {
+
+	var productType data.ProductType
+	if err := data.DB.FindByPrimaryKeyTo(&productType, y.ProductTypeName); err != nil {
+		if err != sql.ErrNoRows {
+			return err
+		}
+		if err := data.DB.FindByPrimaryKeyTo(&productType, "035"); err != nil {
+			return err
+		}
+		productType.ProductTypeName = y.ProductTypeName
+		if err := data.DB.Save(&productType); err != nil {
+			return err
+		}
+	}
+
+	party := data.LastParty()
+
+	var product data.Product
+	err := data.DB.SelectOneTo(&product, "WHERE party_id = ? AND place = ?", party.PartyID, y.Place)
+	if err != nil {
+		if err != sql.ErrNoRows {
+			return err
+		}
+	}
+	product.PartyID = party.PartyID
+	product.Place = y.Place
+	product.Serial = sql.NullInt64{
+		Int64: int64(y.Serial),
+		Valid: true,
+	}
+	product.ProductTypeName = sql.NullString{}
+	if party.ProductTypeName != y.ProductTypeName {
+		product.ProductTypeName = sql.NullString{
+			String: y.ProductTypeName,
+			Valid:  true,
+		}
+	}
+
+	fonM, sensM := data.TableXY{}, data.TableXY{}
+	xs := data.FetchProductTypeTempPoints(y.ProductTypeName)
+	for _, x := range xs {
+		fonM[x.T] = x.Fon
+		sensM[x.T] = x.Sens
+	}
+	aFon := data.NewApproximationTable(fonM)
+	fon20 := aFon.F(20) / 1000
+
+	product.IFPlus20 = sql.NullFloat64{fon20, true}
+	//product.ISPlus20 = sql.NullFloat64{.F(20), true}
+
+	if err := data.DB.Save(&product); err != nil {
+		return err
+	}
+
+	var p data.ProductInfo
+	if err := data.DB.SelectOneTo(&p, "WHERE product_id = ?", product.ProductID); err != nil {
+		return err
+	}
+
+	*r = p.FirmwareInfo()
+	r.TempPoints = data.NewTempPoints(fonM, sensM)
+	r.Sensitivity = formatNullFloat64K(productType.KSens20, 1, 3)
+	r.Sensitivity1 = r.Sensitivity
+	return nil
+}
+
 func (x *PlaceFirmware) RunReadPlaceFirmware(place [1]int, _ *struct{}) error {
 	x.f.RunReadPlaceFirmware(place[0])
 	return nil
@@ -158,18 +229,32 @@ func (x *PlaceFirmware) SaveProductType(v struct{ X FirmwareInfo2 }, _ *struct{}
 	p.Scale = z.ScaleEnd
 	p.UnitsName = v.X.Units
 	p.GasName = v.X.Gas
-
+	if v, err := strconv.ParseFloat(v.X.Sensitivity, 64); err == nil {
+		p.KSens20 = sql.NullFloat64{v, true}
+	} else {
+		p.KSens20 = sql.NullFloat64{}
+	}
 	if err := data.DB.Save(&p); err != nil {
 		return err
 	}
 
 	for t, fon := range z.Fon {
-		data.DBx.MustExec(`INSERT OR REPLACE INTO product_type_current (product_type_name, temperature, fon, current) VALUES (?, ?, 1, ?)`,
-			p.ProductTypeName, t, fon)
+		data.DBx.MustExec(
+			`
+INSERT INTO product_type_current (product_type_name, temperature, fon) VALUES (?, ?, ?)
+ON CONFLICT (product_type_name, temperature) DO UPDATE  
+    SET fon=? WHERE product_type_name = ? AND temperature = ?`,
+			p.ProductTypeName, t, fon,
+			fon, p.ProductTypeName, t)
 	}
 	for t, sens := range z.Sens {
-		data.DBx.MustExec(`INSERT OR REPLACE INTO product_type_current (product_type_name, temperature, fon, current) VALUES (?, ?, 0, ?)`,
-			p.ProductTypeName, t, sens)
+		data.DBx.MustExec(
+			`
+INSERT INTO product_type_current (product_type_name, temperature, sens) VALUES (?, ?, ?)
+ON CONFLICT (product_type_name, temperature) 
+    DO UPDATE SET sens=? WHERE product_type_name = ? AND temperature = ?`,
+			p.ProductTypeName, t, sens,
+			sens, p.ProductTypeName, t)
 	}
 	return nil
 }
@@ -223,4 +308,15 @@ func tempPoints(values []string, fonM data.TableXY, sensM data.TableXY) error {
 
 func parseFloat(s string) (float64, error) {
 	return strconv.ParseFloat(strings.Replace(s, ",", ".", -1), 64)
+}
+
+func formatNullFloat64K(v sql.NullFloat64, k float64, precision int) string {
+	if v.Valid {
+		return formatFloat(v.Float64*k, precision)
+	}
+	return ""
+}
+
+func formatFloat(v float64, precision int) string {
+	return strconv.FormatFloat(v, 'f', precision, 64)
 }
