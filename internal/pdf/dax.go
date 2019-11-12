@@ -1,14 +1,13 @@
 package pdf
 
 import (
-	"database/sql"
 	"fmt"
 	"github.com/fpawel/elco/internal/data"
 	"github.com/jung-kurt/gofpdf"
 	"strconv"
 )
 
-func passportDax(dir string, party data.Party, products []data.ProductInfo) error {
+func passportDax(dir string, products []data.ProductInfo) error {
 
 	d, err := newDoc()
 	if err != nil {
@@ -37,12 +36,12 @@ func passportDax(dir string, party data.Party, products []data.ProductInfo) erro
 			d.Ln(5)
 		}
 		y := d.GetY()
-		doPassportDax(d, spaceX, width, products[i], party)
+		doPassportDax(d, spaceX, width, products[i])
 		d.SetY(y)
 		if i == len(products)-1 {
 			break
 		}
-		doPassportDax(d, pageWidth/2., width, products[i+1], party)
+		doPassportDax(d, pageWidth/2., width, products[i+1])
 
 	}
 
@@ -53,7 +52,7 @@ func passportDax(dir string, party data.Party, products []data.ProductInfo) erro
 	return nil
 }
 
-func doPassportDax(d *gofpdf.Fpdf, left, width float64, p data.ProductInfo, party data.Party) {
+func doPassportDax(d *gofpdf.Fpdf, left, width float64, p data.ProductInfo) {
 
 	tr := d.UnicodeTranslatorFromDescriptor("cp1251")
 	sentence := func(familyStr, fontStyleStr string, fontSize float64, h float64, s string) {
@@ -144,37 +143,18 @@ func doPassportDax(d *gofpdf.Fpdf, left, width float64, p data.ProductInfo, part
 			formatNullFloat64Prec(p.I17, 3),
 			formatNullFloat64Prec(p.Variation, 2),
 		},
-		{"мг/м3", "", "", "", "", "", "", "", ""},
+		{"мг/м3",
+			"",
+			"",
+			formatNullFloat64Prec(p.D13, 2),
+			formatNullFloat64Prec(p.D24, 2),
+			formatNullFloat64Prec(p.D35, 2),
+			formatNullFloat64Prec(p.D26, 2),
+			formatNullFloat64Prec(p.D17, 2),
+			formatNullFloat64Prec(p.VariationConcentration, 2),
+		},
 	}
 	colWidths = []float64{9, 9.5, 9.5, 9.5, 9.5, 9.5, 9.5, 9.5, 9.5}
-
-	fon20, sens20 := p.IFPlus20.Float64, p.ISPlus20.Float64
-
-	if fon20 != sens20 {
-
-		dK := (party.Concentration3 - party.Concentration1) / (sens20 - fon20)
-
-		for i, x := range []struct {
-			sql.NullFloat64
-			PGS float64
-		}{
-			{p.I13, party.Concentration1},
-			{p.I24, party.Concentration2},
-			{p.I35, party.Concentration3},
-			{p.I26, party.Concentration2},
-			{p.I17, party.Concentration1},
-		} {
-			if x.Valid {
-				v := dK*(x.Float64-p.IFPlus20.Float64) - (x.PGS - party.Concentration1)
-				dax[2][3+i] = strconv.FormatFloat(v, 'f', 2, 64)
-			}
-		}
-		if p.Variation.Valid {
-			v := dK * (p.I26.Float64 - p.I24.Float64)
-			dax[2][8] = strconv.FormatFloat(v, 'f', 2, 64)
-		}
-	}
-
 	d.SetX(left)
 	d.SetFont("RobotoCondensed", "BI", 7)
 	d.CellFormat(0, lineSpace1, tr("Абсолютная погрешность и вариация показаний:"),

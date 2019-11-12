@@ -6,7 +6,7 @@ import (
 	"github.com/jung-kurt/gofpdf"
 )
 
-func passportSou(dir string, party data.Party, products []data.ProductInfo) error {
+func passportSou(dir string, products []data.ProductInfo) error {
 
 	d, err := newDoc()
 	if err != nil {

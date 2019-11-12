@@ -22,10 +22,6 @@ func pause(chDone <-chan struct{}, d time.Duration) {
 	}
 }
 
-func intSeconds(n int) time.Duration {
-	return time.Duration(n) * time.Second
-}
-
 func formatProducts(products []data.Product) (s string) {
 	var places []int
 	for _, p := range products {

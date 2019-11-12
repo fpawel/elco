@@ -3,6 +3,7 @@ package internal
 import (
 	"bufio"
 	"fmt"
+	"github.com/powerman/structlog"
 	parsec "github.com/prataprc/goparsec"
 	"strings"
 	"testing"
@@ -86,3 +87,5 @@ pause 12`
 		lineNo++
 	}
 }
+
+var log = structlog.New()

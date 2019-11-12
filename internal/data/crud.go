@@ -18,21 +18,31 @@ UPDATE product
 }
 
 func CreateNewParty() int64 {
+
+	var pt ProductType
+
+	if err := DB.FindByPrimaryKeyTo(&pt, "035"); err != nil {
+		panic(err)
+	}
+
 	party := Party{
 		CreatedAt:       time.Now(),
 		ProductTypeName: "035",
 		PointsMethod:    3,
 		Concentration1:  0,
-		Concentration2:  50,
-		Concentration3:  100,
-		MinFon:          sql.NullFloat64{-1, true},
-		MaxFon:          sql.NullFloat64{2, true},
-		MaxDFon:         sql.NullFloat64{3, true},
-		MinKSens20:      sql.NullFloat64{0.08, true},
-		MaxKSens20:      sql.NullFloat64{0.335, true},
-		MinKSens50:      sql.NullFloat64{110, true},
-		MaxKSens50:      sql.NullFloat64{150, true},
-		MaxDTemp:        sql.NullFloat64{3, true},
+		Concentration2:  100,
+		Concentration3:  200,
+		MinFon:          pt.MinFon,
+		MaxFon:          pt.MaxFon,
+		MaxDFon:         pt.MaxDFon,
+		MinKSens20:      pt.MinKSens20,
+		MaxKSens20:      pt.MaxKSens20,
+		MinKSens50:      pt.MinKSens50,
+		MaxKSens50:      pt.MaxKSens50,
+		MaxDTemp:        pt.MaxDTemp,
+		MaxD1:           pt.MaxD1,
+		MaxD2:           pt.MaxD2,
+		MaxD3:           pt.MaxD3,
 	}
 	if err := DB.Save(&party); err != nil {
 		panic(err)

@@ -37,6 +37,9 @@ func (_ *LastPartySvc) SetProductType(ptName [1]string, _ *struct{}) error {
 	p.MaxDTemp = pt.MaxDTemp
 	p.MaxDNotMeasured = pt.MaxDNotMeasured
 	p.PointsMethod = pt.PointsMethod
+	p.MaxD1 = pt.MaxD1
+	p.MaxD2 = pt.MaxD2
+	p.MaxD3 = pt.MaxD3
 	return data.DB.Save(&p)
 }
 
@@ -65,7 +68,10 @@ func (_ *LastPartySvc) SetValues(r struct{ P Party3 }, _ *struct{}) error {
 	pt.MinDTemp = p.MinDTemp
 	pt.MaxDTemp = p.MaxDTemp
 	pt.MaxDNotMeasured = p.MaxDNotMeasured
-	pt.PointsMethod = x.PointsMethod
+	pt.PointsMethod = p.PointsMethod
+	pt.MaxD1 = p.MaxD1
+	pt.MaxD2 = p.MaxD2
+	pt.MaxD3 = p.MaxD3
 
 	if err := data.DB.Save(&pt); err != nil {
 		return err

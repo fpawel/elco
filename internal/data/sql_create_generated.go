@@ -39,7 +39,9 @@ CREATE TABLE IF NOT EXISTS product_type
     max_d_temp          REAL,
     max_d_not_measured  REAL,
     k_sens20            REAL,
-
+    max_d1              REAL,
+    max_d2              REAL,
+    max_d3              REAL,
     FOREIGN KEY (gas_name) REFERENCES gas (gas_name),
     FOREIGN KEY (units_name) REFERENCES units (units_name)
 );
@@ -77,7 +79,9 @@ CREATE TABLE IF NOT EXISTS party
     min_d_temp         REAL,
     max_d_temp         REAL                         DEFAULT 3,
     max_d_not_measured REAL,
-
+    max_d1             REAL,
+    max_d2             REAL,
+    max_d3             REAL,
     FOREIGN KEY (product_type_name) REFERENCES product_type (product_type_name)
 );
 
@@ -191,6 +195,8 @@ SELECT product_id,
        round(not_measured, 3)                                                  AS not_measured,
 
        round(i26 - i24, 3)                                                     AS variation,
+       round((concentration3 - concentration1) *
+             (i26 - i24) / (i_s_plus20 - i_f_plus20), 3)                       AS variation_concentration,
 
        round(100 * (i_s_plus50 - i_f_plus50) / (i_s_plus20 - i_f_plus20), 3)   AS k_sens50,
        round(100 * (i_s_minus20 - i_f_minus20) / (i_s_plus20 - i_f_plus20), 3) AS k_sens_minus20,
@@ -212,10 +218,29 @@ SELECT product_id,
        round(max_k_sens50, 3)                                                  AS max_k_sens50,
        round(max_d_not_measured, 3)                                            AS max_d_not_measured,
        product.points_method                                                   AS points_method,
+       max_d1,
+       max_d2,
+       max_d3,
        (CASE (product.points_method ISNULL)
             WHEN 1 THEN party.points_method
             WHEN 0
-                THEN product.points_method END)                                AS applied_points_method
+                THEN product.points_method END)                                AS applied_points_method,
+       round((concentration3 - concentration1)
+                 * (i13 - i_f_plus20)
+                 / (i_s_plus20 - i_f_plus20) - concentration1, 3)                               AS d13,
+       round((concentration3 - concentration1)
+                 * (i24 - i_f_plus20)
+                 / (i_s_plus20 - i_f_plus20) - concentration2, 3)              AS d24,
+       round((concentration3 - concentration1)
+                 * (i35 - i_f_plus20)
+                 / (i_s_plus20 - i_f_plus20) - concentration3, 3)              AS d35,
+       round((concentration3 - concentration1)
+                 * (i26 - i_f_plus20)
+                 / (i_s_plus20 - i_f_plus20) - concentration2, 3)              AS d26,
+       round((concentration3 - concentration1)
+                 * (i17 - i_f_plus20)
+                 / (i_s_plus20 - i_f_plus20) - concentration1, 3)                               AS d17
+
 
 FROM product
          INNER JOIN party ON party.party_id = product.party_id;
@@ -224,30 +249,36 @@ DROP VIEW IF EXISTS product_info_2;
 CREATE VIEW IF NOT EXISTS product_info_2 AS
 SELECT q.*,
 
-       q.max_d_temp ISNULL OR (d_fon50 NOTNULL) AND abs(d_fon50) < q.max_d_temp  AS ok_d_fon50,
+       q.max_d_temp ISNULL OR (d_fon50 NOTNULL) AND abs(d_fon50) < q.max_d_temp      AS ok_d_fon50,
 
-       q.max_d_fon ISNULL OR (d_fon20 NOTNULL) AND abs(d_fon20) < q.max_d_fon    AS ok_d_fon20,
+       q.max_d_fon ISNULL OR (d_fon20 NOTNULL) AND abs(d_fon20) < q.max_d_fon        AS ok_d_fon20,
 
        q.min_k_sens20 ISNULL OR (q.k_sens20 NOTNULL) AND q.k_sens20 > q.min_k_sens20 AS ok_min_k_sens20,
 
        q.max_k_sens20 ISNULL OR (q.k_sens20 NOTNULL) AND q.k_sens20 < q.max_k_sens20 AS ok_max_k_sens20,
 
-       q.min_k_sens50 ISNULL OR (k_sens50 NOTNULL) AND k_sens50 > q.min_k_sens50 AS ok_min_k_sens50,
+       q.min_k_sens50 ISNULL OR (k_sens50 NOTNULL) AND k_sens50 > q.min_k_sens50     AS ok_min_k_sens50,
 
-       q.max_k_sens50 ISNULL OR (k_sens50 NOTNULL) AND k_sens50 < q.max_k_sens50 AS ok_max_k_sens50,
+       q.max_k_sens50 ISNULL OR (k_sens50 NOTNULL) AND k_sens50 < q.max_k_sens50     AS ok_max_k_sens50,
 
 
-       q.min_fon ISNULL OR (i_f_plus20 NOTNULL) AND i_f_plus20 > q.min_fon       AS ok_min_fon20,
-       q.max_fon ISNULL OR (i_f_plus20 NOTNULL) AND i_f_plus20 < q.max_fon       AS ok_max_fon20,
+       q.min_fon ISNULL OR (i_f_plus20 NOTNULL) AND i_f_plus20 > q.min_fon           AS ok_min_fon20,
+       q.max_fon ISNULL OR (i_f_plus20 NOTNULL) AND i_f_plus20 < q.max_fon           AS ok_max_fon20,
 
-       q.min_fon ISNULL OR (i13 NOTNULL) AND i13 > q.min_fon                     AS ok_min_fon20_2,
-       q.max_fon ISNULL OR (i13 NOTNULL) AND i13 < q.max_fon                     AS ok_max_fon20_2,
+       q.min_fon ISNULL OR (i13 NOTNULL) AND i13 > q.min_fon                         AS ok_min_fon20_2,
+       q.max_fon ISNULL OR (i13 NOTNULL) AND i13 < q.max_fon                         AS ok_max_fon20_2,
 
        q.max_d_not_measured ISNULL OR
-       (d_not_measured NOTNULL) AND abs(d_not_measured) < q.max_d_not_measured   AS ok_d_not_measured,
+       (d_not_measured NOTNULL) AND abs(d_not_measured) < q.max_d_not_measured       AS ok_d_not_measured,
 
-       gas.code                                                                  AS gas_code,
-       units.code                                                                AS units_code,
+       q.max_d1 ISNULL OR abs(d13) < q.max_d1                                        AS ok_max_d13,
+       q.max_d2 ISNULL OR abs(d24) < q.max_d2                                        AS ok_max_d24,
+       q.max_d3 ISNULL OR abs(d35) < q.max_d3                                        AS ok_max_d35,
+       q.max_d2 ISNULL OR abs(d26) < q.max_d2                                        AS ok_max_d26,
+       q.max_d1 ISNULL OR abs(d17) < q.max_d1                                        AS ok_max_d17,
+
+       gas.code                                                                      AS gas_code,
+       units.code                                                                    AS units_code,
        gas.gas_name,
        units.units_name,
        scale,
@@ -266,7 +297,8 @@ SELECT *,
        ok_min_k_sens20 AND ok_max_k_sens20 AND
        ok_min_k_sens50 AND ok_max_k_sens50 AND
        ok_min_fon20 AND ok_max_fon20 AND
-       ok_min_fon20_2 AND ok_max_fon20_2 AS ok
+       ok_min_fon20_2 AND ok_max_fon20_2 AND
+       ok_max_d13 AND ok_max_d24 AND ok_max_d35 AND ok_max_d26 AND ok_max_d17 AS ok
 FROM product_info_2 q;
 
 INSERT

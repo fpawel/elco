@@ -2,15 +2,13 @@ package data
 
 import (
 	"database/sql"
-	"github.com/ansel1/merry"
-	"github.com/fpawel/elco/internal/pkg"
 	"github.com/fpawel/elco/internal/pkg/must"
-	"github.com/fpawel/elco/internal/pkg/winapp"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/powerman/structlog"
 	"gopkg.in/reform.v1"
 	"gopkg.in/reform.v1/dialects/sqlite3"
+	"os"
 	"path/filepath"
 )
 
@@ -26,37 +24,40 @@ func Close() {
 }
 
 func Open() {
-	dir, err := Dir()
-	if err != nil {
+
+	filename := filepath.Join(filepath.Dir(os.Args[0]), "elco.sqlite")
+
+	dbConn = must.OpenSqliteDB(filename)
+	if _, err := dbConn.Exec(SQLCreate); err != nil {
 		panic(err)
 	}
-	fileName := filepath.Join(dir, "elco.sqlite")
-	dbConn = must.OpenSqliteDB(fileName)
-	if _, err = dbConn.Exec(SQLCreate); err != nil {
-		panic(err)
-	}
-	if err = deleteEmptyParties(); err != nil {
+	if err := deleteEmptyParties(); err != nil {
 		panic(err)
 	}
 
-	log.Debug("open database", "file", fileName)
+	log.Debug("open database", "file", filename)
 	DB = reform.NewDB(dbConn, sqlite3.Dialect, nil)
 	DBx = sqlx.NewDb(dbConn, "sqlite3")
 
-	_, _ = DBx.Exec(SQLProdTypesAddColumns1)
-}
-
-func Dir() (string, error) {
-	dir, err := winapp.AppDataFolderPath()
-	if err != nil {
-		return "", merry.Wrap(err)
-	}
-	dir = filepath.Join(dir, "elco")
-	err = pkg.EnsureDir(dir)
-	if err != nil {
-		return "", merry.Wrap(err)
-	}
-	return dir, nil
+	_, _ = DBx.Exec(` ALTER TABLE party ADD max_d1 REAL DEFAULT NULL`)
+	_, _ = DBx.Exec(` ALTER TABLE party ADD max_d2 REAL DEFAULT NULL`)
+	_, _ = DBx.Exec(` ALTER TABLE party ADD max_d3 REAL DEFAULT NULL`)
+	_, _ = DBx.Exec(` ALTER TABLE product_type ADD max_d1 REAL DEFAULT NULL`)
+	_, _ = DBx.Exec(` ALTER TABLE product_type ADD max_d2 REAL DEFAULT NULL`)
+	_, _ = DBx.Exec(` ALTER TABLE product_type ADD max_d3 REAL DEFAULT NULL`)
+	_, _ = DBx.Exec(` ALTER TABLE product_type ADD k_sens20 REAL DEFAULT NULL`)
+	_, _ = DBx.Exec(` ALTER TABLE product_type ADD points_method REAL DEFAULT NULL`)
+	_, _ = DBx.Exec(` ALTER TABLE product_type ADD min_fon REAL DEFAULT NULL`)
+	_, _ = DBx.Exec(` ALTER TABLE product_type ADD max_fon REAL DEFAULT NULL`)
+	_, _ = DBx.Exec(` ALTER TABLE product_type ADD max_d_fon REAL DEFAULT NULL`)
+	_, _ = DBx.Exec(` ALTER TABLE product_type ADD max_d_fon REAL DEFAULT NULL`)
+	_, _ = DBx.Exec(` ALTER TABLE product_type ADD min_k_sens20 REAL DEFAULT NULL`)
+	_, _ = DBx.Exec(` ALTER TABLE product_type ADD max_k_sens20 REAL DEFAULT NULL`)
+	_, _ = DBx.Exec(` ALTER TABLE product_type ADD min_k_sens50 REAL DEFAULT NULL`)
+	_, _ = DBx.Exec(` ALTER TABLE product_type ADD max_k_sens50 REAL DEFAULT NULL`)
+	_, _ = DBx.Exec(` ALTER TABLE product_type ADD min_d_temp REAL DEFAULT NULL`)
+	_, _ = DBx.Exec(` ALTER TABLE product_type ADD max_d_temp REAL DEFAULT NULL`)
+	_, _ = DBx.Exec(` ALTER TABLE product_type ADD max_d_not_measured REAL DEFAULT NULL`)
 }
 
 func deleteEmptyParties() error {

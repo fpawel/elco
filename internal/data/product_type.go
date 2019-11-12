@@ -24,5 +24,8 @@ type ProductType struct {
 	MaxDTemp          sql.NullFloat64 `reform:"max_d_temp"`
 	MaxDNotMeasured   sql.NullFloat64 `reform:"max_d_not_measured"`
 	KSens20           sql.NullFloat64 `reform:"k_sens20"`
+	MaxD1             sql.NullFloat64 `reform:"max_d1"`
+	MaxD2             sql.NullFloat64 `reform:"max_d2"`
+	MaxD3             sql.NullFloat64 `reform:"max_d3"`
 	PointsMethod      int64           `reform:"points_method"`
 }

@@ -46,7 +46,7 @@ func RunProductID(productID int64) error {
 
 	doPassportSou(d, 10., width, product)
 	d.SetY(y)
-	doPassportDax(d, pageWidth/2., width, product, party)
+	doPassportDax(d, pageWidth/2., width, product)
 
 	return saveAndShowDoc(d, dir, strconv.Itoa(int(productID)))
 }
@@ -61,10 +61,10 @@ func RunPartyID(partyID int64) error {
 	if err = summary(dir, party, products); err != nil {
 		return err
 	}
-	if err = passportSou(dir, party, products); err != nil {
+	if err = passportSou(dir, products); err != nil {
 		return err
 	}
-	if err = passportDax(dir, party, products); err != nil {
+	if err = passportDax(dir, products); err != nil {
 		return err
 	}
 

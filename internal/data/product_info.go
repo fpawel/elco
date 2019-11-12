@@ -31,9 +31,15 @@ type ProductInfo struct {
 	KSens20                sql.NullFloat64 `reform:"k_sens20"`
 	KSens50                sql.NullFloat64 `reform:"k_sens50"`
 	Variation              sql.NullFloat64 `reform:"variation"`
+	VariationConcentration sql.NullFloat64 `reform:"variation_concentration"`
 	DFon20                 sql.NullFloat64 `reform:"d_fon20"`
 	DFon50                 sql.NullFloat64 `reform:"d_fon50"`
 	DNotMeasured           sql.NullFloat64 `reform:"d_not_measured"`
+	D13                    sql.NullFloat64 `reform:"d13"`
+	D24                    sql.NullFloat64 `reform:"d24"`
+	D35                    sql.NullFloat64 `reform:"d35"`
+	D26                    sql.NullFloat64 `reform:"d26"`
+	D17                    sql.NullFloat64 `reform:"d17"`
 	OKMinFon20             bool            `reform:"ok_min_fon20"`
 	OKMaxFon20             bool            `reform:"ok_max_fon20"`
 	OKMinFon20r            bool            `reform:"ok_min_fon20_2"`
@@ -45,6 +51,11 @@ type ProductInfo struct {
 	OKMaxKSens50           bool            `reform:"ok_max_k_sens50"`
 	OKDFon50               bool            `reform:"ok_d_fon50"`
 	OKDNotMeasured         bool            `reform:"ok_d_not_measured"`
+	OKMaxD13               bool            `reform:"ok_max_d13"`
+	OKMaxD24               bool            `reform:"ok_max_d24"`
+	OKMaxD35               bool            `reform:"ok_max_d35"`
+	OKMaxD26               bool            `reform:"ok_max_d26"`
+	OKMaxD17               bool            `reform:"ok_max_d17"`
 	Ok                     bool            `reform:"ok"`
 	HasFirmware            bool            `reform:"has_firmware"`
 	Production             bool            `reform:"production"`

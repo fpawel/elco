@@ -72,6 +72,9 @@ type Party3 struct {
 	MaxDTemp        string  `yaml:"max_d_temp"`
 	MaxDNotMeasured string  `yaml:"max_d_not_measured"`
 	PointsMethod    int64   `yaml:"points_method"`
+	MaxD1           string  `yaml:"max_d1"`
+	MaxD2           string  `yaml:"max_d2"`
+	MaxD3           string  `yaml:"max_d3"`
 }
 
 func newParty3(x data.Party) (p Party3) {
@@ -92,6 +95,9 @@ func newParty3(x data.Party) (p Party3) {
 	p.MaxDTemp = formatNullFloat(x.MaxDTemp)
 	p.MaxDNotMeasured = formatNullFloat(x.MaxDNotMeasured)
 	p.PointsMethod = x.PointsMethod
+	p.MaxD1 = formatNullFloat(x.MaxD1)
+	p.MaxD2 = formatNullFloat(x.MaxD2)
+	p.MaxD3 = formatNullFloat(x.MaxD3)
 	return
 }
 
@@ -114,6 +120,9 @@ func (x Party3) SetupDataParty(p *data.Party) {
 	p.MaxDTemp = parseNullFloat(x.MaxDTemp)
 	p.MaxDNotMeasured = parseNullFloat(x.MaxDNotMeasured)
 	p.PointsMethod = x.PointsMethod
+	p.MaxD1 = parseNullFloat(x.MaxD1)
+	p.MaxD2 = parseNullFloat(x.MaxD2)
+	p.MaxD3 = parseNullFloat(x.MaxD3)
 }
 
 type ScriptLine struct {
