@@ -37,6 +37,7 @@ func (_ *LastPartySvc) SetProductType(ptName [1]string, _ *struct{}) error {
 	p.MaxDTemp = pt.MaxDTemp
 	p.MaxDNotMeasured = pt.MaxDNotMeasured
 	p.PointsMethod = pt.PointsMethod
+
 	p.MaxD1 = pt.MaxD1
 	p.MaxD2 = pt.MaxD2
 	p.MaxD3 = pt.MaxD3

@@ -224,7 +224,7 @@ SELECT product_id,
                 THEN product.points_method END)                                AS applied_points_method,
        round((concentration3 - concentration1)
                  * (i13 - i_f_plus20)
-                 / (i_s_plus20 - i_f_plus20) - concentration1, 3)                               AS d13,
+                 / (i_s_plus20 - i_f_plus20) - concentration1, 3)              AS d13,
        round((concentration3 - concentration1)
                  * (i24 - i_f_plus20)
                  / (i_s_plus20 - i_f_plus20) - concentration2, 3)              AS d24,
@@ -236,7 +236,7 @@ SELECT product_id,
                  / (i_s_plus20 - i_f_plus20) - concentration2, 3)              AS d26,
        round((concentration3 - concentration1)
                  * (i17 - i_f_plus20)
-                 / (i_s_plus20 - i_f_plus20) - concentration1, 3)                               AS d17
+                 / (i_s_plus20 - i_f_plus20) - concentration1, 3)              AS d17
 
 
 FROM product
@@ -268,11 +268,20 @@ SELECT q.*,
        q.max_d_not_measured ISNULL OR
        (d_not_measured NOTNULL) AND abs(d_not_measured) < q.max_d_not_measured       AS ok_d_not_measured,
 
-       q.max_d1 ISNULL OR abs(d13) < q.max_d1                                        AS ok_max_d13,
-       q.max_d2 ISNULL OR abs(d24) < q.max_d2                                        AS ok_max_d24,
-       q.max_d3 ISNULL OR abs(d35) < q.max_d3                                        AS ok_max_d35,
-       q.max_d2 ISNULL OR abs(d26) < q.max_d2                                        AS ok_max_d26,
-       q.max_d1 ISNULL OR abs(d17) < q.max_d1                                        AS ok_max_d17,
+       q.max_d1 ISNULL OR
+       (d13 NOTNULL) AND abs(d13) < q.max_d1                                         AS ok_max_d13,
+
+       q.max_d2 ISNULL OR
+       (d24 NOTNULL) AND abs(d24) < q.max_d2                                         AS ok_max_d24,
+
+       q.max_d3 ISNULL OR
+       (d35 NOTNULL) AND abs(d35) < q.max_d3                                         AS ok_max_d35,
+
+       q.max_d2 ISNULL OR
+       (d26 NOTNULL) AND abs(d26) < q.max_d2                                         AS ok_max_d26,
+
+       q.max_d1 ISNULL OR
+       (d17 NOTNULL) AND abs(d17) < q.max_d1                                         AS ok_max_d17,
 
        gas.code                                                                      AS gas_code,
        units.code                                                                    AS units_code,
