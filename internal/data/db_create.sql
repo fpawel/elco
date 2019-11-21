@@ -162,6 +162,10 @@ SELECT *,
        party_id IN (SELECT party_id FROM last_party)                     AS last
 FROM party;
 
+DROP VIEW IF EXISTS last_party_products;
+CREATE VIEW IF NOT EXISTS last_party_products AS
+SELECT * FROM product_info WHERE party_id = (SELECT party_id FROM last_party);
+
 
 DROP VIEW IF EXISTS product_info_1;
 CREATE VIEW IF NOT EXISTS product_info_1 AS
