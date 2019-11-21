@@ -250,42 +250,41 @@ DROP VIEW IF EXISTS product_info_2;
 CREATE VIEW IF NOT EXISTS product_info_2 AS
 SELECT q.*,
 
-       q.max_d_temp ISNULL OR (d_fon50 NOTNULL) AND abs(d_fon50) < q.max_d_temp      AS ok_d_fon50,
+       q.max_d_temp ISNULL OR d_fon50 ISNULL OR abs(d_fon50) < q.max_d_temp      AS ok_d_fon50,
 
-       q.max_d_fon ISNULL OR (d_fon20 NOTNULL) AND abs(d_fon20) < q.max_d_fon        AS ok_d_fon20,
+       q.max_d_fon ISNULL OR d_fon20 ISNULL OR abs(d_fon20) < q.max_d_fon        AS ok_d_fon20,
 
-       q.min_k_sens20 ISNULL OR (q.k_sens20 NOTNULL) AND q.k_sens20 > q.min_k_sens20 AS ok_min_k_sens20,
+       q.min_k_sens20 ISNULL OR q.k_sens20 ISNULL OR q.k_sens20 > q.min_k_sens20 AS ok_min_k_sens20,
 
-       q.max_k_sens20 ISNULL OR (q.k_sens20 NOTNULL) AND q.k_sens20 < q.max_k_sens20 AS ok_max_k_sens20,
+       q.max_k_sens20 ISNULL OR q.k_sens20 ISNULL OR q.k_sens20 < q.max_k_sens20 AS ok_max_k_sens20,
 
-       q.min_k_sens50 ISNULL OR (k_sens50 NOTNULL) AND k_sens50 > q.min_k_sens50     AS ok_min_k_sens50,
+       q.min_k_sens50 ISNULL OR k_sens50 ISNULL OR k_sens50 > q.min_k_sens50     AS ok_min_k_sens50,
 
-       q.max_k_sens50 ISNULL OR (k_sens50 NOTNULL) AND k_sens50 < q.max_k_sens50     AS ok_max_k_sens50,
+       q.max_k_sens50 ISNULL OR k_sens50 ISNULL OR k_sens50 < q.max_k_sens50     AS ok_max_k_sens50,
 
+       q.min_fon ISNULL OR i_f_plus20 ISNULL OR i_f_plus20 > q.min_fon           AS ok_min_fon20,
+       q.max_fon ISNULL OR i_f_plus20 ISNULL OR i_f_plus20 < q.max_fon           AS ok_max_fon20,
 
-       q.min_fon ISNULL OR (i_f_plus20 NOTNULL) AND i_f_plus20 > q.min_fon           AS ok_min_fon20,
-       q.max_fon ISNULL OR (i_f_plus20 NOTNULL) AND i_f_plus20 < q.max_fon           AS ok_max_fon20,
-
-       q.min_fon ISNULL OR (i13 NOTNULL) AND i13 > q.min_fon                         AS ok_min_fon20_2,
-       q.max_fon ISNULL OR (i13 NOTNULL) AND i13 < q.max_fon                         AS ok_max_fon20_2,
+       q.min_fon ISNULL OR i13 ISNULL OR i13 > q.min_fon                         AS ok_min_fon20_2,
+       q.max_fon ISNULL OR i13 ISNULL OR i13 < q.max_fon                         AS ok_max_fon20_2,
 
        q.max_d_not_measured ISNULL OR
-       (d_not_measured NOTNULL) AND abs(d_not_measured) < q.max_d_not_measured       AS ok_d_not_measured,
+       d_not_measured ISNULL OR abs(d_not_measured) < q.max_d_not_measured       AS ok_d_not_measured,
 
        q.max_d1 ISNULL OR
-       (d13 NOTNULL) AND abs(d13) < q.max_d1                                         AS ok_max_d13,
+       d13 ISNULL OR abs(d13) < q.max_d1                                         AS ok_max_d13,
 
        q.max_d2 ISNULL OR
-       (d24 NOTNULL) AND abs(d24) < q.max_d2                                         AS ok_max_d24,
+       d24 ISNULL OR abs(d24) < q.max_d2                                         AS ok_max_d24,
 
        q.max_d3 ISNULL OR
-       (d35 NOTNULL) AND abs(d35) < q.max_d3                                         AS ok_max_d35,
+       d35 ISNULL OR abs(d35) < q.max_d3                                         AS ok_max_d35,
 
        q.max_d2 ISNULL OR
-       (d26 NOTNULL) AND abs(d26) < q.max_d2                                         AS ok_max_d26,
+       d26 ISNULL OR abs(d26) < q.max_d2                                         AS ok_max_d26,
 
        q.max_d1 ISNULL OR
-       (d17 NOTNULL) AND abs(d17) < q.max_d1                                         AS ok_max_d17,
+       d17 ISNULL OR abs(d17) < q.max_d1                                         AS ok_max_d17,
 
        gas.code                                                                      AS gas_code,
        units.code                                                                    AS units_code,

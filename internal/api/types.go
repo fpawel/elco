@@ -143,6 +143,7 @@ func LastParty1() Party1 {
 }
 
 func parseNullFloat(x string) sql.NullFloat64 {
+	x = strings.Replace(strings.TrimSpace(x), ",", ".", -1)
 	if v, err := strconv.ParseFloat(x, 64); err == nil {
 		return sql.NullFloat64{
 			Float64: v,
