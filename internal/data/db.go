@@ -38,6 +38,8 @@ func Open() {
 	log.Debug("open database", "file", filename)
 	DB = reform.NewDB(dbConn, sqlite3.Dialect, nil)
 	DBx = sqlx.NewDb(dbConn, "sqlite3")
+	_, _ = DBx.Exec(`ALTER TABLE product_type ADD chip_type TEXT NOT NULL DEFAULT '24LC16'`)
+
 }
 
 func deleteEmptyParties() error {

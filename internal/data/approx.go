@@ -12,7 +12,7 @@ type ApproximationTable struct {
 func NewApproximationTable(xy TableXY) *ApproximationTable {
 	n := len(xy)
 	if n == 0 {
-		panic("map must be not empty")
+		xy[0] = 0
 	}
 	tbl := new(ApproximationTable)
 

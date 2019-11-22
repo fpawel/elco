@@ -27,7 +27,7 @@ func (v *productTypeTableType) Name() string {
 
 // Columns returns a new slice of column names for that view or table in SQL database.
 func (v *productTypeTableType) Columns() []string {
-	return []string{"product_type_name", "gas_name", "units_name", "scale", "noble_metal_content", "lifetime_months", "min_fon", "max_fon", "max_d_fon", "min_k_sens20", "max_k_sens20", "min_k_sens50", "max_k_sens50", "min_d_temp", "max_d_temp", "max_d_not_measured", "k_sens20", "max_d1", "max_d2", "max_d3", "points_method"}
+	return []string{"product_type_name", "gas_name", "units_name", "scale", "noble_metal_content", "lifetime_months", "min_fon", "max_fon", "max_d_fon", "min_k_sens20", "max_k_sens20", "min_k_sens50", "max_k_sens50", "min_d_temp", "max_d_temp", "max_d_not_measured", "k_sens20", "fon20", "chip_type", "max_d1", "max_d2", "max_d3", "points_method"}
 }
 
 // NewStruct makes a new struct for that view or table.
@@ -47,13 +47,13 @@ func (v *productTypeTableType) PKColumnIndex() uint {
 
 // ProductTypeTable represents product_type view or table in SQL database.
 var ProductTypeTable = &productTypeTableType{
-	s: parse.StructInfo{Type: "ProductType", SQLSchema: "", SQLName: "product_type", Fields: []parse.FieldInfo{{Name: "ProductTypeName", Type: "string", Column: "product_type_name"}, {Name: "GasName", Type: "string", Column: "gas_name"}, {Name: "UnitsName", Type: "string", Column: "units_name"}, {Name: "Scale", Type: "float64", Column: "scale"}, {Name: "NobleMetalContent", Type: "float64", Column: "noble_metal_content"}, {Name: "LifetimeMonths", Type: "int64", Column: "lifetime_months"}, {Name: "MinFon", Type: "sql.NullFloat64", Column: "min_fon"}, {Name: "MaxFon", Type: "sql.NullFloat64", Column: "max_fon"}, {Name: "MaxDFon", Type: "sql.NullFloat64", Column: "max_d_fon"}, {Name: "MinKSens20", Type: "sql.NullFloat64", Column: "min_k_sens20"}, {Name: "MaxKSens20", Type: "sql.NullFloat64", Column: "max_k_sens20"}, {Name: "MinKSens50", Type: "sql.NullFloat64", Column: "min_k_sens50"}, {Name: "MaxKSens50", Type: "sql.NullFloat64", Column: "max_k_sens50"}, {Name: "MinDTemp", Type: "sql.NullFloat64", Column: "min_d_temp"}, {Name: "MaxDTemp", Type: "sql.NullFloat64", Column: "max_d_temp"}, {Name: "MaxDNotMeasured", Type: "sql.NullFloat64", Column: "max_d_not_measured"}, {Name: "KSens20", Type: "sql.NullFloat64", Column: "k_sens20"}, {Name: "MaxD1", Type: "sql.NullFloat64", Column: "max_d1"}, {Name: "MaxD2", Type: "sql.NullFloat64", Column: "max_d2"}, {Name: "MaxD3", Type: "sql.NullFloat64", Column: "max_d3"}, {Name: "PointsMethod", Type: "int64", Column: "points_method"}}, PKFieldIndex: 0},
+	s: parse.StructInfo{Type: "ProductType", SQLSchema: "", SQLName: "product_type", Fields: []parse.FieldInfo{{Name: "ProductTypeName", Type: "string", Column: "product_type_name"}, {Name: "GasName", Type: "string", Column: "gas_name"}, {Name: "UnitsName", Type: "string", Column: "units_name"}, {Name: "Scale", Type: "float64", Column: "scale"}, {Name: "NobleMetalContent", Type: "float64", Column: "noble_metal_content"}, {Name: "LifetimeMonths", Type: "int64", Column: "lifetime_months"}, {Name: "MinFon", Type: "sql.NullFloat64", Column: "min_fon"}, {Name: "MaxFon", Type: "sql.NullFloat64", Column: "max_fon"}, {Name: "MaxDFon", Type: "sql.NullFloat64", Column: "max_d_fon"}, {Name: "MinKSens20", Type: "sql.NullFloat64", Column: "min_k_sens20"}, {Name: "MaxKSens20", Type: "sql.NullFloat64", Column: "max_k_sens20"}, {Name: "MinKSens50", Type: "sql.NullFloat64", Column: "min_k_sens50"}, {Name: "MaxKSens50", Type: "sql.NullFloat64", Column: "max_k_sens50"}, {Name: "MinDTemp", Type: "sql.NullFloat64", Column: "min_d_temp"}, {Name: "MaxDTemp", Type: "sql.NullFloat64", Column: "max_d_temp"}, {Name: "MaxDNotMeasured", Type: "sql.NullFloat64", Column: "max_d_not_measured"}, {Name: "KSens20", Type: "sql.NullFloat64", Column: "k_sens20"}, {Name: "Fon20", Type: "sql.NullFloat64", Column: "fon20"}, {Name: "ChipType", Type: "string", Column: "chip_type"}, {Name: "MaxD1", Type: "sql.NullFloat64", Column: "max_d1"}, {Name: "MaxD2", Type: "sql.NullFloat64", Column: "max_d2"}, {Name: "MaxD3", Type: "sql.NullFloat64", Column: "max_d3"}, {Name: "PointsMethod", Type: "int64", Column: "points_method"}}, PKFieldIndex: 0},
 	z: new(ProductType).Values(),
 }
 
 // String returns a string representation of this struct or record.
 func (s ProductType) String() string {
-	res := make([]string, 21)
+	res := make([]string, 23)
 	res[0] = "ProductTypeName: " + reform.Inspect(s.ProductTypeName, true)
 	res[1] = "GasName: " + reform.Inspect(s.GasName, true)
 	res[2] = "UnitsName: " + reform.Inspect(s.UnitsName, true)
@@ -71,10 +71,12 @@ func (s ProductType) String() string {
 	res[14] = "MaxDTemp: " + reform.Inspect(s.MaxDTemp, true)
 	res[15] = "MaxDNotMeasured: " + reform.Inspect(s.MaxDNotMeasured, true)
 	res[16] = "KSens20: " + reform.Inspect(s.KSens20, true)
-	res[17] = "MaxD1: " + reform.Inspect(s.MaxD1, true)
-	res[18] = "MaxD2: " + reform.Inspect(s.MaxD2, true)
-	res[19] = "MaxD3: " + reform.Inspect(s.MaxD3, true)
-	res[20] = "PointsMethod: " + reform.Inspect(s.PointsMethod, true)
+	res[17] = "Fon20: " + reform.Inspect(s.Fon20, true)
+	res[18] = "ChipType: " + reform.Inspect(s.ChipType, true)
+	res[19] = "MaxD1: " + reform.Inspect(s.MaxD1, true)
+	res[20] = "MaxD2: " + reform.Inspect(s.MaxD2, true)
+	res[21] = "MaxD3: " + reform.Inspect(s.MaxD3, true)
+	res[22] = "PointsMethod: " + reform.Inspect(s.PointsMethod, true)
 	return strings.Join(res, ", ")
 }
 
@@ -99,6 +101,8 @@ func (s *ProductType) Values() []interface{} {
 		s.MaxDTemp,
 		s.MaxDNotMeasured,
 		s.KSens20,
+		s.Fon20,
+		s.ChipType,
 		s.MaxD1,
 		s.MaxD2,
 		s.MaxD3,
@@ -127,6 +131,8 @@ func (s *ProductType) Pointers() []interface{} {
 		&s.MaxDTemp,
 		&s.MaxDNotMeasured,
 		&s.KSens20,
+		&s.Fon20,
+		&s.ChipType,
 		&s.MaxD1,
 		&s.MaxD2,
 		&s.MaxD3,

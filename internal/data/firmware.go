@@ -19,6 +19,7 @@ type Firmware struct {
 	Serial,
 	ScaleBegin,
 	ScaleEnd,
+	Fon20,
 	KSens20 float64
 	Fon, Sens   TableXY
 	Gas, Units  byte
@@ -26,21 +27,22 @@ type Firmware struct {
 }
 
 type FirmwareInfo struct {
-	TempPoints
-	Place     int
-	CreatedAt delphi.GoDateTime
-	Sensitivity,
-	Sensitivity1,
+	ProductTempPoints TempPoints
+	Place             int
+	CreatedAt         delphi.GoDateTime
+	SensitivityLab73,
+	SensitivityProduct,
+	Fon20,
 	Serial,
 	ProductType,
 	Gas,
 	Units,
 	ScaleBeg,
-	ScaleEnd,
-	IFPlus20,
-	ISMinus20,
-	ISPlus20,
-	ISPlus50 string
+	ScaleEnd string
+	//IFPlus20,
+	//ISMinus20,
+	//ISPlus20,
+	//ISPlus50 string
 }
 
 type ProductTypeTempPoint struct {
@@ -68,21 +70,22 @@ func (s Product) FirmwareBytes() (b FirmwareBytes, err error) {
 
 func (s ProductInfo) FirmwareInfo() FirmwareInfo {
 	x := FirmwareInfo{
-		TempPoints:   TempPoints{},
-		Place:        s.Place,
-		CreatedAt:    delphi.NewDateTime(s.CreatedAt),
-		Sensitivity:  formatNullFloat64(s.KSens20, 3),
-		Sensitivity1: formatNullFloat64(s.KSens20, 3),
-		Serial:       formatNullInt64(s.Serial),
-		ProductType:  s.AppliedProductTypeName,
-		Gas:          s.GasName,
-		Units:        s.UnitsName,
-		ScaleBeg:     "0",
-		ScaleEnd:     fmt.Sprintf("%v", s.Scale),
-		IFPlus20:     formatNullFloat64K(s.IFPlus20, 1000, -1),
-		ISMinus20:    formatNullFloat64K(s.ISMinus20, 1000, -1),
-		ISPlus20:     formatNullFloat64K(s.ISPlus20, 1000, -1),
-		ISPlus50:     formatNullFloat64K(s.ISPlus50, 1000, -1),
+		ProductTempPoints:  TempPoints{},
+		Place:              s.Place,
+		CreatedAt:          delphi.NewDateTime(s.CreatedAt),
+		SensitivityLab73:   formatNullFloat64(s.KSens20, 3),
+		SensitivityProduct: formatNullFloat64(s.KSens20, 3),
+		Serial:             formatNullInt64(s.Serial),
+		ProductType:        s.AppliedProductTypeName,
+		Gas:                s.GasName,
+		Units:              s.UnitsName,
+		ScaleBeg:           "0",
+		ScaleEnd:           fmt.Sprintf("%v", s.Scale),
+		Fon20:              formatNullFloat64K(s.IFPlus20, 1000, -1),
+		//IFPlus20:           formatNullFloat64K(s.IFPlus20, 1000, -1),
+		//ISMinus20:          formatNullFloat64K(s.ISMinus20, 1000, -1),
+		//ISPlus20:           formatNullFloat64K(s.ISPlus20, 1000, -1),
+		//ISPlus50:           formatNullFloat64K(s.ISPlus50, 1000, -1),
 	}
 
 	if fonM, err := s.TableFon(); err == nil {
@@ -90,7 +93,7 @@ func (s ProductInfo) FirmwareInfo() FirmwareInfo {
 			for k := range fonM {
 				fonM[k] *= 1000
 			}
-			x.TempPoints = NewTempPoints(fonM, sensM)
+			x.ProductTempPoints = NewTempPoints(fonM, sensM)
 
 		}
 	}
@@ -122,6 +125,7 @@ func (s ProductInfo) Firmware() (x Firmware, err error) {
 		ProductType: s.AppliedProductTypeName,
 		Serial:      float64(s.Serial.Int64),
 		KSens20:     s.KSens20.Float64,
+		Fon20:       s.IFPlus20.Float64,
 		ScaleBegin:  0,
 		ScaleEnd:    s.Scale,
 		Gas:         s.GasCode,
@@ -269,16 +273,16 @@ func (x FirmwareBytes) ProductType() string {
 
 func (x FirmwareBytes) FirmwareInfo(place int) FirmwareInfo {
 	r := FirmwareInfo{
-		Place:        place,
-		TempPoints:   x.TempPoints(),
-		CreatedAt:    delphi.NewDateTime(x.Time()),
-		ProductType:  x.ProductType(),
-		Serial:       formatBCD(x[0x0701:0x0705], -1),
-		ScaleBeg:     formatBCD(x[0x0602:0x0606], -1),
-		ScaleEnd:     formatBCD(x[0x0606:0x060A], -1),
-		Sensitivity:  formatFloat(math.Float64frombits(binary.LittleEndian.Uint64(x[0x0720:])), 3),
-		Sensitivity1: formatBCD(x[0x0709:0x070D], -1),
-		IFPlus20:     formatBCD(x[0x0705:0x0709], -1),
+		Place:              place,
+		ProductTempPoints:  x.ProductTempPoints(),
+		CreatedAt:          delphi.NewDateTime(x.Time()),
+		ProductType:        x.ProductType(),
+		Serial:             formatBCD(x[0x0701:0x0705], -1),
+		ScaleBeg:           formatBCD(x[0x0602:0x0606], -1),
+		ScaleEnd:           formatBCD(x[0x0606:0x060A], -1),
+		SensitivityLab73:   formatFloat(math.Float64frombits(binary.LittleEndian.Uint64(x[0x0720:])), 3),
+		SensitivityProduct: formatBCD(x[0x0709:0x070D], -1),
+		Fon20:              formatBCD(x[0x0705:0x0709], -1),
 	}
 	for _, a := range ListUnits() {
 		if a.Code == x[0x060A] {
@@ -295,7 +299,7 @@ func (x FirmwareBytes) FirmwareInfo(place int) FirmwareInfo {
 	return r
 }
 
-func (x FirmwareBytes) TempPoints() (r TempPoints) {
+func (x FirmwareBytes) ProductTempPoints() (r TempPoints) {
 
 	valAt := func(i int) float64 {
 		a := binary.LittleEndian.Uint16(x[i:])
