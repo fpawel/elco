@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/comm"
@@ -15,7 +14,6 @@ import (
 	"github.com/fpawel/elco/internal/pkg/intrng"
 	"github.com/hako/durafmt"
 	"github.com/powerman/structlog"
-	"gopkg.in/reform.v1"
 	"sort"
 	"strings"
 	"time"
@@ -23,13 +21,13 @@ import (
 
 type helperWriteParty struct {
 	bytes          map[int][]byte
-	failedProducts map[int]struct{}
+	failedProducts map[int]error
 }
 
 func newHelperWriteParty() helperWriteParty {
 	return helperWriteParty{
 		bytes:          map[int][]byte{},
-		failedProducts: map[int]struct{}{},
+		failedProducts: map[int]error{},
 	}
 }
 
@@ -81,7 +79,7 @@ func writePartyFirmware(x worker) error {
 func (hlp helperWriteParty) tryPlace(log *structlog.Logger, place int, f func() error) error {
 	err := f()
 	if err != nil {
-		hlp.failedProducts[place] = struct{}{}
+		hlp.failedProducts[place] = err
 		log.PrintErr(err, "place", data.FormatPlace(place))
 	}
 	return err
@@ -91,16 +89,22 @@ func (hlp helperWriteParty) error() error {
 	if len(hlp.failedProducts) == 0 {
 		return nil
 	}
-
-	var xs []int
-	for n := range hlp.failedProducts {
-		xs = append(xs, n)
+	type placeErr struct {
+		place int
+		err   error
 	}
-	sort.Ints(xs)
+
+	var xs []placeErr
+	for n, err := range hlp.failedProducts {
+		xs = append(xs, placeErr{n, err})
+	}
+	sort.Slice(xs, func(i, j int) bool {
+		return xs[i].place < xs[j].place
+	})
 
 	var errs []string
 	for _, n := range xs {
-		errs = append(errs, data.FormatPlace(n))
+		errs = append(errs, fmt.Sprintf("%s: %s", data.FormatPlace(n.place), n.err))
 	}
 	return merry.New("Непрошитые места: " + strings.Join(errs, ", "))
 }
@@ -213,7 +217,7 @@ func (hlp *helperWriteParty) writeBlock(x worker, products []*data.Product) erro
 					"range", fmt.Sprintf("%X...%X", c.addr1, c.addr1),
 					"status45", fmt.Sprintf("%02X", e.code),
 				)
-				hlp.failedProducts[e.place] = struct{}{}
+				hlp.failedProducts[e.place] = merry.Errorf("%X...%X: статус 45: %02X", c.addr1, c.addr1, e.code)
 			} else {
 				return err
 			}
@@ -345,20 +349,12 @@ func writePlaceFirmware(x worker, place int, bytes []byte) error {
 			return merry.Wrap(err)
 		}
 	}
-	var p data.Product
-	switch err := data.GetLastPartyProductAtPlace(place, &p); err {
-	case nil:
-		p.Firmware = bytes
-		if err := data.DB.Save(&p); err != nil {
-			return err
-		}
-		x.log.Info("save")
-	case reform.ErrNoRows, sql.ErrNoRows:
-		return nil
-	default:
-		return err
-	}
-	return nil
+
+	h := newHelperWriteParty()
+	h.bytes[place] = bytes
+	h.verifyProductsFirmware(x, []int{place})
+	return h.error()
+
 }
 
 func waitStatus45(x worker, block int, placesMask byte) error {

@@ -15,7 +15,7 @@ type PlaceFirmware struct {
 }
 
 type FirmwareRunner interface {
-	RunWritePlaceFirmware(place int, bytes []byte)
+	RunWritePlaceFirmware(placeDevice, placeProduct int, bytes []byte)
 	RunReadPlaceFirmware(place int)
 }
 
@@ -228,12 +228,15 @@ VALUES (:product_type_name, :temperature, :fon, :sens)`, v)
 	return nil
 }
 
-func (x *PlaceFirmware) RunWritePlaceFirmware(v struct{ X FirmwareInfo2 }, _ *struct{}) error {
-	z, err := v.X.GetFirmware()
+func (x *PlaceFirmware) RunWritePlaceFirmware(arg struct {
+	FirmwareInfo FirmwareInfo2
+	PlaceDevice  int
+}, _ *struct{}) error {
+	z, err := arg.FirmwareInfo.GetFirmware()
 	if err != nil {
 		return err
 	}
-	x.f.RunWritePlaceFirmware(v.X.Place, z.Bytes())
+	x.f.RunWritePlaceFirmware(arg.PlaceDevice, arg.FirmwareInfo.Place, z.Bytes())
 	return nil
 }
 
@@ -323,12 +326,12 @@ func parseFloat(s string) (float64, error) {
 	return strconv.ParseFloat(strings.Replace(s, ",", ".", -1), 64)
 }
 
-func formatNullFloat64K(v sql.NullFloat64, k float64, precision int) string {
-	if v.Valid {
-		return formatFloat(v.Float64*k, precision)
-	}
-	return ""
-}
+//func formatNullFloat64K(v sql.NullFloat64, k float64, precision int) string {
+//	if v.Valid {
+//		return formatFloat(v.Float64*k, precision)
+//	}
+//	return ""
+//}
 
 func formatFloat(v float64, precision int) string {
 	return strconv.FormatFloat(v, 'f', precision, 64)

@@ -160,7 +160,7 @@ WHERE party_id=(SELECT party_id FROM last_party)
 }
 
 func (x LastPartySvc) DeleteProductAtPlace(place [1]int, _ *struct{}) (err error) {
-	_, err = data.DB.Exec(`
+	_, err = data.DBx.Exec(`
 DELETE FROM product 
 WHERE party_id IN (
   SELECT party.party_id 

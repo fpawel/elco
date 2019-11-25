@@ -11,6 +11,7 @@ import (
 	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/elco/internal/pkg"
 	"github.com/fpawel/elco/internal/pkg/ktx500"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -68,16 +69,34 @@ func (_ runner) RunReadAndSaveProductCurrents(dbColumn string, gas int, temperat
 	})
 }
 
-func (_ runner) RunWritePlaceFirmware(place int, bytes []byte) {
-	runWork(fmt.Sprintf("Запись прошивки места %s", data.FormatPlace(place)), func(x worker) error {
-		err := writePlaceFirmware(x, place, bytes)
+func (_ runner) RunWritePlaceFirmware(placeDevice, placeProduct int, bytes []byte) {
+	runWork(fmt.Sprintf("Запись прошивки места %s", data.FormatPlace(placeDevice)), func(x worker) error {
+		f := data.FirmwareBytes(bytes).FirmwareInfo(placeProduct)
+		serial, err := strconv.ParseInt(f.Serial, 10, 64)
 		if err != nil {
+			return merry.Append(err, "серийный номер")
+		}
+		party := data.LastParty()
+		if _, err := data.UpdateProductAtPlace(placeProduct, func(p *data.Product) error {
+			p.Serial = sql.NullInt64{serial, true}
+			if party.ProductTypeName != f.ProductType {
+				p.ProductTypeName = sql.NullString{f.ProductType, true}
+			}
+			return nil
+		}); err != nil {
 			return err
 		}
-		h := newHelperWriteParty()
-		h.bytes[place] = bytes
-		h.verifyProductsFirmware(x, []int{place})
-		return h.error()
+		if err := writePlaceFirmware(x, placeDevice, bytes); err != nil {
+			return err
+		}
+		if _, err := data.UpdateProductAtPlace(placeProduct, func(p *data.Product) error {
+			p.Firmware = bytes
+			return nil
+		}); err != nil {
+			return err
+		}
+		notify.LastPartyChanged(nil, api.LastParty1())
+		return nil
 	})
 }
 

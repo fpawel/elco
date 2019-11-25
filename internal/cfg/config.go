@@ -3,7 +3,6 @@ package cfg
 import (
 	"fmt"
 	"github.com/fpawel/comm"
-	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/elco/internal/pkg/must"
 	"github.com/fpawel/gofins/fins"
 	"gopkg.in/yaml.v3"
@@ -18,7 +17,7 @@ var (
 	config = func() AppConfig {
 		def := AppConfig{
 			PublicAppConfig: PublicAppConfig{
-				ChipType:               data.Chip16,
+				ChipType:               Chip16,
 				ComportName:            "COM1",
 				ComportGasName:         "COM2",
 				ComportName2:           "COM1",
@@ -76,15 +75,15 @@ var (
 )
 
 type PublicAppConfig struct {
-	ComportName            string        `yaml:"comport_name"`
-	ComportGasName         string        `yaml:"comport_gas_name"`
-	ComportName2           string        `yaml:"comport_name2"`
-	LogComm                bool          `yaml:"log_comm"`
-	ChipType               data.ChipType `yaml:"chip_typ"`
-	AmbientTemperature     float64       `yaml:"ambient_temperature"`
-	BlowGasMinutes         int           `yaml:"blow_gas_minutes"`
-	HoldTemperatureMinutes int           `yaml:"hold_temperature_minutes"`
-	EndScaleGas2           bool          `yaml:"end_scale_gas2"`
+	ComportName            string   `yaml:"comport_name"`
+	ComportGasName         string   `yaml:"comport_gas_name"`
+	ComportName2           string   `yaml:"comport_name2"`
+	LogComm                bool     `yaml:"log_comm"`
+	ChipType               ChipType `yaml:"chip_typ"`
+	AmbientTemperature     float64  `yaml:"ambient_temperature"`
+	BlowGasMinutes         int      `yaml:"blow_gas_minutes"`
+	HoldTemperatureMinutes int      `yaml:"hold_temperature_minutes"`
+	EndScaleGas2           bool     `yaml:"end_scale_gas2"`
 }
 
 type AppConfig struct {
@@ -112,6 +111,27 @@ type FinsSettings struct {
 	Network  byte   `yaml:"network" comment:"fins network"`
 	Node     byte   `yaml:"node" comment:"fins node"`
 	FinsUnit byte   `yaml:"unit" comment:"fins unit"`
+}
+
+type ChipType string
+
+const (
+	Chip16  = "24LC16"
+	Chip64  = "24LC64"
+	Chip256 = "24LC256"
+)
+
+func (x ChipType) Code() byte {
+	switch x {
+	case Chip16:
+		return 0
+	case Chip64:
+		return 1
+	case Chip256:
+		return 2
+	default:
+		return 0
+	}
 }
 
 func (x FinsNetwork) NewFinsClient() (*fins.Client, error) {

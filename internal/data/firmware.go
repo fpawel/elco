@@ -39,10 +39,6 @@ type FirmwareInfo struct {
 	Units,
 	ScaleBeg,
 	ScaleEnd string
-	//IFPlus20,
-	//ISMinus20,
-	//ISPlus20,
-	//ISPlus50 string
 }
 
 type ProductTypeTempPoint struct {
@@ -82,10 +78,6 @@ func (s ProductInfo) FirmwareInfo() FirmwareInfo {
 		ScaleBeg:           "0",
 		ScaleEnd:           fmt.Sprintf("%v", s.Scale),
 		Fon20:              formatNullFloat64K(s.IFPlus20, 1000, -1),
-		//IFPlus20:           formatNullFloat64K(s.IFPlus20, 1000, -1),
-		//ISMinus20:          formatNullFloat64K(s.ISMinus20, 1000, -1),
-		//ISPlus20:           formatNullFloat64K(s.ISPlus20, 1000, -1),
-		//ISPlus50:           formatNullFloat64K(s.ISPlus50, 1000, -1),
 	}
 
 	if fonM, err := s.TableFon(); err == nil {
@@ -370,7 +362,7 @@ func (x Firmware) Bytes() (b FirmwareBytes) {
 
 	binary.LittleEndian.PutUint64(b[0x0720:], math.Float64bits(x.KSens20))
 	modbus.PutBCD6(b[0x0709:0x70D], x.KSens20)
-	modbus.PutBCD6(b[0x0705:0x0709], atFon.F(20))
+	modbus.PutBCD6(b[0x0705:0x0709], x.Fon20)
 
 	putTempValue := func(value float64, i int) {
 		y := math.Round(value)
