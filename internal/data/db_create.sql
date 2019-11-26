@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS product_type
     max_d_temp          REAL,
     max_d_not_measured  REAL,
     k_sens20            REAL,
+    fon20            REAL,
     max_d1              REAL,
     max_d2              REAL,
     max_d3              REAL,

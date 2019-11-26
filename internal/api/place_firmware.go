@@ -15,7 +15,7 @@ type PlaceFirmware struct {
 }
 
 type FirmwareRunner interface {
-	RunWritePlaceFirmware(placeDevice, placeProduct int, bytes []byte)
+	RunWritePlaceFirmware(placeDevice, placeProduct int, bytes []byte) error
 	RunReadPlaceFirmware(place int)
 }
 
@@ -236,8 +236,7 @@ func (x *PlaceFirmware) RunWritePlaceFirmware(arg struct {
 	if err != nil {
 		return err
 	}
-	x.f.RunWritePlaceFirmware(arg.PlaceDevice, arg.FirmwareInfo.Place, z.Bytes())
-	return nil
+	return x.f.RunWritePlaceFirmware(arg.PlaceDevice, arg.FirmwareInfo.Place, z.Bytes())
 }
 
 func tempPoints(values []string, fonM data.TableXY, sensM data.TableXY) error {

@@ -69,35 +69,42 @@ func (_ runner) RunReadAndSaveProductCurrents(dbColumn string, gas int, temperat
 	})
 }
 
-func (_ runner) RunWritePlaceFirmware(placeDevice, placeProduct int, bytes []byte) {
-	runWork(fmt.Sprintf("Запись прошивки места %s", data.FormatPlace(placeDevice)), func(x worker) error {
-		f := data.FirmwareBytes(bytes).FirmwareInfo(placeProduct)
-		serial, err := strconv.ParseInt(f.Serial, 10, 64)
-		if err != nil {
-			return merry.Append(err, "серийный номер")
+func (_ runner) RunWritePlaceFirmware(placeDevice, placeProduct int, bytes []byte) error {
+	what := fmt.Sprintf("Запись прошивки места %s", data.FormatPlace(placeProduct))
+	if placeProduct != placeDevice {
+		what += fmt.Sprintf(": место в стенде %s", data.FormatPlace(placeDevice))
+	}
+	f := data.FirmwareBytes(bytes).FirmwareInfo(placeProduct)
+	serial, err := strconv.ParseInt(f.Serial, 10, 64)
+	if err != nil {
+		return merry.Append(err, "серийный номер")
+	}
+	party := data.LastParty()
+	if _, err := data.UpdateProductAtPlace(placeProduct, func(p *data.Product) {
+		p.Serial = sql.NullInt64{serial, true}
+		if party.ProductTypeName != f.ProductType {
+			p.ProductTypeName = sql.NullString{f.ProductType, true}
 		}
-		party := data.LastParty()
-		if _, err := data.UpdateProductAtPlace(placeProduct, func(p *data.Product) error {
-			p.Serial = sql.NullInt64{serial, true}
-			if party.ProductTypeName != f.ProductType {
-				p.ProductTypeName = sql.NullString{f.ProductType, true}
-			}
-			return nil
-		}); err != nil {
-			return err
-		}
+	}); err != nil {
+		return err
+	}
+
+	runWork(what, func(x worker) error {
+
+		notify.LastPartyChanged(nil, api.LastParty1())
+
 		if err := writePlaceFirmware(x, placeDevice, bytes); err != nil {
 			return err
 		}
-		if _, err := data.UpdateProductAtPlace(placeProduct, func(p *data.Product) error {
+		if _, err := data.UpdateProductAtPlace(placeProduct, func(p *data.Product) {
 			p.Firmware = bytes
-			return nil
 		}); err != nil {
 			return err
 		}
 		notify.LastPartyChanged(nil, api.LastParty1())
 		return nil
 	})
+	return nil
 }
 
 func (_ runner) RunReadPlaceFirmware(place int) {

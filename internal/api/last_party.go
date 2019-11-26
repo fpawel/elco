@@ -93,10 +93,9 @@ func (x *LastPartySvc) SelectOnlyOkProductsProduction(_ struct{}, r *Party1) err
 }
 
 func (x *LastPartySvc) SetProductSerialAtPlace(p [2]int, r *int64) (err error) {
-	*r, err = data.UpdateProductAtPlace(p[0], func(product *data.Product) error {
+	*r, err = data.UpdateProductAtPlace(p[0], func(product *data.Product) {
 		product.Serial.Int64 = int64(p[1])
 		product.Serial.Valid = true
-		return nil
 	})
 	return
 }
@@ -107,9 +106,8 @@ func (x LastPartySvc) ProductAtPlace(place [1]int, r *data.ProductInfo) error {
 }
 
 func (x LastPartySvc) ToggleProductProductionAtPlace(place [1]int, r *int64) (err error) {
-	*r, err = data.UpdateProductAtPlace(place[0], func(p *data.Product) error {
+	*r, err = data.UpdateProductAtPlace(place[0], func(p *data.Product) {
 		p.Production = !p.Production
-		return nil
 	})
 	return
 }
@@ -118,10 +116,9 @@ func (x LastPartySvc) SetProductNoteAtPlace(p struct {
 	Place int
 	Note  string
 }, r *int64) (err error) {
-	*r, err = data.UpdateProductAtPlace(p.Place, func(product *data.Product) error {
+	*r, err = data.UpdateProductAtPlace(p.Place, func(product *data.Product) {
 		product.Note.String = strings.TrimSpace(p.Note)
 		product.Note.Valid = len(product.Note.String) > 0
-		return nil
 	})
 	return
 }
