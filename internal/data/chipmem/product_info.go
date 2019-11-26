@@ -23,7 +23,6 @@ func (s ProductInfo) CalculateFirmware() (x Firmware, err error) {
 	}
 
 	x = Firmware{
-		Place:       s.P.Place,
 		CreatedAt:   s.P.CreatedAt,
 		ProductType: s.P.AppliedProductTypeName,
 		Serial:      float64(s.P.Serial.Int64),
@@ -152,7 +151,6 @@ func (s ProductInfo) FirmwareInfo() FirmwareInfo {
 	x := FirmwareInfo{
 		ProductTempPoints:  TempPoints{},
 		TempValues:         []string{},
-		Place:              s.P.Place,
 		Year:               t.Year(),
 		Month:              int(t.Month()),
 		Day:                t.Day(),
@@ -176,7 +174,7 @@ func (s ProductInfo) FirmwareInfo() FirmwareInfo {
 				fonM[k] *= 1000
 			}
 			x.ProductTempPoints = NewTempPoints(fonM, sensM)
-			x.TempValues = tempValues(x.ProductTempPoints)
+			x.TempValues = TempValues(x.ProductTempPoints)
 		}
 	}
 	return x

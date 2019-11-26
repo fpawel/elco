@@ -33,7 +33,7 @@ func NewTempPoints(fonM, sensM TableXY) (r TempPoints) {
 	return
 }
 
-func tempPoints(values []string, fonM TableXY, sensM TableXY) error {
+func GetTempTables(values []string, fonM TableXY, sensM TableXY) error {
 	if len(values)%3 != 0 {
 		return merry.New("sequence length is not a multiple of three")
 	}
@@ -71,7 +71,7 @@ func tempPoints(values []string, fonM TableXY, sensM TableXY) error {
 	return nil
 }
 
-func tempValues(r TempPoints) (xs []string) {
+func TempValues(r TempPoints) (xs []string) {
 	var mainTemps = map[float64]struct{}{
 		-50: {},
 		-40: {},

@@ -44,10 +44,9 @@ func (x Bytes) ProductType() string {
 	return string(x[offset:n])
 }
 
-func (x Bytes) FirmwareInfo(place int) FirmwareInfo {
+func (x Bytes) FirmwareInfo() FirmwareInfo {
 	t := x.Time()
 	r := FirmwareInfo{
-		Place:              place,
 		ProductTempPoints:  x.ProductTempPoints(),
 		Year:               t.Year(),
 		Month:              int(t.Month()),
@@ -62,7 +61,7 @@ func (x Bytes) FirmwareInfo(place int) FirmwareInfo {
 		SensitivityLab73:   formatFloat(math.Float64frombits(binary.LittleEndian.Uint64(x[0x0720:])), 3),
 		SensitivityProduct: formatBCD(x[0x0709:0x070D], -1),
 		Fon20:              formatBCD(x[0x0705:0x0709], -1),
-		TempValues:         tempValues(x.ProductTempPoints()),
+		TempValues:         TempValues(x.ProductTempPoints()),
 		Units:              unitsName(x[0x060A]),
 		Gas:                gasName(x[0x0600]),
 	}

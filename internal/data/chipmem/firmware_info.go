@@ -1,6 +1,7 @@
 package chipmem
 
 import (
+	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/elco/internal/data"
 	"time"
@@ -9,7 +10,6 @@ import (
 type FirmwareInfo struct {
 	ProductTempPoints                      TempPoints
 	TempValues                             []string
-	Place                                  int
 	Year, Month, Day, Hour, Minute, Second int
 	SensitivityLab73,
 	SensitivityProduct,
@@ -66,7 +66,7 @@ func (v FirmwareInfo) GetFirmware() (Firmware, error) {
 
 	z.Fon, z.Sens = data.TableXY{}, data.TableXY{}
 
-	if err = tempPoints(v.TempValues, z.Fon, z.Sens); err != nil {
+	if err = GetTempTables(v.TempValues, z.Fon, z.Sens); err != nil {
 		return z, merry.Append(err, "не удался расчёт температурных точек")
 	}
 
@@ -88,4 +88,16 @@ func (v FirmwareInfo) GetFirmware() (Firmware, error) {
 	}
 
 	return z, nil
+}
+
+func (v FirmwareInfo) CalculateBytes() ([]string, error) {
+	firmware, err := v.GetFirmware()
+	if err != nil {
+		return nil, err
+	}
+	var xs []string
+	for _, b := range firmware.Bytes() {
+		xs = append(xs, fmt.Sprintf("%02X", b))
+	}
+	return xs, nil
 }

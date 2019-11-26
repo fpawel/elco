@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/fpawel/elco/internal/api"
+	"github.com/fpawel/elco/internal/data/chipmem"
 	"github.com/fpawel/elco/internal/pkg/must"
 	"os"
 	"path/filepath"
@@ -67,7 +68,7 @@ func main() {
 		},
 		{
 			"ReadFirmware",
-			r.TypeOf((*api.Firmware)(nil)).Elem(),
+			r.TypeOf((*chipmem.FirmwareInfo)(nil)).Elem(),
 		},
 		{
 			"Panic",

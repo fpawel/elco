@@ -10,7 +10,6 @@ import (
 const FirmwareSize = 1832
 
 type Firmware struct {
-	Place     int
 	CreatedAt time.Time
 	Serial,
 	ScaleBegin,

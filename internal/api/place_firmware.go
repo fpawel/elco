@@ -6,8 +6,7 @@ import (
 	"github.com/ansel1/merry"
 	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/elco/internal/data/chipmem"
-	"github.com/pkg/errors"
-	"strings"
+	"strconv"
 )
 
 type PlaceFirmware struct {
@@ -19,11 +18,6 @@ type FirmwareRunner interface {
 	RunReadPlaceFirmware(place int)
 }
 
-type Firmware struct {
-	FirmwareInfo chipmem.FirmwareInfo
-	Bytes        []string
-}
-
 type TempValues struct {
 	Values []string
 }
@@ -32,7 +26,7 @@ func NewProductFirmware(f FirmwareRunner) *PlaceFirmware {
 	return &PlaceFirmware{f}
 }
 
-func (x *PlaceFirmware) StoredFirmware(productID [1]int64, r *Firmware) error {
+func (x *PlaceFirmware) StoredProductFirmware(productID [1]int64, r *chipmem.FirmwareInfo) error {
 
 	var p data.Product
 	if err := data.DB.SelectOneTo(&p, `WHERE product_id = ?`, productID[0]); err != nil {
@@ -44,38 +38,68 @@ func (x *PlaceFirmware) StoredFirmware(productID [1]int64, r *Firmware) error {
 	if len(p.Firmware) < chipmem.FirmwareSize {
 		return merry.New("не верный формат \"прошивки\"")
 	}
-	r.FirmwareInfo = chipmem.Bytes(p.Firmware).FirmwareInfo(p.Place)
-	for _, b := range p.Firmware {
-		r.Bytes = append(r.Bytes, fmt.Sprintf("%02X", b))
-	}
-	if len(r.Bytes) == 0 {
-		r.Bytes = []string{}
-	}
+	*r = chipmem.Bytes(p.Firmware).FirmwareInfo()
+	//for _, b := range p.Firmware {
+	//	r.Bytes = append(r.Bytes, fmt.Sprintf("%02X", b))
+	//}
+	//if len(r.Bytes) == 0 {
+	//	r.Bytes = []string{}
+	//}
 	return nil
 }
 
-func (x *PlaceFirmware) CalculateFirmware(productID [1]int64, r *Firmware) error {
+func (x *PlaceFirmware) CalculatedProductFirmware(productID [1]int64, r *chipmem.FirmwareInfo) error {
 	var p data.ProductInfo
-	if err := data.DB.SelectOneTo(&p, `WHERE product_id = ?`, productID[0]); err != nil {
-		return err
-	}
-	r.FirmwareInfo = chipmem.ProductInfo{P: p}.FirmwareInfo()
-	firmware, err := r.FirmwareInfo.GetFirmware()
+	err := data.DB.SelectOneTo(&p, `WHERE product_id = ?`, productID[0])
 	if err != nil {
 		return err
 	}
-	for _, b := range firmware.Bytes() {
-		r.Bytes = append(r.Bytes, fmt.Sprintf("%02X", b))
+	*r = chipmem.ProductInfo{P: p}.FirmwareInfo()
+	//r.Bytes, err = r.FirmwareInfo.CalculateBytes()
+	return err
+}
+
+func (x *PlaceFirmware) CalculateTempPoints(v struct{ TempValues []string }, r *chipmem.TempPoints) error {
+	fonM, sensM := chipmem.TableXY{}, chipmem.TableXY{}
+	if err := chipmem.GetTempTables(v.TempValues, fonM, sensM); err != nil {
+		return err
+	}
+	*r = chipmem.NewTempPoints(fonM, sensM)
+	return nil
+}
+
+func (x *PlaceFirmware) GetFirmwareBytes(v struct {
+	FirmwareInfo chipmem.FirmwareInfo
+}, r *[]string) error {
+
+	f, err := v.FirmwareInfo.GetFirmware()
+	if err != nil {
+		return err
+	}
+	for _, b := range f.Bytes() {
+		*r = append(*r, fmt.Sprintf("%02X", b))
 	}
 	return nil
 }
 
-func (x *PlaceFirmware) TempPoints(v TempValues, r *chipmem.TempPoints) error {
-	fonM, sensM := data.TableXY{}, data.TableXY{}
-	if err := tempPoints(v.Values, fonM, sensM); err != nil {
-		return err
+func (x *PlaceFirmware) SetFirmwareBytes(v struct {
+	Bytes []string
+}, r *chipmem.FirmwareInfo) error {
+	if len(v.Bytes) == 0 || len(v.Bytes) < chipmem.FirmwareSize {
+		return merry.New("out of range")
 	}
-	*r = chipmem.NewTempPoints(fonM, sensM)
+	xs := chipmem.Bytes{}
+	for i, s := range v.Bytes {
+		if i >= chipmem.FirmwareSize {
+			break
+		}
+		b, err := strconv.ParseUint("0x"+s, 0, 8)
+		if err != nil {
+			return merry.Appendf(err, "адрес %04X: %q", i, s)
+		}
+		xs = append(xs, byte(b))
+	}
+	*r = xs.FirmwareInfo()
 	return nil
 }
 
@@ -157,7 +181,7 @@ func (x *PlaceFirmware) SaveProductType(v struct{ X chipmem.FirmwareInfo }, _ *s
 		return err
 	}
 
-	xs, err := tempPointsProductType(v.X.TempValues, v.X.ProductType)
+	xs, err := data.GetProductTypeTempPoints(v.X.TempValues, v.X.ProductType)
 	if err != nil {
 		return err
 	}
@@ -175,87 +199,12 @@ VALUES (:product_type_name, :temperature, :fon, :sens)`, v)
 }
 
 func (x *PlaceFirmware) RunWritePlaceFirmware(arg struct {
-	FirmwareInfo chipmem.FirmwareInfo
-	PlaceDevice  int
+	FirmwareInfo              chipmem.FirmwareInfo
+	PlaceDevice, PlaceProduct int
 }, _ *struct{}) error {
 	z, err := arg.FirmwareInfo.GetFirmware()
 	if err != nil {
 		return err
 	}
-	return x.f.RunWritePlaceFirmware(arg.PlaceDevice, arg.FirmwareInfo.Place, z.Bytes())
-}
-
-func tempPoints(values []string, fonM data.TableXY, sensM data.TableXY) error {
-	if len(values)%3 != 0 {
-		return errors.New("sequence length is not a multiple of three")
-	}
-
-	for n := 0; n < len(values); n += 3 {
-		strT := strings.TrimSpace(values[n+0])
-		if len(strT) == 0 {
-			continue
-		}
-
-		t, err := parseFloat(values[n])
-		if err != nil {
-			return merry.Appendf(err, "строка %d", n)
-		}
-		strI := strings.TrimSpace(values[n+1])
-		if len(strI) > 0 {
-			var i float64
-			i, err = parseFloat(strI)
-			if err != nil {
-				return merry.Appendf(err, "строка %d", n)
-			}
-			fonM[t] = i
-		}
-		strS := strings.TrimSpace(values[n+2])
-		if len(strS) > 0 {
-			var k float64
-			k, err = parseFloat(strS)
-			if err != nil {
-				return merry.Appendf(err, "строка %d", n)
-			}
-			sensM[t] = k
-		}
-	}
-	// r = data.NewTempPoints(fonM, sensM)
-	return nil
-}
-
-func tempPointsProductType(values []string, productTypeName string) ([]data.ProductTypeTempPoint, error) {
-	if len(values)%3 != 0 {
-		return nil, errors.New("sequence length is not a multiple of three")
-	}
-
-	var xs []data.ProductTypeTempPoint
-
-	for n := 0; n < len(values); n += 3 {
-		strT := strings.TrimSpace(values[n+0])
-		if len(strT) == 0 {
-			continue
-		}
-
-		r := data.ProductTypeTempPoint{ProductTypeName: productTypeName}
-		var err error
-
-		r.Temperature, err = parseFloat(values[n])
-		if err != nil {
-			return nil, merry.Appendf(err, "строка %d", n)
-		}
-
-		strI := strings.TrimSpace(values[n+1])
-		r.Fon, err = parseFloatPtr(strI)
-		if err != nil {
-			return nil, merry.Appendf(err, "строка %d", n)
-		}
-
-		strS := strings.TrimSpace(values[n+2])
-		r.Sens, err = parseFloatPtr(strS)
-		if err != nil {
-			return nil, merry.Appendf(err, "строка %d", n)
-		}
-		xs = append(xs, r)
-	}
-	return xs, nil
+	return x.f.RunWritePlaceFirmware(arg.PlaceDevice, arg.PlaceProduct, z.Bytes())
 }
