@@ -116,15 +116,6 @@ func ListGases() []Gas {
 	return gas
 }
 
-//func GetLastPartyProductAtPlace(place int, product *Product) error {
-//	return DB.SelectOneTo(product, "WHERE party_id = (SELECT party_id FROM last_party) AND place = ?", place)
-//}
-
-//func GetProductAtPlace(place int, product *Product) (err error) {
-//	err = DB.SelectOneTo(product, "WHERE party_id = ? AND place = ?", LastPartyID(), place)
-//	return
-//}
-
 func UpdateProductAtPlace(place int, f func(p *Product)) (int64, error) {
 	partyID := LastPartyID()
 

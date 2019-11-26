@@ -3,6 +3,7 @@ package pdf
 import (
 	"fmt"
 	"github.com/fpawel/elco/internal/data"
+	"github.com/fpawel/elco/internal/data/chipmem"
 	"github.com/jung-kurt/gofpdf"
 	"strconv"
 )
@@ -78,13 +79,14 @@ func doPassportDax(d *gofpdf.Fpdf, left, width float64, p data.ProductInfo) {
 		return ""
 	}
 	fFon, fSens := f, f
-	if t, err := p.TableFon(); err == nil {
+
+	if t, err := (chipmem.ProductInfo{p}).TableFon(); err == nil {
 		a := data.NewApproximationTable(t)
 		fFon = func(x float64) string {
 			return strconv.FormatFloat(a.F(x), 'f', 3, 64)
 		}
 	}
-	if t, err := p.TableSens(); err == nil {
+	if t, err := (chipmem.ProductInfo{p}).TableSens(); err == nil {
 		a := data.NewApproximationTable(t)
 		fSens = func(x float64) string {
 			return strconv.FormatFloat(a.F(x), 'f', 0, 64)

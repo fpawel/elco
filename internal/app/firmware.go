@@ -10,6 +10,7 @@ import (
 	"github.com/fpawel/elco/internal/api/notify"
 	"github.com/fpawel/elco/internal/cfg"
 	"github.com/fpawel/elco/internal/data"
+	"github.com/fpawel/elco/internal/data/chipmem"
 	"github.com/fpawel/elco/internal/pkg"
 	"github.com/fpawel/elco/internal/pkg/intrng"
 	"github.com/hako/durafmt"
@@ -175,7 +176,7 @@ func (hlp *helperWriteParty) writeBlock(x worker, products []*data.Product) erro
 		}
 		log := pkg.LogPrependSuffixKeys(x.log, "product_id", p.ProductID, "serial", p.Serial)
 		_ = hlp.tryPlace(log, p.Place, func() error {
-			firmware, err := prodInfo.Firmware()
+			firmware, err := chipmem.ProductInfo{*prodInfo}.CalculateFirmware()
 			if err == nil {
 				hlp.bytes[p.Place] = firmware.Bytes()
 			}
@@ -251,7 +252,7 @@ func readPlaceFirmware(x worker, place int) ([]byte, error) {
 	startTime := time.Now()
 	block := place / 8
 	placeInBlock := place % 8
-	b := make([]byte, data.FirmwareSize)
+	b := make([]byte, chipmem.FirmwareSize)
 	for i := range b {
 		b[i] = 0xff
 	}

@@ -36,7 +36,9 @@ func (h *ConfigSvc) SetYAML(s [1]string, r *string) error {
 	cfg.Set(c.Main)
 
 	dataParty := data.LastParty()
-	c.Party.SetupDataParty(&dataParty)
+	if err := c.Party.SetupDataParty(&dataParty); err != nil {
+		return err
+	}
 	if err := data.DB.Save(&dataParty); err != nil {
 		return err
 	}

@@ -9,6 +9,7 @@ import (
 	"github.com/fpawel/elco/internal/api/notify"
 	"github.com/fpawel/elco/internal/cfg"
 	"github.com/fpawel/elco/internal/data"
+	"github.com/fpawel/elco/internal/data/chipmem"
 	"github.com/fpawel/elco/internal/pkg"
 	"github.com/fpawel/elco/internal/pkg/ktx500"
 	"strconv"
@@ -74,7 +75,7 @@ func (_ runner) RunWritePlaceFirmware(placeDevice, placeProduct int, bytes []byt
 	if placeProduct != placeDevice {
 		what += fmt.Sprintf(": место в стенде %s", data.FormatPlace(placeDevice))
 	}
-	f := data.FirmwareBytes(bytes).FirmwareInfo(placeProduct)
+	f := chipmem.Bytes(bytes).FirmwareInfo(placeProduct)
 	serial, err := strconv.ParseInt(f.Serial, 10, 64)
 	if err != nil {
 		return merry.Append(err, "серийный номер")
@@ -113,7 +114,14 @@ func (_ runner) RunReadPlaceFirmware(place int) {
 		if err != nil {
 			return err
 		}
-		notify.ReadFirmware(x.log.Info, data.FirmwareBytes(b).FirmwareInfo(place))
+		f := api.Firmware{
+			FirmwareInfo: chipmem.Bytes(b).FirmwareInfo(place),
+		}
+		for _, b := range b {
+			f.Bytes = append(f.Bytes, fmt.Sprintf("%02X", b))
+		}
+
+		notify.ReadFirmware(x.log.Info, f)
 		return nil
 	})
 	return

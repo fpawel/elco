@@ -2,6 +2,7 @@ package api
 
 import (
 	"github.com/fpawel/elco/internal/data"
+	"github.com/fpawel/elco/internal/data/chipmem"
 	"strings"
 )
 
@@ -48,7 +49,9 @@ func (_ *LastPartySvc) SetValues(r struct{ P Party3 }, _ *struct{}) error {
 	x := r.P
 
 	p := data.LastParty()
-	x.SetupDataParty(&p)
+	if err := x.SetupDataParty(&p); err != nil {
+		return err
+	}
 	if err := data.DB.Save(&p); err != nil {
 		return err
 	}
@@ -187,7 +190,7 @@ func (x *LastPartySvc) SetBlockChecked(r [2]int, a *int64) error {
 }
 
 func (x *LastPartySvc) CalculateFonMinus20(_ struct{}, party *Party1) error {
-	if err := data.CalculateFonMinus20(); err != nil {
+	if err := chipmem.CalculateFonMinus20(); err != nil {
 		return err
 	}
 	*party = LastParty1()
@@ -195,7 +198,7 @@ func (x *LastPartySvc) CalculateFonMinus20(_ struct{}, party *Party1) error {
 }
 
 func (x *LastPartySvc) CalculateSensMinus20(k [1]float64, party *Party1) error {
-	if err := data.CalculateSensMinus20(k[0]); err != nil {
+	if err := chipmem.CalculateSensMinus20(k[0]); err != nil {
 		return err
 	}
 	*party = LastParty1()
@@ -203,7 +206,7 @@ func (x *LastPartySvc) CalculateSensMinus20(k [1]float64, party *Party1) error {
 }
 
 func (x *LastPartySvc) CalculateSensPlus50(k [1]float64, party *Party1) error {
-	if err := data.CalculateSensPlus50(k[0]); err != nil {
+	if err := chipmem.CalculateSensPlus50(k[0]); err != nil {
 		return err
 	}
 	*party = LastParty1()

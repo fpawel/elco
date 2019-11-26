@@ -2,12 +2,12 @@ package api
 
 import (
 	"database/sql"
+	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/elco/internal/data"
+	"github.com/fpawel/elco/internal/data/chipmem"
 	"github.com/pkg/errors"
-	"strconv"
 	"strings"
-	"time"
 )
 
 type PlaceFirmware struct {
@@ -19,95 +19,20 @@ type FirmwareRunner interface {
 	RunReadPlaceFirmware(place int)
 }
 
-type FirmwareInfo2 struct {
-	Place                                  int
-	Year, Month, Day, Hour, Minute, Second int
-	SensitivityProduct, SensitivityLab73,
-	Fon20,
-	Serial, ProductType,
-	Gas, Units, ScaleBegin, ScaleEnd string
-	Values []string
+type Firmware struct {
+	FirmwareInfo chipmem.FirmwareInfo
+	Bytes        []string
 }
 
 type TempValues struct {
 	Values []string
 }
 
-func (v FirmwareInfo2) GetFirmware() (data.Firmware, error) {
-	z := data.Firmware{
-		CreatedAt: time.Date(v.Year, time.Month(v.Month), v.Day, v.Hour, v.Minute, v.Second, 0, time.Local),
-	}
-
-	gases := data.ListGases()
-	units := data.ListUnits()
-
-	ok := false
-
-	for _, gas := range gases {
-		if gas.GasName == v.Gas {
-			z.Gas = gas.Code
-			ok = true
-			break
-		}
-	}
-	if !ok {
-		return z, merry.Errorf("код газа не задан: %q ", v.Gas)
-	}
-
-	ok = false
-
-	for _, u := range units {
-		if u.UnitsName == v.Units {
-			z.Units = u.Code
-			ok = true
-			break
-		}
-	}
-	if !ok {
-		return z, merry.Errorf("код единиц измерения не задан: %q ", v.Units)
-	}
-
-	var err error
-	z.ScaleBegin, err = parseFloat(v.ScaleBegin)
-	if err != nil {
-		return z, merry.Appendf(err, "не верный формат значения начала шкалы: %s", v.ScaleBegin)
-	}
-
-	z.ScaleEnd, err = parseFloat(v.ScaleEnd)
-	if err != nil {
-		return z, merry.Appendf(err, "не верный формат значения конца шкалы: %s", v.ScaleEnd)
-	}
-
-	z.Fon, z.Sens = data.TableXY{}, data.TableXY{}
-
-	if err = tempPoints(v.Values, z.Fon, z.Sens); err != nil {
-		return z, merry.Append(err, "не удался расчёт температурных точек")
-	}
-
-	z.KSens20, err = parseFloat(v.SensitivityProduct)
-	if err != nil {
-		return z, merry.Appendf(err, "не верный формат значения коэффициента чувствиттельности: %s", v.SensitivityProduct)
-	}
-
-	z.Fon20, err = parseFloat(v.Fon20)
-	if err != nil {
-		return z, merry.Appendf(err, "не верный формат значения фонового тока: %s", v.Fon20)
-	}
-
-	z.ProductType = v.ProductType
-
-	z.Serial, err = parseFloat(v.Serial)
-	if err != nil {
-		return z, merry.Appendf(err, "не верный формат значения серийного номера: %s", v.Serial)
-	}
-	return z, nil
-}
-
 func NewProductFirmware(f FirmwareRunner) *PlaceFirmware {
 	return &PlaceFirmware{f}
 }
 
-func (x *PlaceFirmware) StoredFirmwareInfo(productID [1]int64, r *data.FirmwareInfo) error {
+func (x *PlaceFirmware) StoredFirmware(productID [1]int64, r *Firmware) error {
 
 	var p data.Product
 	if err := data.DB.SelectOneTo(&p, `WHERE product_id = ?`, productID[0]); err != nil {
@@ -116,35 +41,48 @@ func (x *PlaceFirmware) StoredFirmwareInfo(productID [1]int64, r *data.FirmwareI
 	if len(p.Firmware) == 0 {
 		return merry.New("ЭХЯ не \"прошита\"")
 	}
-	if len(p.Firmware) < data.FirmwareSize {
+	if len(p.Firmware) < chipmem.FirmwareSize {
 		return merry.New("не верный формат \"прошивки\"")
 	}
-	*r = data.FirmwareBytes(p.Firmware).FirmwareInfo(p.Place)
+	r.FirmwareInfo = chipmem.Bytes(p.Firmware).FirmwareInfo(p.Place)
+	for _, b := range p.Firmware {
+		r.Bytes = append(r.Bytes, fmt.Sprintf("%02X", b))
+	}
+	if len(r.Bytes) == 0 {
+		r.Bytes = []string{}
+	}
 	return nil
 }
 
-func (x *PlaceFirmware) CalculateFirmwareInfo(productID [1]int64, r *data.FirmwareInfo) (err error) {
+func (x *PlaceFirmware) CalculateFirmware(productID [1]int64, r *Firmware) error {
 	var p data.ProductInfo
 	if err := data.DB.SelectOneTo(&p, `WHERE product_id = ?`, productID[0]); err != nil {
 		return err
 	}
-	*r = p.FirmwareInfo()
+	r.FirmwareInfo = chipmem.ProductInfo{P: p}.FirmwareInfo()
+	firmware, err := r.FirmwareInfo.GetFirmware()
+	if err != nil {
+		return err
+	}
+	for _, b := range firmware.Bytes() {
+		r.Bytes = append(r.Bytes, fmt.Sprintf("%02X", b))
+	}
 	return nil
 }
 
-func (x *PlaceFirmware) TempPoints(v TempValues, r *data.TempPoints) error {
+func (x *PlaceFirmware) TempPoints(v TempValues, r *chipmem.TempPoints) error {
 	fonM, sensM := data.TableXY{}, data.TableXY{}
 	if err := tempPoints(v.Values, fonM, sensM); err != nil {
 		return err
 	}
-	*r = data.NewTempPoints(fonM, sensM)
+	*r = chipmem.NewTempPoints(fonM, sensM)
 	return nil
 }
 
 type ProductType2 struct {
 	data.ProductType
 	Currents   [][3]string
-	TempPoints data.TempPoints
+	TempPoints chipmem.TempPoints
 }
 
 func (x *PlaceFirmware) GetProductType(productTypeName [1]string, r *ProductType2) error {
@@ -160,12 +98,20 @@ func (x *PlaceFirmware) GetProductType(productTypeName [1]string, r *ProductType
 	fonM, sensM := data.TableXY{}, data.TableXY{}
 	xs := data.FetchProductTypeTempPoints(productTypeName[0])
 	for _, x := range xs {
-		fonM[x.T] = x.Fon
-		sensM[x.T] = x.Sens
+		if x.Fon != nil {
+			fonM[x.Temperature] = *x.Fon
+		}
+		if x.Sens != nil {
+			sensM[x.Temperature] = *x.Sens
+		}
 		r.Currents = append(r.Currents,
-			[3]string{formatFloat(x.T, -1), formatFloat(x.Fon, -1), formatFloat(x.Sens, -1)})
+			[3]string{
+				formatFloat(x.Temperature, -1),
+				formatFloatPtr(x.Fon, -1),
+				formatFloatPtr(x.Sens, -1),
+			})
 	}
-	r.TempPoints = data.NewTempPoints(fonM, sensM)
+	r.TempPoints = chipmem.NewTempPoints(fonM, sensM)
 	return nil
 }
 
@@ -174,7 +120,7 @@ func (x *PlaceFirmware) RunReadPlaceFirmware(place [1]int, _ *struct{}) error {
 	return nil
 }
 
-func (x *PlaceFirmware) SaveProductType(v struct{ X FirmwareInfo2 }, _ *struct{}) error {
+func (x *PlaceFirmware) SaveProductType(v struct{ X chipmem.FirmwareInfo }, _ *struct{}) error {
 
 	var p data.ProductType
 
@@ -211,7 +157,7 @@ func (x *PlaceFirmware) SaveProductType(v struct{ X FirmwareInfo2 }, _ *struct{}
 		return err
 	}
 
-	xs, err := tempPointsProductType(v.X.Values, v.X.ProductType)
+	xs, err := tempPointsProductType(v.X.TempValues, v.X.ProductType)
 	if err != nil {
 		return err
 	}
@@ -229,7 +175,7 @@ VALUES (:product_type_name, :temperature, :fon, :sens)`, v)
 }
 
 func (x *PlaceFirmware) RunWritePlaceFirmware(arg struct {
-	FirmwareInfo FirmwareInfo2
+	FirmwareInfo chipmem.FirmwareInfo
 	PlaceDevice  int
 }, _ *struct{}) error {
 	z, err := arg.FirmwareInfo.GetFirmware()
@@ -277,19 +223,12 @@ func tempPoints(values []string, fonM data.TableXY, sensM data.TableXY) error {
 	return nil
 }
 
-type tempPointProductType struct {
-	T float64 `db:"temperature"`
-	I float64 `db:"fon"`
-	S float64 `db:"sens"`
-	P string  `db:"product_type_name"`
-}
-
-func tempPointsProductType(values []string, productTypeName string) ([]tempPointProductType, error) {
+func tempPointsProductType(values []string, productTypeName string) ([]data.ProductTypeTempPoint, error) {
 	if len(values)%3 != 0 {
 		return nil, errors.New("sequence length is not a multiple of three")
 	}
 
-	var xs []tempPointProductType
+	var xs []data.ProductTypeTempPoint
 
 	for n := 0; n < len(values); n += 3 {
 		strT := strings.TrimSpace(values[n+0])
@@ -297,41 +236,26 @@ func tempPointsProductType(values []string, productTypeName string) ([]tempPoint
 			continue
 		}
 
-		r := tempPointProductType{P: productTypeName}
+		r := data.ProductTypeTempPoint{ProductTypeName: productTypeName}
 		var err error
 
-		r.T, err = parseFloat(values[n])
+		r.Temperature, err = parseFloat(values[n])
 		if err != nil {
 			return nil, merry.Appendf(err, "строка %d", n)
 		}
 
 		strI := strings.TrimSpace(values[n+1])
-		r.I, err = parseFloat(strI)
+		r.Fon, err = parseFloatPtr(strI)
 		if err != nil {
 			return nil, merry.Appendf(err, "строка %d", n)
 		}
 
 		strS := strings.TrimSpace(values[n+2])
-		r.S, err = parseFloat(strS)
+		r.Sens, err = parseFloatPtr(strS)
 		if err != nil {
 			return nil, merry.Appendf(err, "строка %d", n)
 		}
 		xs = append(xs, r)
 	}
 	return xs, nil
-}
-
-func parseFloat(s string) (float64, error) {
-	return strconv.ParseFloat(strings.Replace(s, ",", ".", -1), 64)
-}
-
-//func formatNullFloat64K(v sql.NullFloat64, k float64, precision int) string {
-//	if v.Valid {
-//		return formatFloat(v.Float64*k, precision)
-//	}
-//	return ""
-//}
-
-func formatFloat(v float64, precision int) string {
-	return strconv.FormatFloat(v, 'f', precision, 64)
 }

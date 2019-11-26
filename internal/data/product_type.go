@@ -25,7 +25,6 @@ type ProductType struct {
 	MaxDNotMeasured   sql.NullFloat64 `reform:"max_d_not_measured"`
 	KSens20           sql.NullFloat64 `reform:"k_sens20"`
 	Fon20             sql.NullFloat64 `reform:"fon20"`
-	ChipType          string          `reform:"chip_type"`
 	MaxD1             sql.NullFloat64 `reform:"max_d1"`
 	MaxD2             sql.NullFloat64 `reform:"max_d2"`
 	MaxD3             sql.NullFloat64 `reform:"max_d3"`

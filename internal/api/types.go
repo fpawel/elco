@@ -101,7 +101,7 @@ func newParty3(x data.Party) (p Party3) {
 	return
 }
 
-func (x Party3) SetupDataParty(p *data.Party) {
+func (x Party3) SetupDataParty(p *data.Party) (err error) {
 	p.ProductTypeName = x.ProductTypeName
 	p.Concentration1 = x.Concentration1
 	p.Concentration2 = x.Concentration2
@@ -109,20 +109,21 @@ func (x Party3) SetupDataParty(p *data.Party) {
 	p.Note.String = strings.TrimSpace(x.Note)
 	p.Note.Valid = len(p.Note.String) > 0
 
-	p.MinFon = parseNullFloat(x.MinFon)
-	p.MaxFon = parseNullFloat(x.MaxFon)
-	p.MaxDFon = parseNullFloat(x.MaxDFon)
-	p.MinKSens20 = parseNullFloat(x.MinKSens20)
-	p.MaxKSens20 = parseNullFloat(x.MaxKSens20)
-	p.MinKSens50 = parseNullFloat(x.MinKSens50)
-	p.MaxKSens50 = parseNullFloat(x.MaxKSens50)
-	p.MinDTemp = parseNullFloat(x.MinDTemp)
-	p.MaxDTemp = parseNullFloat(x.MaxDTemp)
-	p.MaxDNotMeasured = parseNullFloat(x.MaxDNotMeasured)
+	p.MinFon, err = parseNullFloat(x.MinFon)
+	p.MaxFon, err = parseNullFloat(x.MaxFon)
+	p.MaxDFon, err = parseNullFloat(x.MaxDFon)
+	p.MinKSens20, err = parseNullFloat(x.MinKSens20)
+	p.MaxKSens20, err = parseNullFloat(x.MaxKSens20)
+	p.MinKSens50, err = parseNullFloat(x.MinKSens50)
+	p.MaxKSens50, err = parseNullFloat(x.MaxKSens50)
+	p.MinDTemp, err = parseNullFloat(x.MinDTemp)
+	p.MaxDTemp, err = parseNullFloat(x.MaxDTemp)
+	p.MaxDNotMeasured, err = parseNullFloat(x.MaxDNotMeasured)
 	p.PointsMethod = x.PointsMethod
-	p.MaxD1 = parseNullFloat(x.MaxD1)
-	p.MaxD2 = parseNullFloat(x.MaxD2)
-	p.MaxD3 = parseNullFloat(x.MaxD3)
+	p.MaxD1, err = parseNullFloat(x.MaxD1)
+	p.MaxD2, err = parseNullFloat(x.MaxD2)
+	p.MaxD3, err = parseNullFloat(x.MaxD3)
+	return
 }
 
 type ScriptLine struct {
@@ -142,15 +143,32 @@ func LastParty1() Party1 {
 	return newParty1(data.LastPartyID())
 }
 
-func parseNullFloat(x string) sql.NullFloat64 {
-	x = strings.Replace(strings.TrimSpace(x), ",", ".", -1)
-	if v, err := strconv.ParseFloat(x, 64); err == nil {
-		return sql.NullFloat64{
-			Float64: v,
-			Valid:   true,
-		}
+func parseNullFloat(s string) (sql.NullFloat64, error) {
+
+	s = strings.TrimSpace(s)
+	if len(s) == 0 {
+		return sql.NullFloat64{}, nil
 	}
-	return sql.NullFloat64{}
+	s = strings.Replace(s, ",", ".", -1)
+	v, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		return sql.NullFloat64{v, true}, nil
+	}
+	return sql.NullFloat64{}, err
+}
+
+func parseFloat(s string) (float64, error) {
+	return strconv.ParseFloat(strings.Replace(s, ",", ".", -1), 64)
+}
+
+func parseFloatPtr(s string) (*float64, error) {
+	s = strings.TrimSpace(s)
+	if len(s) == 0 {
+		return nil, nil
+	}
+	s = strings.Replace(s, ",", ".", -1)
+	v, err := strconv.ParseFloat(s, 64)
+	return &v, err
 }
 
 func formatNullFloat(x sql.NullFloat64) string {
@@ -158,4 +176,15 @@ func formatNullFloat(x sql.NullFloat64) string {
 		return fmt.Sprintf("%v", x.Float64)
 	}
 	return ""
+}
+
+func formatFloat(v float64, precision int) string {
+	return strconv.FormatFloat(v, 'f', precision, 64)
+}
+
+func formatFloatPtr(v *float64, precision int) string {
+	if v == nil {
+		return ""
+	}
+	return formatFloat(*v, precision)
 }

@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"github.com/fpawel/elco/internal/api"
-	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/elco/internal/pkg/must"
 	"os"
 	"path/filepath"
@@ -68,7 +67,7 @@ func main() {
 		},
 		{
 			"ReadFirmware",
-			r.TypeOf((*data.FirmwareInfo)(nil)).Elem(),
+			r.TypeOf((*api.Firmware)(nil)).Elem(),
 		},
 		{
 			"Panic",
