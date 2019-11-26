@@ -161,16 +161,6 @@ func parseFloat(s string) (float64, error) {
 	return strconv.ParseFloat(strings.Replace(s, ",", ".", -1), 64)
 }
 
-func parseFloatPtr(s string) (*float64, error) {
-	s = strings.TrimSpace(s)
-	if len(s) == 0 {
-		return nil, nil
-	}
-	s = strings.Replace(s, ",", ".", -1)
-	v, err := strconv.ParseFloat(s, 64)
-	return &v, err
-}
-
 func formatNullFloat(x sql.NullFloat64) string {
 	if x.Valid {
 		return fmt.Sprintf("%v", x.Float64)
