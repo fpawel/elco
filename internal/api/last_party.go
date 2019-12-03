@@ -52,6 +52,22 @@ func (_ *LastPartySvc) SetValues(r struct{ P Party3 }, _ *struct{}) error {
 	if err := x.SetupDataParty(&p); err != nil {
 		return err
 	}
+
+	p.MinFon = stringToNullFloat(x.MinFon)
+	p.MaxFon = stringToNullFloat(x.MaxFon)
+	p.MaxDFon = stringToNullFloat(x.MaxDFon)
+	p.MinKSens20 = stringToNullFloat(x.MinKSens20)
+	p.MaxKSens20 = stringToNullFloat(x.MaxKSens20)
+	p.MinKSens50 = stringToNullFloat(x.MinKSens50)
+	p.MaxKSens50 = stringToNullFloat(x.MaxKSens50)
+	p.MinDTemp = stringToNullFloat(x.MinDTemp)
+	p.MaxDTemp = stringToNullFloat(x.MaxDTemp)
+	p.MaxDNotMeasured = stringToNullFloat(x.MaxDNotMeasured)
+	p.PointsMethod = x.PointsMethod
+	p.MaxD1 = stringToNullFloat(x.MaxD1)
+	p.MaxD2 = stringToNullFloat(x.MaxD2)
+	p.MaxD3 = stringToNullFloat(x.MaxD3)
+
 	if err := data.DB.Save(&p); err != nil {
 		return err
 	}
@@ -129,7 +145,7 @@ func (x LastPartySvc) SetProductNoteAtPlace(p struct {
 func (x LastPartySvc) SetProductTypeAtPlacesRange(p struct {
 	Place1, Place2 int
 	ProductType    string
-}, r *int64) (err error) {
+}, _ *struct{}) (err error) {
 	p.ProductType = strings.TrimSpace(p.ProductType)
 	var v interface{}
 	if p.ProductType != "" {
@@ -146,7 +162,7 @@ WHERE party_id=(SELECT party_id FROM last_party)
 func (x LastPartySvc) SetPointsMethodInPlacesRange(p struct {
 	Place1, Place2 int
 	Value          int
-}, r *int64) error {
+}, _ *struct{}) error {
 	var v interface{}
 	if p.Value == 2 || p.Value == 3 {
 		v = p.Value

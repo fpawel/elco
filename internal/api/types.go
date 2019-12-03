@@ -143,6 +143,13 @@ func LastParty1() Party1 {
 	return newParty1(data.LastPartyID())
 }
 
+func stringToNullFloat(s string) sql.NullFloat64 {
+	if v, err := parseFloat(s); err == nil {
+		return sql.NullFloat64{v, true}
+	}
+	return sql.NullFloat64{}
+}
+
 func parseNullFloat(s string) (sql.NullFloat64, error) {
 
 	s = strings.TrimSpace(s)
