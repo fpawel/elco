@@ -57,7 +57,7 @@ func setupTemperature(x worker, destinationTemperature float64) error {
 
 func readBlockMeasure(x worker, block int) ([]float64, error) {
 	x.log = pkg.LogPrependSuffixKeys(x.log, "блок", block)
-	values, err := modbus.Read3BCDs(x.log, x.Reader1(), modbus.Addr(block+101), 0, 8)
+	values, err := modbus.Read3BCDs(x.log, x.ctx, x.Reader1(), modbus.Addr(block+101), 0, 8)
 	if err == nil {
 		notify.ReadCurrent(nil, api.ReadCurrent{
 			Block:  block,
@@ -105,7 +105,7 @@ func (x worker) switchGas(n int) error {
 			return nil
 		}
 		x.log.Info("переключение клапана")
-		if _, err := req.GetResponse(x.log, x.ReaderGas(), nil); err != nil {
+		if _, err := req.GetResponse(x.log, x.ctx, x.ReaderGas(), nil); err != nil {
 			return err
 		}
 		req = modbus.Request{
@@ -120,7 +120,7 @@ func (x worker) switchGas(n int) error {
 			req.Data[3] = 0xD5
 		}
 		x.log.Info("установка расхода")
-		if _, err := req.GetResponse(x.log, x.ReaderGas(), nil); err != nil {
+		if _, err := req.GetResponse(x.log, x.ctx, x.ReaderGas(), nil); err != nil {
 			return err
 		}
 		x.lastGas = &n

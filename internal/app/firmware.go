@@ -289,7 +289,7 @@ func readPlaceFirmware(x worker, place int) ([]byte, error) {
 			"bytes_count", count,
 		)
 
-		resp, err := req.GetResponse(log, x.Reader2(), func(request, response []byte) (string, error) {
+		resp, err := req.GetResponse(log, x.ctx, x.Reader2(), func(request, response []byte) (string, error) {
 			if len(response) != 10+int(count) {
 				return "", comm.Err.Here().Appendf("ожидалось %d байт ответа, получено %d",
 					10+int(count), len(response))
@@ -421,7 +421,7 @@ func readStatus45(x worker, block int) ([]byte, error) {
 		Addr:     modbus.Addr(block) + 101,
 		ProtoCmd: 0x45,
 	}
-	return request.GetResponse(x.log, x.Reader2(), func(request, response []byte) (string, error) {
+	return request.GetResponse(x.log, x.ctx, x.Reader2(), func(request, response []byte) (string, error) {
 		if len(response) != 12 {
 			return "", comm.Err.Here().Appendf("ожидалось 12 байт ответа, получено %d", len(response))
 		}
@@ -454,7 +454,7 @@ func writePreparedDataToFlash(x worker, block int, placesMask byte, addr uint16,
 			byte(count),
 		},
 	}
-	_, err := req.GetResponse(x.log, x.Reader2(), func(request, response []byte) (string, error) {
+	_, err := req.GetResponse(x.log, x.ctx, x.Reader2(), func(request, response []byte) (string, error) {
 		if !compareBytes(response, request) {
 			return "", merry.Errorf("запрос не равен ответу: блок измерения %d", block)
 		}
@@ -486,7 +486,7 @@ func sendDataToWrite42(x worker, block, placeInBlock int, b []byte) error {
 		}, b...),
 	}
 
-	_, err := req.GetResponse(x.log, x.Reader2(), func(request, response []byte) (string, error) {
+	_, err := req.GetResponse(x.log, x.ctx, x.Reader2(), func(request, response []byte) (string, error) {
 		if len(response) != 7 {
 			return "", merry.Errorf("длина ответа %d не равна 7: блок измерения %d", len(response), block)
 		}

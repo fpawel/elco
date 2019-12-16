@@ -6,7 +6,7 @@ require (
 	github.com/AlekSi/pointer v1.1.0 // indirect
 	github.com/ansel1/merry v1.5.0
 	github.com/denisenkom/go-mssqldb v0.0.0-20191001013358-cfbb681360f0 // indirect
-	github.com/fpawel/comm v0.0.0-20191031131148-81f4523d4a3a
+	github.com/fpawel/comm v0.0.0-20191216101109-5dc0313cb336
 	github.com/fpawel/gofins v0.0.0-20190517135525-2c568bd32bf8
 	github.com/fpawel/gotools v0.0.0-20191030125146-1d6c7465834c
 	github.com/gopherjs/gopherjs v0.0.0-20191106031601-ce3c9ade29de // indirect
@@ -24,6 +24,7 @@ require (
 	github.com/valyala/quicktemplate v1.4.1
 	golang.org/x/crypto v0.0.0-20191108234033-bd318be0434a // indirect
 	golang.org/x/sys v0.0.0-20191105231009-c1f44814a5cd // indirect
+	golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543 // indirect
 	gopkg.in/reform.v1 v1.3.3
 	gopkg.in/yaml.v2 v2.2.5 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20191107175235-0b070bb63a18

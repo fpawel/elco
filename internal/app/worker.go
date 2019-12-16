@@ -58,14 +58,14 @@ func newWorker(ctx context.Context, name string) worker {
 }
 
 func (x worker) Reader2() modbus.ResponseReader {
-	return x.comport2.NewResponseReader(x.ctx, cfg.Get().Comport)
+	return modbus.NewResponseReader(x.comport2, cfg.Get().Comport)
 }
 
 func (x worker) Reader1() modbus.ResponseReader {
-	return x.comport.NewResponseReader(x.ctx, cfg.Get().Comport)
+	return modbus.NewResponseReader(x.comport, cfg.Get().Comport)
 }
 func (x worker) ReaderGas() modbus.ResponseReader {
-	return x.comportGas.NewResponseReader(x.ctx, cfg.Get().ComportGas)
+	return modbus.NewResponseReader(x.comportGas, cfg.Get().ComportGas)
 }
 
 func (x worker) withLogKeys(keyvals ...interface{}) worker {
