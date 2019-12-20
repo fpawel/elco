@@ -6,7 +6,7 @@ require (
 	github.com/AlekSi/pointer v1.1.0 // indirect
 	github.com/ansel1/merry v1.5.0
 	github.com/denisenkom/go-mssqldb v0.0.0-20191001013358-cfbb681360f0 // indirect
-	github.com/fpawel/comm v0.0.0-20191216101109-5dc0313cb336
+	github.com/fpawel/comm v0.0.0-20191220100530-62cdfb8cff61
 	github.com/fpawel/gofins v0.0.0-20190517135525-2c568bd32bf8
 	github.com/fpawel/gotools v0.0.0-20191030125146-1d6c7465834c
 	github.com/gopherjs/gopherjs v0.0.0-20191106031601-ce3c9ade29de // indirect

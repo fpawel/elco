@@ -4,68 +4,39 @@ import (
 	"context"
 	"fmt"
 	"github.com/ansel1/merry"
-	"github.com/fpawel/comm/comport"
-	"github.com/fpawel/comm/modbus"
 	"github.com/fpawel/elco/internal/api/notify"
-	"github.com/fpawel/elco/internal/cfg"
 	"github.com/fpawel/elco/internal/pkg"
 	"github.com/powerman/structlog"
 	"strings"
-	"time"
 )
 
 type worker struct {
 	log             *structlog.Logger
 	ctx             context.Context
 	works           []string
-	comport         *comport.Port
-	comport2        *comport.Port
-	comportGas      *comport.Port
 	lastGas         *int
 	lastTemperature *float64
 }
 
 func newWorker(ctx context.Context, name string) worker {
-	c := cfg.Get()
 	x := worker{
 		log:   pkg.NewLogWithSuffixKeys("work", fmt.Sprintf("`%s`", name)),
 		ctx:   ctx,
 		works: []string{name},
-		comport: comport.NewPort(
-			comport.Config{
-				Baud:        115200,
-				ReadTimeout: time.Millisecond,
-				Name:        c.ComportName,
-			}),
-
-		comportGas: comport.NewPort(comport.Config{
-			Baud:        9600,
-			ReadTimeout: time.Millisecond,
-			Name:        c.ComportGasName,
-		}),
-	}
-	if c.ComportName == c.ComportName2 {
-		x.comport2 = x.comport
-	} else {
-		x.comport2 = comport.NewPort(
-			comport.Config{
-				Baud:        115200,
-				ReadTimeout: time.Millisecond,
-				Name:        c.ComportName2,
-			})
+		//comport: comport.NewPort(
+		//	comport.Config{
+		//		Baud:        115200,
+		//		ReadTimeout: time.Millisecond,
+		//		Name:        c.ComportName,
+		//	}),
+		//
+		//comportGas: comport.NewPort(comport.Config{
+		//	Baud:        9600,
+		//	ReadTimeout: time.Millisecond,
+		//	Name:        c.ComportGasName,
+		//}),
 	}
 	return x
-}
-
-func (x worker) Reader2() modbus.ResponseReader {
-	return modbus.NewResponseReader(x.comport2, cfg.Get().Comport)
-}
-
-func (x worker) Reader1() modbus.ResponseReader {
-	return modbus.NewResponseReader(x.comport, cfg.Get().Comport)
-}
-func (x worker) ReaderGas() modbus.ResponseReader {
-	return modbus.NewResponseReader(x.comportGas, cfg.Get().ComportGas)
 }
 
 func (x worker) withLogKeys(keyvals ...interface{}) worker {

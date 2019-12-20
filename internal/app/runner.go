@@ -11,6 +11,7 @@ import (
 	"github.com/fpawel/elco/internal/data"
 	"github.com/fpawel/elco/internal/data/chipmem"
 	"github.com/fpawel/elco/internal/pkg"
+	"github.com/fpawel/elco/internal/pkg/comports"
 	"github.com/fpawel/elco/internal/pkg/ktx500"
 	"strconv"
 	"sync"
@@ -142,11 +143,11 @@ func (_ runner) RunMain(nku, variation, minus, plus bool) {
 		defer func() {
 			_ = x.perform("остановка работы оборудования", func(x worker) error {
 				x.ctx = context.Background()
-				x.log.ErrIfFail(x.comport.Close, "main_work_close", "`закрыть СОМ-порт стенда`")
-				if x.comportGas.Opened() {
+				if p := comports.LookupComport(cfg.Get().ComportGasName); p != nil && p.Opened() {
 					x.log.ErrIfFail(x.switchGasOff, "main_work_close", "`отключить газ`")
-					x.log.ErrIfFail(x.comportGas.Close, "main_work_close", "`закрыть СОМ-порт пневмоблока`")
+					comports.CloseComport(cfg.Get().ComportGasName)
 				}
+
 				if i, err := ktx500.GetLast(); err == nil {
 					if i.TemperatureOn {
 						x.log.ErrIfFail(func() error {
@@ -162,10 +163,6 @@ func (_ runner) RunMain(nku, variation, minus, plus bool) {
 				return nil
 			})
 		}()
-
-		if err := x.comport.Open(); err != nil {
-			return err
-		}
 
 		setupAndHoldTemperature := func(temperature data.Temperature) error {
 			if err := setupTemperature(x, float64(temperature)); err != nil {
@@ -280,8 +277,7 @@ func runWork(workName string, work func(x worker) error) {
 
 	go func() {
 		defer func() {
-			log.ErrIfFail(worker.comport.Close)
-			log.ErrIfFail(worker.comportGas.Close)
+			comports.CloseAllComports()
 			wgWork.Done()
 		}()
 
