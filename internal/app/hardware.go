@@ -21,7 +21,15 @@ import (
 
 func getComportResponse(log *structlog.Logger, ctx context.Context, cfg comm.Config, comportName string,
 	baud int, request []byte, prs comm.ParseResponseFunc) ([]byte, error) {
-	return comm.GetResponse(log, ctx, cfg, comports.GetComport(comportName, baud), request, prs)
+	return getComm(comportName, baud, cfg, prs).GetResponse(log, ctx, request)
+}
+
+func getComm(comportName string, baud int, cfg comm.Config, prs comm.ParseResponseFunc) comm.T {
+	cm := comm.New(comports.GetComport(comportName, baud), cfg)
+	if prs != nil {
+		cm = cm.WithAppendParse(prs)
+	}
+	return cm
 }
 
 //func getResponseMeasurer(log *structlog.Logger, ctx context.Context, request []byte, prs comm.ParseResponseFunc) ([]byte, error){
@@ -80,9 +88,9 @@ func setupTemperature(x worker, destinationTemperature float64) error {
 
 func readBlockMeasure(x worker, block int) ([]float64, error) {
 	c := cfg.Get()
-	port := comports.GetComport(c.ComportName, 115200)
 	x.log = pkg.LogPrependSuffixKeys(x.log, "блок", block)
-	values, err := modbus.Read3BCDs(x.log, x.ctx, cfg.Get().Comport, port, modbus.Addr(block+101), 0, 8)
+	cm := getComm(c.ComportName, 115200, cfg.Get().Comport, nil)
+	values, err := modbus.Read3Values(x.log, x.ctx, cm, modbus.Addr(block+101), 0, 8, modbus.BCD)
 	if err == nil {
 		notify.ReadCurrent(nil, api.ReadCurrent{
 			Block:  block,

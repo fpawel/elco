@@ -289,12 +289,12 @@ func readPlaceFirmware(x worker, place int) ([]byte, error) {
 			"bytes_count", count,
 		)
 
-		resp, err := getResponseProgrammer(log, x.ctx, req.Bytes(), func(request, response []byte) (string, error) {
+		resp, err := getResponseProgrammer(log, x.ctx, req.Bytes(), func(request, response []byte) error {
 			if len(response) != 10+int(count) {
-				return "", comm.Err.Here().Appendf("ожидалось %d байт ответа, получено %d",
+				return comm.Err.Here().Appendf("ожидалось %d байт ответа, получено %d",
 					10+int(count), len(response))
 			}
-			return "", nil
+			return nil
 		})
 		if err != nil {
 			return nil, merry.Wrap(err)
@@ -422,11 +422,11 @@ func readStatus45(x worker, block int) ([]byte, error) {
 		ProtoCmd: 0x45,
 	}
 
-	return getResponseProgrammer(x.log, x.ctx, request.Bytes(), func(request, response []byte) (string, error) {
+	return getResponseProgrammer(x.log, x.ctx, request.Bytes(), func(request, response []byte) error {
 		if len(response) != 12 {
-			return "", comm.Err.Here().Appendf("ожидалось 12 байт ответа, получено %d", len(response))
+			return comm.Err.Here().Appendf("ожидалось 12 байт ответа, получено %d", len(response))
 		}
-		return "", nil
+		return nil
 	})
 }
 
@@ -456,11 +456,11 @@ func writePreparedDataToFlash(x worker, block int, placesMask byte, addr uint16,
 		},
 	}
 
-	_, err := getResponseProgrammer(x.log, x.ctx, req.Bytes(), func(request, response []byte) (string, error) {
+	_, err := getResponseProgrammer(x.log, x.ctx, req.Bytes(), func(request, response []byte) error {
 		if !compareBytes(response, request) {
-			return "", merry.Errorf("запрос не равен ответу: блок измерения %d", block)
+			return merry.Errorf("запрос не равен ответу: блок измерения %d", block)
 		}
-		return "", nil
+		return nil
 	})
 	return merry.Appendf(err, "блок измерения %d", block)
 }
@@ -488,14 +488,14 @@ func sendDataToWrite42(x worker, block, placeInBlock int, b []byte) error {
 		}, b...),
 	}
 
-	_, err := getResponseProgrammer(x.log, x.ctx, req.Bytes(), func(request, response []byte) (string, error) {
+	_, err := getResponseProgrammer(x.log, x.ctx, req.Bytes(), func(request, response []byte) error {
 		if len(response) != 7 {
-			return "", merry.Errorf("длина ответа %d не равна 7: блок измерения %d", len(response), block)
+			return merry.Errorf("длина ответа %d не равна 7: блок измерения %d", len(response), block)
 		}
 		if !compareBytes(response[:5], request[:5]) {
-			return "", merry.Errorf("% X != % X: блок измерения %d", response[:5], request[:5], block)
+			return merry.Errorf("% X != % X: блок измерения %d", response[:5], request[:5], block)
 		}
-		return "", nil
+		return nil
 	})
 
 	return err
