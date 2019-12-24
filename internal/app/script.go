@@ -53,48 +53,26 @@ func parseScript(script string, instructions *[]instruction) (string, int) {
 		line := strings.TrimSpace(lineScanner.Text())
 		if len(strings.TrimSpace(line)) == 0 {
 			lineno++
-		}
-
-		add := func(work workFunc) {
-			*instructions = append(*instructions, instruction{
-				work:   work,
-				line:   line,
-				lineno: lineno,
-			})
+			continue
 		}
 
 		scanner := parsec.NewScanner([]byte(line))
-		node, _ := astScript.Parsewith(parserInstruction, scanner)
+		node, _ := astScript.Parsewith(parserInstruction(), scanner)
 		if node == nil {
 			log.PrintErr("parse error: "+line, "line", lineno)
 			return line, lineno
 		}
 
-		arg := func() string { return node.GetChildren()[1].GetValue() }
-
-		switch node.GetName() {
-		case "TEMP":
-			t, _ := strconv.ParseFloat(arg(), 64)
-			add(func(w worker) error {
-				return setupTemperature(w, t)
+		arg := func(n int) string { return node.GetChildren()[n].GetValue() }
+		if x, f := scriptFunctions[node.GetName()]; f {
+			*instructions = append(*instructions, instruction{
+				work: func(w worker) error {
+					return x.work(arg, w)
+				},
+				line:   line,
+				lineno: lineno,
 			})
-			log.Println(lineno, ":", "temperature", t)
-		case "GAS":
-			gas, _ := strconv.ParseInt(arg(), 10, 8)
-			add(func(w worker) error {
-				return w.switchGas(int(gas))
-			})
-			log.Println("gas", gas)
-		case "PAUSE":
-			n, _ := strconv.ParseInt(arg(), 10, 64)
-			add(func(w worker) error {
-				return delay(w, time.Minute*time.Duration(n), fmt.Sprintf("пауза %d минут", n))
-			})
-			log.Println(lineno, ":", "pause", n)
-		case "SAVE":
-			add(readSaveForLastTemperatureGas)
-			log.Println(lineno, ":", "save")
-		default:
+		} else {
 			panic(fmt.Sprintf("%s: %+v", node.GetName(), node))
 		}
 		lineno++
@@ -103,31 +81,75 @@ func parseScript(script string, instructions *[]instruction) (string, int) {
 }
 
 var (
-	astScript         = parsec.NewAST("script", 100)
-	parserInstruction = func() parsec.Parser {
-		pFloat := parsec.Token(`[+-]?([0-9]+\.[0-9]*|\.[0-9]+|[0-9]+)`, "FLOAT")
-		pEnd := astScript.End("END")
-		return astScript.OrdChoice(
-			"INSTR", nil,
-			astScript.And("TEMP", nil,
-				parsec.Atom("temperature", "TEMP-KWD"),
-				pFloat,
-				pEnd,
-			),
-			astScript.And("GAS", nil,
-				parsec.Atom("gas", "GAS-KWD"),
-				parsec.Token(`[1-3]`, "GAS-VALVE"),
-				pEnd,
-			),
-			astScript.And("PAUSE", nil,
-				parsec.Atom("pause", "PAUSE-KWD"),
-				parsec.Token(`[0-9]+`, "PAUSE-VALUE"),
-				pEnd,
-			),
-			astScript.And("SAVE", nil,
-				parsec.Atom("save", "SAVE-KWD"),
-				pEnd,
-			),
-		)
-	}()
+	astScript = parsec.NewAST("script", 100)
 )
+
+type scriptFunc struct {
+	argsParsers []interface{}
+	work        func(argFunc, worker) error
+}
+
+type argFunc = func(int) string
+
+var (
+	pFloat   = parsec.Token(`[+-]?([0-9]+\.[0-9]*|\.[0-9]+|[0-9]+)`, "FLOAT")
+	pMinutes = parsec.Token(`[0-9]+`, "minutes")
+
+	scriptFunctions = map[string]scriptFunc{
+		"pause": {
+			argsParsers: []interface{}{pMinutes},
+			work: func(f argFunc, w worker) error {
+				n, _ := strconv.ParseInt(f(1), 10, 64)
+				return delay(w, time.Minute*time.Duration(n), fmt.Sprintf("пауза %d минут", n))
+			},
+		},
+		"temperature": {
+			argsParsers: []interface{}{
+				pFloat,
+				pMinutes,
+			},
+			work: func(f argFunc, w worker) error {
+				n, _ := strconv.ParseInt(f(2), 10, 64)
+				t, _ := strconv.ParseFloat(f(1), 64)
+				if err := setupTemperature(w, t); err != nil {
+					return err
+				}
+				return delay(w, time.Minute*time.Duration(n), fmt.Sprintf("выдержка термокамеры %d минут", n))
+			},
+		},
+		"gas": {
+			argsParsers: []interface{}{
+				parsec.Token(`[1-3]`, "valve"),
+				pMinutes,
+			},
+			work: func(f argFunc, w worker) error {
+				gas, _ := strconv.ParseInt(f(1), 10, 8)
+				n, _ := strconv.ParseInt(f(2), 10, 64)
+				if err := performWithWarn(w, func() error {
+					return w.switchGas(int(gas))
+				}); err != nil {
+					return err
+				}
+				return delay(w, time.Minute*time.Duration(n), fmt.Sprintf("продувка газа %d: %d минут", gas, n))
+			},
+		},
+		"save": {
+			work: func(_ argFunc, w worker) error {
+				return readSaveForLastTemperatureGas(w)
+			},
+		},
+	}
+)
+
+func parserInstruction() parsec.Parser {
+	var functionsParsers []interface{}
+
+	for name, f := range scriptFunctions {
+		var parsers []interface{}
+		parsers = append(parsers, parsec.Atom(name, name+"-function-body"))
+		parsers = append(parsers, f.argsParsers...)
+		parsers = append(parsers, astScript.End("end-line"))
+		functionsParsers = append(functionsParsers, astScript.And(name, nil, parsers...))
+	}
+	return astScript.OrdChoice("instruction", nil, functionsParsers...)
+}
