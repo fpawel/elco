@@ -26,7 +26,6 @@ func delay(x worker, duration time.Duration, name string) error {
 		skipDelay()
 		x.log.Info("задержка прервана", "elapsed", pkg.FormatDuration(time.Since(startTime)))
 	}
-	ctxWork := x.ctx
 	return x.performf("%s: %s", name, fd(duration))(func(x worker) error {
 		x.log.Info("задержка начата")
 		defer func() {
@@ -46,19 +45,10 @@ func delay(x worker, duration time.Duration, name string) error {
 					TotalSeconds:   int(duration.Seconds()),
 					ElapsedSeconds: int(time.Since(startTime).Seconds()),
 				})
-				_, err := readBlockMeasure(x, block)
-				if merry.Is(x.ctx.Err(), context.DeadlineExceeded) {
-					return nil // задержка истекла
+				if x.ctx.Err() != nil {
+					return nil // задержка истекла или пропущена
 				}
-				if merry.Is(err, context.Canceled) {
-					if x.ctx.Err() == context.Canceled {
-						return nil // задержка пропущена пользователем
-					}
-					if ctxWork.Err() == context.Canceled {
-						return context.Canceled // прервано пользователем
-					}
-					return nil
-				}
+				_, _ = readBlockMeasure(x, block)
 				pause(x.ctx.Done(), cfg.Get().ReadBlockPause)
 			}
 		}
