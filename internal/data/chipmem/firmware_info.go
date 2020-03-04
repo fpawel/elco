@@ -56,9 +56,12 @@ func (v FirmwareInfo) GetFirmware() (Firmware, error) {
 		return z, merry.Errorf("код единиц измерения не задан: %q ", v.Units)
 	}
 
-	z.ScaleBegin = 0
-
 	var err error
+	z.ScaleBegin, err = parseFloat(v.ScaleBeg)
+	if err != nil {
+		return z, merry.Appendf(err, "не верный формат значения начала шкалы: %s", v.ScaleBeg)
+	}
+
 	z.ScaleEnd, err = parseFloat(v.ScaleEnd)
 	if err != nil {
 		return z, merry.Appendf(err, "не верный формат значения конца шкалы: %s", v.ScaleEnd)
