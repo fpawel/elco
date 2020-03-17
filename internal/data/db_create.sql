@@ -311,14 +311,18 @@ SELECT *,
        ok_max_d13 AND ok_max_d24 AND ok_max_d35 AND ok_max_d26 AND ok_max_d17 AS ok
 FROM product_info_2 q;
 
+DELETE
+FROM party
+WHERE NOT EXISTS(SELECT product_id FROM product WHERE party.party_id = product.party_id);
+
 INSERT
     OR
     IGNORE
 INTO units (units_name, code)
 VALUES ('мг/м3', 2),
        ('ppm', 3),
-       ('об. дол. %', 7),
-       ('млн-1', 5);
+       ('об. дол. %', 7);
+
 
 INSERT
     OR
@@ -392,8 +396,8 @@ VALUES ('010-15', 'O₂', 'об. дол. %', 30, 0, 12),
        ('035-87', 'NO₂', 'мг/м3', 10, 0, 12),
        ('035-89', 'Cl₂', 'мг/м3', 50, 0, 12),
        ('035-92', 'CO', 'об. дол. %', 0.5, 0.1891, 12),
-       ('035-93', 'CO', 'млн-1', 200, 0.1891, 12),
-       ('035-94', 'CO', 'млн-1', 2000, 0.1891, 12),
+       ('035-93', 'CO', 'ppm', 200, 0.1891, 12),
+       ('035-94', 'CO', 'ppm', 2000, 0.1891, 12),
        ('035-95', 'SO₂', 'ppm', 200, 0, 12),
        ('035-96', 'SO₂', 'ppm', 20, 0, 12),
        ('035-99', 'NO₂', 'ppm', 140, 0, 12),
@@ -424,7 +428,3 @@ VALUES ('010-15', 'O₂', 'об. дол. %', 30, 0, 12),
        ('100-17', 'HCl', 'мг/м3', 25, 0, 12),
        ('130-01', 'CO', 'мг/м3', 200, 0.1626, 12),
        ('130-08', 'CO', 'ppm', 100, 0.1162, 12);
-
-DELETE
-FROM party
-WHERE NOT EXISTS(SELECT product_id FROM product WHERE party.party_id = product.party_id);
