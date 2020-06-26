@@ -8,6 +8,7 @@ import (
 )
 
 func tempCodes(p data.ProductInfo) (code1, code2 string) {
+	code1, code2 = " ", " "
 	if p.DFon50.Valid {
 		code1 = fmt.Sprintf("%02d", tempCode1(p.DFon50.Float64))
 	}

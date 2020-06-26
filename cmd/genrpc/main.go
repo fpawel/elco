@@ -90,6 +90,14 @@ func main() {
 			"ScriptLine",
 			r.TypeOf((*api.ScriptLine)(nil)).Elem(),
 		},
+		{
+			"WorkCompletePlaceFirmware",
+			r.TypeOf((*api.WorkResult)(nil)).Elem(),
+		},
+		{
+			"WorkStartedPlaceFirmware",
+			r.TypeOf((*string)(nil)).Elem(),
+		},
 	})
 
 	createFile := func(fileName string) *os.File {

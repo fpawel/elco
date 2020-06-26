@@ -91,7 +91,7 @@ func (_ runner) RunWritePlaceFirmware(placeDevice, placeProduct int, bytes []byt
 		return err
 	}
 
-	runWork(what, func(x worker) error {
+	go doWorkPlaceFirmware(what, func(x worker) error {
 
 		notify.LastPartyChanged(nil, api.LastParty1())
 
@@ -110,7 +110,7 @@ func (_ runner) RunWritePlaceFirmware(placeDevice, placeProduct int, bytes []byt
 }
 
 func (_ runner) RunReadPlaceFirmware(place int) {
-	runWork(fmt.Sprintf("Считывание места %d", place+1), func(x worker) error {
+	go doWorkPlaceFirmware(fmt.Sprintf("Считывание места %d", place+1), func(x worker) error {
 		b, err := readPlaceFirmware(x, place)
 		if err != nil {
 			return err
@@ -285,17 +285,34 @@ func runWork(workName string, work func(x worker) error) {
 		err := work(worker)
 		if err == nil {
 			worker.log.Info("выполнено успешно")
-			notify.WorkComplete(worker.log.Info, api.WorkResult{workName, wrOk, "успешно"})
+			notify.WorkComplete(worker.log.Info, api.WorkResult{WorkName: workName, Tag: wrOk, Message: "успешно"})
 			return
 		}
 
 		kvs := merryKeysValues(err)
 		if merry.Is(err, context.Canceled) {
 			worker.log.Warn("выполнение прервано", kvs...)
-			notify.WorkComplete(worker.log.Info, api.WorkResult{workName, wrCanceled, "перервано"})
+			notify.WorkComplete(worker.log.Info, api.WorkResult{WorkName: workName, Tag: wrCanceled, Message: "перервано"})
 			return
 		}
 		worker.log.PrintErr(err, append(kvs, "stack", pkg.FormatMerryStacktrace(err))...)
-		notify.WorkComplete(worker.log.Info, api.WorkResult{workName, wrError, err.Error()})
+		notify.WorkComplete(worker.log.Info, api.WorkResult{WorkName: workName, Tag: wrError, Message: err.Error()})
 	}()
+}
+
+func doWorkPlaceFirmware(workName string, work func(x worker) error) {
+
+	worker := newWorker(context.Background(), workName)
+
+	notify.WorkStartedPlaceFirmware(log.Info, workName)
+	err := work(worker)
+	if err == nil {
+		worker.log.Info("выполнено успешно")
+		notify.WorkCompletePlaceFirmware(worker.log.Info, api.WorkResult{WorkName: workName, Tag: wrOk, Message: "успешно"})
+		return
+	}
+
+	kvs := merryKeysValues(err)
+	worker.log.PrintErr(err, append(kvs, "stack", pkg.FormatMerryStacktrace(err))...)
+	notify.WorkCompletePlaceFirmware(worker.log.PrintErr, api.WorkResult{WorkName: workName, Tag: wrError, Message: err.Error()})
 }
