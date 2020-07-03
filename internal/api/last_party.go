@@ -7,6 +7,7 @@ import (
 )
 
 type LastPartySvc struct {
+	RunWork func(name string, work func() error)
 }
 
 func (_ *LastPartySvc) Party(_ struct{}, r *Party1) error {
@@ -205,26 +206,16 @@ func (x *LastPartySvc) SetBlockChecked(r [2]int, a *int64) error {
 	return nil
 }
 
-func (x *LastPartySvc) CalculateFonMinus20(_ struct{}, party *Party1) error {
-	if err := chipmem.CalculateFonMinus20(); err != nil {
-		return err
-	}
-	*party = LastParty1()
-	return nil
-}
-
-func (x *LastPartySvc) CalculateSensMinus20(k [1]float64, party *Party1) error {
-	if err := chipmem.CalculateSensMinus20(k[0]); err != nil {
-		return err
-	}
-	*party = LastParty1()
+func (x *LastPartySvc) CalculateMinus20(k [1]float64, _ *struct{}) error {
+	x.RunWork("расчёт токов -20", func() error {
+		return chipmem.CalculateMinus20(k[0])
+	})
 	return nil
 }
 
 func (x *LastPartySvc) CalculateSensPlus50(k [1]float64, party *Party1) error {
-	if err := chipmem.CalculateSensPlus50(k[0]); err != nil {
-		return err
-	}
-	*party = LastParty1()
+	x.RunWork("расчёт тока чувствительности +50", func() error {
+		return chipmem.CalculateSensPlus50(k[0])
+	})
 	return nil
 }

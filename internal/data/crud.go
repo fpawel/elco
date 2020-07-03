@@ -57,9 +57,9 @@ func LastPartyID() (partyID int64) {
 	return partyID
 }
 
-//func ProductsAll(partyID int64) []Product {
-//	return fetchProductsByPartyID(partyID, "WHERE party_id = ? ORDER BY place")
-//}
+func ProductsAll(partyID int64) []Product {
+	return fetchProductsByPartyID(partyID, "WHERE party_id = ? ORDER BY place")
+}
 func ProductsWithProduction(partyID int64) []Product {
 	return fetchProductsByPartyID(partyID, "WHERE party_id = ? AND production ORDER BY place")
 }

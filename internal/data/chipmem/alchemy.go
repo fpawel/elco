@@ -1,50 +1,39 @@
 package chipmem
 
 import (
-	"database/sql"
 	"github.com/fpawel/elco/internal/data"
 )
 
-func CalculateFonMinus20() error {
-
+func CalculateMinus20(k float64) error {
 	for _, p := range data.ProductsInfoAll(data.LastPartyID()) {
-		t, err := ProductInfo{p}.TableFon()
+		fon, sens := calculateMinus20Product(p, k)
+		_, err := data.DBx.Exec(`UPDATE product SET i_f_minus20 = ?, i_s_minus20 = ? WHERE product_id = ?`,
+			fon, sens, p.ProductID)
 		if err != nil {
-			continue
-		}
-		if err := data.SetProductValue(p.ProductID, "i_f_minus20", data.NewApproximationTable(t).F(-20)); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func CalculateSensMinus20(k float64) error {
-	for _, p := range data.ProductsInfoAll(data.LastPartyID()) {
-		if !(p.IFPlus20.Valid && p.ISPlus20.Valid) {
-			continue
-		}
+type nullFloat = *float64
 
-		if !p.IFMinus20.Valid {
-			p.IFMinus20 = sql.NullFloat64{
-				Float64: data.NewApproximationTable(data.TableXY{
-					20: p.IFPlus20.Float64,
-				}).F(-20),
-				Valid: true,
-			}
+func floatVal(x float64) nullFloat {
+	return &x
+}
 
-			if err := data.SetProductValue(p.ProductID, "i_f_minus20", p.IFMinus20.Float64); err != nil {
-				return err
-			}
-		}
+var noVal nullFloat
 
-		ISMinus20 :=
-			p.IFMinus20.Float64 + (p.ISPlus20.Float64-p.IFPlus20.Float64)*k/100.
-		if err := data.SetProductValue(p.ProductID, "i_s_minus20", ISMinus20); err != nil {
-			return err
-		}
+func calculateMinus20Product(p data.ProductInfo, k float64) (nullFloat, nullFloat) {
+	if !(p.IFPlus20.Valid && p.ISPlus20.Valid) {
+		return noVal, noVal
 	}
-	return nil
+	t, err := ProductInfo{p}.TableFon2()
+	if err != nil {
+		return noVal, noVal
+	}
+	f := data.NewApproximationTable(t).F(-20)
+	return floatVal(f), floatVal(f + (p.ISPlus20.Float64-p.IFPlus20.Float64)*k/100.)
 }
 
 func CalculateSensPlus50(k float64) error {

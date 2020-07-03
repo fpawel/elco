@@ -38,7 +38,14 @@ func Run() error {
 
 	for _, svcObj := range []interface{}{
 		new(api.PartiesCatalogueSvc),
-		new(api.LastPartySvc),
+		&api.LastPartySvc{RunWork: func(name string, work func() error) {
+			runWork(name, func(worker) error {
+				defer func() {
+					notify.LastPartyChanged(nil, api.LastParty1())
+				}()
+				return work()
+			})
+		}},
 		new(api.ProductTypesSvc),
 		api.NewProductFirmware(runner{}),
 		new(api.PdfSvc),
