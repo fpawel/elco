@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/fpawel/elco/internal/data"
 	"github.com/jung-kurt/gofpdf"
+	"time"
 )
 
 func passportSou(dir string, products []data.ProductInfo) error {
@@ -150,7 +151,7 @@ func passportPart1(d *gofpdf.Fpdf, left, width float64, p data.ProductInfo) {
 
 	d.SetX(left)
 	sentence1("Дата: ")
-	sentenceB(p.CreatedAt.Format("02.01.2006"))
+	sentenceB(time.Now().Format("02.01.2006"))
 	sentence1(" Зав.номер: ")
 	sentenceB(fmt.Sprintf("%s-%d", formatNullInt64(p.Serial), p.ProductID))
 	d.Ln(lineSpace1)
